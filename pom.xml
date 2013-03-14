@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+                             http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>org.sonatype.oss</groupId>
+    <artifactId>oss-parent</artifactId>
+    <version>7</version>
+  </parent>
+  <groupId>com.xing.beetle</groupId>
+  <artifactId>beetle-parent</artifactId>
+  <version>0.1-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>XING Java Beetle Client Parent Project</name>
+  <url>http://xing.github.com/beetle/</url>
+  <description>
+    High Availability AMQP Messaging With Redundant Queues
+  </description>
+
+  <organization>
+    <name>XING AG</name>
+    <url>http://xing.com/</url>
+  </organization>
+
+  <licenses>
+    <license>
+      <name>MIT License</name>
+      <url>http://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
+  <inceptionYear>2013</inceptionYear>
+
+  <scm>
+    <url>https://github.com/xing/java-beetle</url>
+    <connection>scm:git:git://github.com/xing/java-beetle.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/xing/java-beetle.git</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
+
+  <developers>
+    <developer>
+      <name>Kay Roepke</name>
+      <email>kay.roepke@xing.com</email>
+      <url>http://xing.com/profile/Kay_Roepke</url>
+      <organization>XING AG</organization>
+      <organizationUrl>http://xing.com/</organizationUrl>
+    </developer>
+  </developers>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+ 
+  <modules>
+    <module>core</module>
+    <module>examples</module>
+  </modules>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>2.5.1</version>
+          <configuration>
+            <compilerVersion>1.6</compilerVersion>
+            <fork>true</fork>
+            <source>1.6</source>
+            <target>1.6</target>
+            <debug>true</debug>
+            <optimize>true</optimize>
+            <showDeprecation>true</showDeprecation>
+            <showWarnings>true</showWarnings>
+          </configuration>
+        </plugin>
+        <plugin>
+          <artifactId>maven-javadoc-plugin</artifactId>
+          <version>2.9</version>
+          <configuration>
+            <detectOfflineLinks>false</detectOfflineLinks>
+            <breakiterator>true</breakiterator>
+            <version>false</version>
+            <author>false</author>
+            <keywords>true</keywords>
+          </configuration>
+        </plugin>
+        <plugin>
+          <artifactId>maven-deploy-plugin</artifactId>
+          <version>2.7</version>
+          <configuration>
+            <retryFailedDeploymentCount>10</retryFailedDeploymentCount>
+          </configuration>
+        </plugin>
+        <plugin>
+          <artifactId>maven-release-plugin</artifactId>
+          <version>2.4</version>
+          <configuration>
+            <autoVersionSubmodules>true</autoVersionSubmodules>
+            <allowTimestampedSnapshots>true</allowTimestampedSnapshots>
+            <tagNameFormat>beetle-@{project.version}</tagNameFormat>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>3.8.1</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>
