@@ -13,5 +13,19 @@
   <groupId>com.xing.beetle</groupId>
   <artifactId>examples</artifactId>
   <packaging>jar</packaging>
-  
+
+  <dependencies>
+    <dependency>
+      <groupId>com.xing.beetle</groupId>
+      <artifactId>core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.0.9</version>
+    </dependency>
+  </dependencies>
+
 </project>
