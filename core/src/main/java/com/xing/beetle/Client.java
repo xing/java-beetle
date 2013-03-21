@@ -39,6 +39,17 @@ public class Client implements ShutdownListener {
         }
     }
 
+    public void stop() {
+        reconnector.shutdownNow();
+        for (Connection connection : connections.keySet()) {
+            try {
+                connection.close();
+            } catch (IOException e) {
+                log.warn("Caught exception while closing the broker connections.", e);
+            }
+        }
+    }
+
     protected void connect(final URI uri) {
         final ConnectionFactory factory = new ConnectionFactory();
         factory.setHost(uri.getHost());
@@ -56,15 +67,10 @@ public class Client implements ShutdownListener {
             final Connection connection = factory.newConnection();
             connection.addShutdownListener(this);
             connections.put(connection, uri);
-            log.info("Successfully connected to broker at {}", uri);
+            log.info("Successfully connected to broker at {}", connection);
         } catch (IOException e) {
             log.warn("Unable to connect to {}. Will retry in 10 seconds.", uri, e);
-            reconnector.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    connect(uri);
-                }
-            }, 10, TimeUnit.SECONDS);
+            scheduleReconnect(uri);
         }
     }
 
@@ -79,13 +85,11 @@ public class Client implements ShutdownListener {
                     connection.getAddress(), connection.getPort(), cause.getReason());
                 final URI uri = connections.remove(connection);
                 if (uri != null) {
-                    reconnector.schedule(new Runnable() {
-                        @Override
-                        public void run() {
-                            connect(uri);
-                        }
-                    }, 10, TimeUnit.SECONDS);
+                    scheduleReconnect(uri);
                 }
+            } else {
+                // clean shutdown, don't reconnect automatically
+                log.debug("Connection {} closed because of {}", connection, cause.getReason());
             }
         } else {
             Channel channel = (Channel)cause.getReference();
@@ -93,6 +97,15 @@ public class Client implements ShutdownListener {
             // is this supposed to be a normal application shutdown?
             log.info("AQMP channel shutdown {} because of {}. Doing nothing about it.", channel, cause.getReason());
         }
+    }
+
+    private void scheduleReconnect(final URI uri) {
+        reconnector.schedule(new Runnable() {
+            @Override
+            public void run() {
+                connect(uri);
+            }
+        }, 10, TimeUnit.SECONDS);
     }
 
     public static Builder builder() {

@@ -46,6 +46,8 @@ public class Simple {
         client.start();
 
         client.publish("simpleMsg", "some payload");
+
+        client.stop();
     }
 
 }
