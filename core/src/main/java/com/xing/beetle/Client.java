@@ -7,9 +7,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -24,10 +22,19 @@ public class Client implements ShutdownListener {
 
     private final ScheduledExecutorService reconnector;
 
+    private final Set<Exchange> exchanges;
+
+    private final Set<Queue> queues;
+
+    private final Set<Message> messages;
+
     public Client(List<URI> uris) {
         this.uris = uris;
         connections = new HashMap<Connection, URI>(uris.size());
         reconnector = new ScheduledThreadPoolExecutor(1);
+        exchanges = new HashSet<Exchange>();
+        queues = new HashSet<Queue>();
+        messages = new HashSet<Message>();
     }
 
     /**
@@ -65,12 +72,37 @@ public class Client implements ShutdownListener {
 
         try {
             final Connection connection = factory.newConnection();
+            log.info("Successfully connected to broker at {}", connection);
+
+            final Channel channel = connection.createChannel();
+            declareExchanges(channel);
+            declareQueues(channel);
+            subscribe();
+
             connection.addShutdownListener(this);
             connections.put(connection, uri);
-            log.info("Successfully connected to broker at {}", connection);
+
         } catch (IOException e) {
             log.warn("Unable to connect to {}. Will retry in 10 seconds.", uri, e);
             scheduleReconnect(uri);
+        }
+    }
+
+    private void subscribe() {
+        // TODO subscribe handlers here
+    }
+
+    private void declareQueues(Channel channel) throws IOException {
+        for (Queue queue : queues) {
+            channel.queueDeclare(queue.getQueueNameOnBroker(), true, false, queue.isAutoDelete(), null);
+            log.debug("Declared queue {}", queue);
+        }
+    }
+
+    private void declareExchanges(Channel channel) throws IOException {
+        for (Exchange exchange : exchanges) {
+            channel.exchangeDeclare(exchange.getName(), exchange.isTopic() ? "topic" : "direct", exchange.isDurable());
+            log.debug("Declared exchange {}", exchange);
         }
     }
 
@@ -113,6 +145,7 @@ public class Client implements ShutdownListener {
     }
 
     public Client registerExchange(Exchange exchange) {
+        exchanges.add(exchange);
         return this;
     }
 
@@ -121,6 +154,8 @@ public class Client implements ShutdownListener {
     }
 
     public Client registerQueue(Queue queue) {
+        queues.add(queue);
+        ensureExchange(queue.getExchange());
         return this;
     }
 
@@ -129,6 +164,8 @@ public class Client implements ShutdownListener {
     }
 
     public Client registerMessage(Message message) {
+        messages.add(message);
+        ensureExchange(message.getExchange());
         return this;
     }
 
@@ -136,11 +173,21 @@ public class Client implements ShutdownListener {
         return registerMessage(builder.build());
     }
 
-    public Client registerHandler(String messageName, DefaultMessageHandler handler) {
+    private void ensureExchange(Exchange exchange) {
+        // register all exchanges that haven't been registered manually yet.
+        if (!exchanges.contains(exchange)) {
+            log.info("Auto-registering exchange {} because it wasn't registered manually. Check that you didn't want to register it manually.", exchange);
+            registerExchange(exchange);
+        }
+    }
+
+    public Client registerHandler(Message message, DefaultMessageHandler handler) {
+        // TODO save handler instance and verify the message is predeclared.
         return this;
     }
 
-    public Client publish(String simpleMsg, String payload) {
+    public Client publish(String messageName, String payload) {
+        // TODO actually publish message and verify it's predeclared.
         return this;
     }
 
@@ -180,6 +227,7 @@ public class Client implements ShutdownListener {
             if (uris.size() == 0) {
                 try {
                     addBroker(DEFAULT_HOST, DEFAULT_PORT, DEFAULT_USERNAME, DEFAULT_PASSWORD, DEFAULT_VHOST);
+                    log.info("Added default URI for local broker, because none was configured.");
                 } catch (URISyntaxException e) {
                     // ignore
                 }
