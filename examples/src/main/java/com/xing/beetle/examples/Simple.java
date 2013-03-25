@@ -1,21 +1,32 @@
 package com.xing.beetle.examples;
 
-import com.xing.beetle.*;
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Envelope;
+import com.xing.beetle.Client;
+import com.xing.beetle.DefaultMessageHandler;
+import com.xing.beetle.Message;
+import com.xing.beetle.Queue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
 
 public class Simple {
 
+    private Logger log = LoggerFactory.getLogger(Simple.class);
+
     public static void main(String[] args) {
         try {
             new Simple().run();
         } catch (URISyntaxException e) {
             e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
-    private void run() throws URISyntaxException {
+    private void run() throws URISyntaxException, InterruptedException {
 
         Client client = Client.builder()
             .addBroker(5672)
@@ -38,18 +49,25 @@ public class Simple {
 
         final Message simpleMsg = Message.builder()
             .name("simpleMsg")
-            .key("simpleMsg")
+            .key("example.routing.key")
             .exchange("simpleXchg")
             .redundant(true)
             .ttl(2, TimeUnit.MINUTES)
             .build();
         client.registerMessage(simpleMsg);
 
-        client.registerHandler(simpleMsg, new DefaultMessageHandler() {});
+        client.registerHandler(simpleQ, new DefaultMessageHandler() {
+            @Override
+            public void process(Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
+                log.warn("Received message {}", new String(body));
+            }
+        });
         client.start();
 
-        client.publish(simpleMsg.getName(), "some payload");
+        client.publish(simpleMsg, "some payload");
 
+        System.err.println("sleeping for good measure (to actually receive the messages)");
+        Thread.sleep(10 * 1000);
         client.stop();
     }
 

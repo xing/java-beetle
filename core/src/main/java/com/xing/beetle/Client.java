@@ -7,12 +7,23 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class Client implements ShutdownListener {
+
+    private class QueueHandlerTuple {
+        public final Queue queue;
+        public final DefaultMessageHandler handler;
+
+        public QueueHandlerTuple(Queue queue, DefaultMessageHandler handler) {
+            this.queue = queue;
+            this.handler = handler;
+        }
+    }
 
     private static Logger log = LoggerFactory.getLogger(Client.class);
 
@@ -28,6 +39,8 @@ public class Client implements ShutdownListener {
 
     private final Set<Message> messages;
 
+    private final Set<QueueHandlerTuple> handlers;
+
     public Client(List<URI> uris) {
         this.uris = uris;
         connections = new HashMap<Connection, URI>(uris.size());
@@ -35,6 +48,7 @@ public class Client implements ShutdownListener {
         exchanges = new HashSet<Exchange>();
         queues = new HashSet<Queue>();
         messages = new HashSet<Message>();
+        handlers = new HashSet<QueueHandlerTuple>();
     }
 
     /**
@@ -77,7 +91,8 @@ public class Client implements ShutdownListener {
             final Channel channel = connection.createChannel();
             declareExchanges(channel);
             declareQueues(channel);
-            subscribe();
+            declareBindings(channel);
+            subscribe(channel);
 
             connection.addShutdownListener(this);
             connections.put(connection, uri);
@@ -88,8 +103,22 @@ public class Client implements ShutdownListener {
         }
     }
 
-    private void subscribe() {
-        // TODO subscribe handlers here
+    private void subscribe(Channel channel) {
+        for (QueueHandlerTuple tuple : handlers) {
+            final DefaultMessageHandler handler = tuple.handler;
+            final Queue queue = tuple.queue;
+            log.debug("Subscribing {} to queue {}", handler, queue);
+            try {
+                channel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(channel) {
+                    @Override
+                    public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                        handler.process(envelope, properties, body);
+                    }
+                });
+            } catch (IOException e) {
+                log.error("Cannot subscribe {} to queue {}: {}", handler, queue, e.getMessage());
+            }
+        }
     }
 
     private void declareQueues(Channel channel) throws IOException {
@@ -103,6 +132,14 @@ public class Client implements ShutdownListener {
         for (Exchange exchange : exchanges) {
             channel.exchangeDeclare(exchange.getName(), exchange.isTopic() ? "topic" : "direct", exchange.isDurable());
             log.debug("Declared exchange {}", exchange);
+        }
+    }
+
+    private void declareBindings(Channel channel) throws IOException {
+        for (Queue queue : queues) {
+            channel.queueBind(queue.getQueueNameOnBroker(), queue.getExchangeName(), queue.getKey());
+            log.debug("Bound queue {}/{} to exchange {} using routing key {}",
+                queue.getName(), queue.getQueueNameOnBroker(), queue.getExchange(), queue.getKey());
         }
     }
 
@@ -122,6 +159,7 @@ public class Client implements ShutdownListener {
             } else {
                 // clean shutdown, don't reconnect automatically
                 log.debug("Connection {} closed because of {}", connection, cause.getReason());
+                connections.remove(connection);
             }
         } else {
             Channel channel = (Channel)cause.getReference();
@@ -181,13 +219,30 @@ public class Client implements ShutdownListener {
         }
     }
 
-    public Client registerHandler(Message message, DefaultMessageHandler handler) {
-        // TODO save handler instance and verify the message is predeclared.
+    public Client registerHandler(Queue queue, DefaultMessageHandler handler) {
+        if (!queues.contains(queue)) {
+            throw new IllegalArgumentException("Message " + queue + " must be pre-declared.");
+        }
+        handlers.add(new QueueHandlerTuple(queue, handler));
         return this;
     }
 
-    public Client publish(String messageName, String payload) {
-        // TODO actually publish message and verify it's predeclared.
+    public Client publish(Message message, String payload) {
+        log.info("Publishing `{}` for message {}", payload, message);
+        for (Connection connection : connections.keySet()) {
+            try {
+                final Channel channel = connection.createChannel();
+                channel.basicPublish(
+                    message.getExchange().getName(),
+                    message.getKey(),
+                    null, // TODO publish settings!
+                    payload.getBytes(Charset.forName("UTF-8"))
+                );
+                channel.close();
+            } catch (IOException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
+        }
         return this;
     }
 

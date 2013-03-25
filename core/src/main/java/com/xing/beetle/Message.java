@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A Beetle AMQP message configuration.
+ * A Beetle AMQP queue configuration.
  */
 public class Message {
 
@@ -98,12 +98,12 @@ public class Message {
         private Exchange exchange;
 
         /**
-         * The logical name of the message you are declaring. Use something that makes sense in your application.
+         * The logical name of the queue you are declaring. Use something that makes sense in your application.
          * <p>
          * Also sets {@link #exchange(String)} and {@link #key(String)} by default. You can override those properties
          * by just calling the setters.
          *
-         * @param name logical message name
+         * @param name logical queue name
          * @return the builder instance
          */
         public Builder name(String name) {
@@ -118,7 +118,7 @@ public class Message {
         }
 
         /**
-         * Sets the routing key of this message, used for subscribing.
+         * Sets the routing key of this queue, used for subscribing.
          *
          * @see #name(String)
          * @param key the routing key
@@ -130,9 +130,9 @@ public class Message {
         }
 
         /**
-         * Sets the exchange name of this message, used for publishing.
+         * Sets the exchange name of this queue, used for publishing.
          *
-         * @param exchangeName the exchange this message is published to
+         * @param exchangeName the exchange this queue is published to
          * @return the builder instance
          * @see #name(String)
          */
@@ -147,7 +147,7 @@ public class Message {
         }
         
         /**
-         * Whether to publish this message in a redundant fashion to at least two brokers.
+         * Whether to publish this queue in a redundant fashion to at least two brokers.
          * <p>
          * Publishing non-redundantly with failover to a secondary broker is the default.
          *
@@ -181,7 +181,7 @@ public class Message {
          */
         public Message build() {
             if (name == null) {
-                throw new IllegalStateException("No name given for the Beetle message.");
+                throw new IllegalStateException("No name given for the Beetle queue.");
             }
             if (exchange == null) {
                 exchange = Exchange.builder().name(exchangeName).build();
