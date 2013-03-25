@@ -74,6 +74,18 @@ public class Message {
             && Objects.equals(this.timeUnit, other.timeUnit);
     }
 
+    @Override
+    public String toString() {
+        return "Message{" +
+            "name='" + name + '\'' +
+            ", key='" + key + '\'' +
+            ", exchange=" + exchange +
+            ", redundant=" + redundant +
+            ", duration=" + duration +
+            ", timeUnit=" + timeUnit +
+            '}';
+    }
+
     public static class Builder {
 
         private String name;

@@ -48,6 +48,15 @@ public class Exchange {
             && Objects.equals(this.durable, other.durable);
     }
 
+    @Override
+    public String toString() {
+        return "Exchange{" +
+            "name='" + name + '\'' +
+            ", topic=" + topic +
+            ", durable=" + durable +
+            '}';
+    }
+
     public static Builder builder() {
         return new Builder();
     }

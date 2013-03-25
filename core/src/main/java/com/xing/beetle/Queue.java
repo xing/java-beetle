@@ -69,6 +69,17 @@ public class Queue {
             && Objects.equals(this.autoDelete, other.autoDelete);
     }
 
+    @Override
+    public String toString() {
+        return "Queue{" +
+            "name='" + name + '\'' +
+            ", key='" + key + '\'' +
+            ", queueNameOnBroker='" + queueNameOnBroker + '\'' +
+            ", exchange=" + exchange +
+            ", autoDelete=" + autoDelete +
+            '}';
+    }
+
     public static class Builder {
         private String name;
         private String queueNameOnBroker;
