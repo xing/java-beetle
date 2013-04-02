@@ -15,7 +15,9 @@ import java.util.concurrent.TimeUnit;
 
 public class Client implements ShutdownListener {
 
-    private class QueueHandlerTuple {
+    private static final Charset UTF8 = Charset.forName("UTF-8");
+
+    private static class QueueHandlerTuple {
         public final Queue queue;
         public final DefaultMessageHandler handler;
 
@@ -29,7 +31,7 @@ public class Client implements ShutdownListener {
 
     private final List<URI> uris;
 
-    private final HashMap<Connection, URI> connections;
+    private final Map<Connection, URI> connections; // TODO synchronize access
 
     private final ScheduledExecutorService reconnector;
 
@@ -103,7 +105,7 @@ public class Client implements ShutdownListener {
         }
     }
 
-    private void subscribe(Channel channel) {
+    private void subscribe(final Channel channel) {
         for (QueueHandlerTuple tuple : handlers) {
             final DefaultMessageHandler handler = tuple.handler;
             final Queue queue = tuple.queue;
@@ -112,7 +114,15 @@ public class Client implements ShutdownListener {
                 channel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(channel) {
                     @Override
                     public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-                        handler.process(envelope, properties, body);
+                        try {
+                            handler.process(envelope, properties, body);
+                            log.debug("Sending ACK for successfully handled message (routing key {})", envelope.getRoutingKey());
+                            channel.basicAck(envelope.getDeliveryTag(), false);
+                        } catch (Exception e) {
+                            // NACK the message if the handler threw an exception
+                            log.error("Handler threw an exception, send NACK for message", e);
+                            channel.basicNack(envelope.getDeliveryTag(), false, true);
+                        }
                     }
                 });
             } catch (IOException e) {
@@ -227,23 +237,87 @@ public class Client implements ShutdownListener {
         return this;
     }
 
+    /**
+     * Publish a message with the given payload.
+     *
+     * Depending on the message configuration it will be sent redundantly to two brokers, or use the failover handling
+     * to send it to one connected broker.
+     *
+     * If the message could not be sent to at least one broker, an unchecked {@link NoMessagePublishedException} is thrown.
+     *
+     * @param message a configured {@link Message Beetle message} to publish the payload under
+     * @param payload an arbitrary string value to publish (assumed to be encoded in UTF-8)
+     * @return this Client object, to allow method chaining
+     */
     public Client publish(Message message, String payload) {
-        log.info("Publishing `{}` for message {}", payload, message);
-        for (Connection connection : connections.keySet()) {
+        log.debug("Publishing `{}` for message {}", payload, message);
+        int successfulSends;
+        if (message.isRedundant()) {
+            // publish to at least two brokers
+            successfulSends = doPublish(message, payload.getBytes(UTF8), 2);
+            switch (successfulSends) {
+                case 0:
+                    log.error("No message published.");
+                    throw new NoMessagePublishedException(message, payload);
+                case 1:
+                    log.warn("Message {} (payload: {}) was not published redundantly.", message, payload);
+                    break;
+                case 2:
+                    // ignore, all fine
+                    log.debug("Message {} successfully published.", message);
+                    break;
+                default:
+                    log.error("Unexpected number of published messages for a redundant message. Should be 2 but {} copies published.", successfulSends);
+            }
+        } else {
+            // publish to one broker, failing over to the next one, until it's delivered
+            successfulSends = doPublish(message, payload.getBytes(UTF8), 1);
+            switch (successfulSends) {
+                case 0:
+                    log.error("No message published.");
+                    throw new NoMessagePublishedException(message, payload);
+                case 1:
+                    // ignore, all fine
+                    log.debug("Message {} successfully published.", message);
+                    break;
+                default:
+                    log.error("Unexpected number of published messages for a non-redundant message. Should be 1 but {} copies published.", successfulSends);
+            }
+        }
+
+        return this;
+    }
+
+    private int doPublish(Message message, byte[] payload, int requiredSends) {
+        int successfulSends = 0;
+        final Iterator<Connection> connectionIterator = connections.keySet().iterator();
+        while (successfulSends < requiredSends && connectionIterator.hasNext()) {
+            final Connection connection = connectionIterator.next();
+            Channel channel = null;
             try {
-                final Channel channel = connection.createChannel();
+                // TODO re-use channel
+                channel = connection.createChannel();
                 channel.basicPublish(
                     message.getExchange().getName(),
                     message.getKey(),
-                    null, // TODO publish settings!
-                    payload.getBytes(Charset.forName("UTF-8"))
+                    null, // TODO publish settings
+                    payload
                 );
-                channel.close();
+                successfulSends++;
             } catch (IOException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                log.warn("Unable to publish message {} to broker {}. Trying next broker.", message, connections.get(connection));
+            } finally {
+                if (channel != null) {
+                    try {
+                        channel.close();
+                    } catch (IOException e) {
+                        log.debug("Unable to close channel {}. Ignoring.", channel);
+                        // ignore
+                    }
+                }
             }
         }
-        return this;
+        return successfulSends;
     }
 
     public static class Builder {

@@ -47,14 +47,22 @@ public class Simple {
             .build();
         client.registerQueue(simpleQ);
 
-        final Message simpleMsg = Message.builder()
-            .name("simpleMsg")
+        final Message redundantMsg = Message.builder()
+            .name("redundantMsg")
             .key("example.routing.key")
             .exchange("simpleXchg")
             .redundant(true)
             .ttl(2, TimeUnit.MINUTES)
             .build();
-        client.registerMessage(simpleMsg);
+        client.registerMessage(redundantMsg);
+
+        final Message nonRedundantMsg = Message.builder()
+            .name("simpleMsg")
+            .key("example.routing.key")
+            .exchange("simpleXchg")
+            .ttl(2, TimeUnit.MINUTES)
+            .build();
+        client.registerMessage(redundantMsg);
 
         client.registerHandler(simpleQ, new DefaultMessageHandler() {
             @Override
@@ -64,7 +72,9 @@ public class Simple {
         });
         client.start();
 
-        client.publish(simpleMsg, "some payload");
+        client.publish(redundantMsg, "some payload");
+
+        client.publish(nonRedundantMsg, "some other payload");
 
         System.err.println("sleeping for good measure (to actually receive the messages)");
         Thread.sleep(10 * 1000);
