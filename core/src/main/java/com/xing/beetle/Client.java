@@ -17,6 +17,8 @@ public class Client implements ShutdownListener {
 
     private static final Charset UTF8 = Charset.forName("UTF-8");
 
+    private ConnectionFactory connectionFactory;
+
     private static class QueueHandlerTuple {
         public final Queue queue;
         public final DefaultMessageHandler handler;
@@ -53,6 +55,19 @@ public class Client implements ShutdownListener {
         handlers = new HashSet<QueueHandlerTuple>();
     }
 
+    // isn't there a cleaner way of doing this in tests?
+    private ConnectionFactory getConnectionFactory() {
+        if (connectionFactory == null) {
+            connectionFactory = new ConnectionFactory();
+        }
+        return connectionFactory;
+    }
+
+    // default visibility used for injecting a mock in the tests
+    void setConnectionFactory(ConnectionFactory factory) {
+        connectionFactory = factory;
+    }
+
     /**
      * Starts listening for the configured handlers.
      */
@@ -74,7 +89,7 @@ public class Client implements ShutdownListener {
     }
 
     protected void connect(final URI uri) {
-        final ConnectionFactory factory = new ConnectionFactory();
+        final ConnectionFactory factory = getConnectionFactory();
         factory.setHost(uri.getHost());
         factory.setPort(uri.getPort());
         final String[] userPass = uri.getUserInfo().split(":");
@@ -179,7 +194,7 @@ public class Client implements ShutdownListener {
         }
     }
 
-    private void scheduleReconnect(final URI uri) {
+    protected void scheduleReconnect(final URI uri) {
         reconnector.schedule(new Runnable() {
             @Override
             public void run() {
