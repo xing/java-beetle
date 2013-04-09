@@ -200,7 +200,7 @@ public class Client implements ShutdownListener {
             public void run() {
                 connect(uri);
             }
-        }, 10, TimeUnit.SECONDS);
+        }, 10, TimeUnit.SECONDS); // TODO make configurable
     }
 
     public static Builder builder() {
@@ -333,6 +333,10 @@ public class Client implements ShutdownListener {
             }
         }
         return successfulSends;
+    }
+
+    public Set<URI> getBrokerUris() {
+        return new HashSet<URI>(uris);
     }
 
     public static class Builder {
