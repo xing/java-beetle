@@ -4,10 +4,13 @@ import com.rabbitmq.client.*;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Matchers;
+import org.mockito.stubbing.OngoingStubbing;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.mockito.Mockito.*;
 
@@ -24,6 +27,27 @@ public class ClientTest {
         when(mockConnection.createChannel()).thenReturn(mockChannel);
         client.setConnectionFactory(mockFactory);
         return mockChannel;
+    }
+
+    private List<Connection> mockedConnectionsForClient(Client client, int numConnections) throws IOException {
+        final ConnectionFactory mockFactory = mock(ConnectionFactory.class);
+        final OngoingStubbing<Connection> newConnectionStub = when(mockFactory.newConnection());
+        List<Connection> conns = new ArrayList<Connection>(numConnections);
+        // TODO OMG this is ugly. there's got to be a better way.
+        OngoingStubbing<Connection> connectionOngoingStubbing = null;
+        for (int i = 0; i < numConnections; i++) {
+            final Connection mockConnection = mock(Connection.class);
+            if (i == 0) {
+                connectionOngoingStubbing = newConnectionStub.thenReturn(mockConnection);
+            } else {
+                connectionOngoingStubbing.thenReturn(mockConnection);
+            }
+            final Channel mockChannel = mock(Channel.class);
+            when(mockConnection.createChannel()).thenReturn(mockChannel);
+            conns.add(mockConnection);
+        }
+        client.setConnectionFactory(mockFactory);
+        return conns;
     }
 
     @Test
@@ -96,5 +120,21 @@ public class ClientTest {
         });
         clientSpy.start();
         verify(channel).basicConsume(eq("test-queue"), Matchers.<Consumer>anyObject());
+    }
+
+    @Test
+    public void handlingExceptionsWhenStopping() throws IOException, URISyntaxException {
+        final Client client = Client.builder().addBroker(1234).addBroker(1235).build();
+        final Client clientSpy = spy(client);
+
+        final List<Connection> connections = mockedConnectionsForClient(clientSpy, 2);
+        for (Connection connection : connections) {
+            doThrow(IOException.class).when(connection).close();
+        }
+        clientSpy.start();
+        clientSpy.stop();
+        for (Connection connection : connections) {
+            verify(connection).close();
+        }
     }
 }
