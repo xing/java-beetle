@@ -130,9 +130,19 @@ public class Client implements ShutdownListener {
                     @Override
                     public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
                         try {
-                            handler.process(envelope, properties, body);
-                            log.debug("Sending ACK for successfully handled message (routing key {})", envelope.getRoutingKey());
-                            channel.basicAck(envelope.getDeliveryTag(), false);
+                            final FutureHandlerResponse futureResponse = handler.process(envelope, properties, body);
+                            // TODO run via execution strategy
+                            futureResponse.run();
+                            final HandlerResponse response = futureResponse.responseGet();
+                            if (response.isSuccess()) {
+                                log.debug("Sending ACK for successfully handled message (routing key {})", envelope.getRoutingKey());
+                                channel.basicAck(envelope.getDeliveryTag(), false);
+                            } else {
+                                // TODO differentiate between return codes, some should requeue the message, some give up immediately
+                                log.debug("Sending NACK for unsuccessful handling of message (routing key {}, handler return code {})",
+                                    envelope.getRoutingKey(), response.getResponseCode().toString());
+                                channel.basicNack(envelope.getDeliveryTag(), false, true);
+                            }
                         } catch (Exception e) {
                             // NACK the message if the handler threw an exception
                             log.error("Handler threw an exception, send NACK for message", e);
@@ -200,7 +210,7 @@ public class Client implements ShutdownListener {
             public void run() {
                 connect(uri);
             }
-        }, 10, TimeUnit.SECONDS); // TODO make configurable
+        }, 10, TimeUnit.SECONDS); // TODO make configurable via strategy
     }
 
     public static Builder builder() {

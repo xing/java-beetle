@@ -5,5 +5,5 @@ import com.rabbitmq.client.Envelope;
 
 public interface DefaultMessageHandler {
 
-    void process(Envelope envelope, AMQP.BasicProperties properties, byte[] body);
+    FutureHandlerResponse process(Envelope envelope, AMQP.BasicProperties properties, byte[] body);
 }

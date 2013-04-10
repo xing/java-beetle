@@ -11,6 +11,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import static org.mockito.Mockito.*;
 
@@ -114,8 +115,13 @@ public class ClientTest {
         clientSpy.registerQueue(queue);
         clientSpy.registerHandler(queue, new DefaultMessageHandler() {
             @Override
-            public void process(Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
-                // ignore
+            public FutureHandlerResponse process(Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
+                return new FutureHandlerResponse(new Callable<HandlerResponse>() {
+                    @Override
+                    public HandlerResponse call() throws Exception {
+                        return HandlerResponse.OK;
+                    }
+                });
             }
         });
         clientSpy.start();

@@ -2,14 +2,12 @@ package com.xing.beetle.examples;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Envelope;
-import com.xing.beetle.Client;
-import com.xing.beetle.DefaultMessageHandler;
-import com.xing.beetle.Message;
-import com.xing.beetle.Queue;
+import com.xing.beetle.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URISyntaxException;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 public class Simple {
@@ -66,8 +64,14 @@ public class Simple {
 
         client.registerHandler(simpleQ, new DefaultMessageHandler() {
             @Override
-            public void process(Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
+            public FutureHandlerResponse process(Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
                 log.warn("Received message {}", new String(body));
+                return new FutureHandlerResponse(new Callable<HandlerResponse>() {
+                    @Override
+                    public HandlerResponse call() throws Exception {
+                        return HandlerResponse.OK;
+                    }
+                });
             }
         });
         client.start();
