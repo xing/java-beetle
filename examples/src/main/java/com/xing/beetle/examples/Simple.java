@@ -64,14 +64,14 @@ public class Simple {
 
         client.registerHandler(simpleQ, new DefaultMessageHandler() {
             @Override
-            public FutureHandlerResponse process(Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
+            public Callable<HandlerResponse> process(Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
                 log.warn("Received message {}", new String(body));
-                return new FutureHandlerResponse(new Callable<HandlerResponse>() {
+                return new Callable<HandlerResponse>() {
                     @Override
                     public HandlerResponse call() throws Exception {
                         return HandlerResponse.OK;
                     }
-                });
+                };
             }
         });
         client.start();

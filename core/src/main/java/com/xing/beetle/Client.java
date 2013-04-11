@@ -9,6 +9,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -18,6 +19,12 @@ public class Client implements ShutdownListener {
     private static final Charset UTF8 = Charset.forName("UTF-8");
 
     private ConnectionFactory connectionFactory;
+
+    private enum LifeCycleStates {
+        UNINITIALIZED,
+        STARTED,
+        STOPPED
+    }
 
     private static class QueueHandlerTuple {
         public final Queue queue;
@@ -29,11 +36,62 @@ public class Client implements ShutdownListener {
         }
     }
 
+    private static class BeetleChannels {
+        private final Set<Channel> subscriberChannels = Collections.synchronizedSet(new HashSet<Channel>());
+        private final Object publisherChannelMonitor = new Object();
+        private final Connection connection;
+        private Channel publisherChannel = null;
+
+        public BeetleChannels(Connection connection) {
+            this.connection = connection;
+        }
+
+
+        public Channel getPublisherChannel() throws IOException {
+            synchronized (publisherChannelMonitor) {
+                if (publisherChannel == null) {
+                    publisherChannel = connection.createChannel();
+                }
+                return publisherChannel;
+            }
+        }
+
+        public Channel createSubscriberChannel() throws IOException {
+            final Channel channel = connection.createChannel();
+            subscriberChannels.add(channel);
+            return channel;
+        }
+
+        public void removeChannel(Channel channel) {
+            if (! subscriberChannels.remove(channel)) {
+                // must be the publisherChannel, check that
+                if (channel == publisherChannel) {
+                    publisherChannel = null;
+                } else {
+                    log.error("Requested to remove unknown channel {} for connection {}", channel, connection);
+                }
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "BeetleChannels{" +
+                "connection=" + connection +
+                ", subscriberChannels=" + subscriberChannels +
+                ", publisherChannel=" + publisherChannel +
+                '}';
+        }
+    }
+
     private static Logger log = LoggerFactory.getLogger(Client.class);
+
+    private LifeCycleStates state;
 
     private final List<URI> uris;
 
     private final Map<Connection, URI> connections; // TODO synchronize access
+
+    private final Map<Connection, BeetleChannels> channels; // TODO synchronize access
 
     private final ScheduledExecutorService reconnector;
 
@@ -48,11 +106,13 @@ public class Client implements ShutdownListener {
     public Client(List<URI> uris) {
         this.uris = uris;
         connections = new HashMap<Connection, URI>(uris.size());
+        channels = new HashMap<Connection, BeetleChannels>();
         reconnector = new ScheduledThreadPoolExecutor(1);
         exchanges = new HashSet<Exchange>();
         queues = new HashSet<Queue>();
         messages = new HashSet<Message>();
         handlers = new HashSet<QueueHandlerTuple>();
+        state = LifeCycleStates.UNINITIALIZED;
     }
 
     // isn't there a cleaner way of doing this in tests?
@@ -72,9 +132,18 @@ public class Client implements ShutdownListener {
      * Starts listening for the configured handlers.
      */
     public void start() {
+        if (state == LifeCycleStates.STOPPED) {
+            throw new IllegalStateException("Cannot restart a stopped Beetle client. Construct a new one.");
+        }
+        if (state == LifeCycleStates.STARTED) {
+            // this call does not make sense, log a Throwable to help identifying the caller.
+            log.debug("Ignoring call to start() for an already started Beetle client.", new Throwable());
+            return;
+        }
         for (final URI uri : uris) {
             connect(uri);
         }
+        state = LifeCycleStates.STARTED;
     }
 
     public void stop() {
@@ -86,6 +155,7 @@ public class Client implements ShutdownListener {
                 log.warn("Caught exception while closing the broker connections.", e);
             }
         }
+        state = LifeCycleStates.STOPPED;
     }
 
     protected void connect(final URI uri) {
@@ -103,16 +173,20 @@ public class Client implements ShutdownListener {
 
         try {
             final Connection connection = factory.newConnection();
+            connection.addShutdownListener(this);
+            connections.put(connection, uri);
             log.info("Successfully connected to broker at {}", connection);
 
-            final Channel channel = connection.createChannel();
+            final BeetleChannels beetleChannels = new BeetleChannels(connection);
+            channels.put(connection, beetleChannels);
+            // declare the objects using the publisher channel,
+            // since at this point no one can actually use this client yet to publish anything
+            final Channel channel = beetleChannels.getPublisherChannel();
             declareExchanges(channel);
             declareQueues(channel);
             declareBindings(channel);
-            subscribe(channel);
 
-            connection.addShutdownListener(this);
-            connections.put(connection, uri);
+            subscribe(beetleChannels);
 
         } catch (IOException e) {
             log.warn("Unable to connect to {}. Will retry in 10 seconds.", uri, e);
@@ -120,33 +194,33 @@ public class Client implements ShutdownListener {
         }
     }
 
-    private void subscribe(final Channel channel) {
+    private void subscribe(final BeetleChannels beetleChannels) {
         for (QueueHandlerTuple tuple : handlers) {
             final DefaultMessageHandler handler = tuple.handler;
             final Queue queue = tuple.queue;
             log.debug("Subscribing {} to queue {}", handler, queue);
             try {
-                channel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(channel) {
+                final Channel subscriberChannel = beetleChannels.createSubscriberChannel();
+                subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(subscriberChannel) {
                     @Override
                     public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
                         try {
-                            final FutureHandlerResponse futureResponse = handler.process(envelope, properties, body);
+                            final Callable<HandlerResponse> handlerProcessor = handler.process(envelope, properties, body);
                             // TODO run via execution strategy
-                            futureResponse.run();
-                            final HandlerResponse response = futureResponse.responseGet();
+                            final HandlerResponse response = handlerProcessor.call();
                             if (response.isSuccess()) {
                                 log.debug("Sending ACK for successfully handled message (routing key {})", envelope.getRoutingKey());
-                                channel.basicAck(envelope.getDeliveryTag(), false);
+                                getChannel().basicAck(envelope.getDeliveryTag(), false);
                             } else {
                                 // TODO differentiate between return codes, some should requeue the message, some give up immediately
                                 log.debug("Sending NACK for unsuccessful handling of message (routing key {}, handler return code {})",
                                     envelope.getRoutingKey(), response.getResponseCode().toString());
-                                channel.basicNack(envelope.getDeliveryTag(), false, true);
+                                getChannel().basicNack(envelope.getDeliveryTag(), false, true);
                             }
                         } catch (Exception e) {
                             // NACK the message if the handler threw an exception
                             log.error("Handler threw an exception, send NACK for message", e);
-                            channel.basicNack(envelope.getDeliveryTag(), false, true);
+                            getChannel().basicNack(envelope.getDeliveryTag(), false, true);
                         }
                     }
                 });
@@ -195,12 +269,14 @@ public class Client implements ShutdownListener {
                 // clean shutdown, don't reconnect automatically
                 log.debug("Connection {} closed because of {}", connection, cause.getReason());
                 connections.remove(connection);
+                channels.remove(connection);
             }
         } else {
             Channel channel = (Channel)cause.getReference();
             // TODO presumably this does not mean we have an error, so we don't do anything.
             // is this supposed to be a normal application shutdown?
             log.info("AQMP channel shutdown {} because of {}. Doing nothing about it.", channel, cause.getReason());
+            channels.get(channel.getConnection()).removeChannel(channel);
         }
     }
 
@@ -272,9 +348,17 @@ public class Client implements ShutdownListener {
      *
      * @param message a configured {@link Message Beetle message} to publish the payload under
      * @param payload an arbitrary string value to publish (assumed to be encoded in UTF-8)
+     * @throws IllegalStateException if the Client object is not started or {@link #stop()} has already been called.
      * @return this Client object, to allow method chaining
      */
     public Client publish(Message message, String payload) {
+        if (state == LifeCycleStates.UNINITIALIZED) {
+            throw new IllegalStateException("Cannot publish message, Beetle client has not be started yet.");
+        }
+        if (state == LifeCycleStates.STOPPED) {
+            throw new IllegalStateException("Cannot publish message, Beetle client has already been stopped.");
+        }
+
         log.debug("Publishing `{}` for message {}", payload, message);
         int successfulSends;
         if (message.isRedundant()) {
@@ -316,12 +400,14 @@ public class Client implements ShutdownListener {
     private int doPublish(Message message, byte[] payload, int requiredSends) {
         int successfulSends = 0;
         final Iterator<Connection> connectionIterator = connections.keySet().iterator();
+
         while (successfulSends < requiredSends && connectionIterator.hasNext()) {
             final Connection connection = connectionIterator.next();
-            Channel channel = null;
+            final BeetleChannels beetleChannels = channels.get(connection);
+
             try {
-                // TODO re-use channel
-                channel = connection.createChannel();
+                // this channel should be open already, but if it isn't this will open a new one.
+                final Channel channel = beetleChannels.getPublisherChannel();
                 channel.basicPublish(
                     message.getExchange().getName(),
                     message.getKey(),
@@ -331,15 +417,6 @@ public class Client implements ShutdownListener {
                 successfulSends++;
             } catch (IOException e) {
                 log.warn("Unable to publish message {} to broker {}. Trying next broker.", message, connections.get(connection));
-            } finally {
-                if (channel != null) {
-                    try {
-                        channel.close();
-                    } catch (IOException e) {
-                        log.debug("Unable to close channel {}. Ignoring.", channel);
-                        // ignore
-                    }
-                }
             }
         }
         return successfulSends;
