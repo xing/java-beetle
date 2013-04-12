@@ -115,11 +115,11 @@ public class ClientTest {
         clientSpy.registerQueue(queue);
         clientSpy.registerHandler(queue, new DefaultMessageHandler() {
             @Override
-            public Callable<HandlerResponse> process(Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
+            public Callable<HandlerResponse> process(final Channel channel, final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
                 return new Callable<HandlerResponse>() {
                     @Override
                     public HandlerResponse call() throws Exception {
-                        return HandlerResponse.OK;
+                        return HandlerResponse.ok(channel, envelope, properties, body);
                     }
                 };
             }

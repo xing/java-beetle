@@ -9,85 +9,25 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Client implements ShutdownListener {
 
     private static final Charset UTF8 = Charset.forName("UTF-8");
-
-    private ConnectionFactory connectionFactory;
-
-    private enum LifeCycleStates {
-        UNINITIALIZED,
-        STARTED,
-        STOPPED
-    }
-
-    private static class QueueHandlerTuple {
-        public final Queue queue;
-        public final DefaultMessageHandler handler;
-
-        public QueueHandlerTuple(Queue queue, DefaultMessageHandler handler) {
-            this.queue = queue;
-            this.handler = handler;
-        }
-    }
-
-    private static class BeetleChannels {
-        private final Set<Channel> subscriberChannels = Collections.synchronizedSet(new HashSet<Channel>());
-        private final Object publisherChannelMonitor = new Object();
-        private final Connection connection;
-        private Channel publisherChannel = null;
-
-        public BeetleChannels(Connection connection) {
-            this.connection = connection;
-        }
-
-
-        public Channel getPublisherChannel() throws IOException {
-            synchronized (publisherChannelMonitor) {
-                if (publisherChannel == null) {
-                    publisherChannel = connection.createChannel();
-                }
-                return publisherChannel;
-            }
-        }
-
-        public Channel createSubscriberChannel() throws IOException {
-            final Channel channel = connection.createChannel();
-            subscriberChannels.add(channel);
-            return channel;
-        }
-
-        public void removeChannel(Channel channel) {
-            if (! subscriberChannels.remove(channel)) {
-                // must be the publisherChannel, check that
-                if (channel == publisherChannel) {
-                    publisherChannel = null;
-                } else {
-                    log.error("Requested to remove unknown channel {} for connection {}", channel, connection);
-                }
-            }
-        }
-
-        @Override
-        public String toString() {
-            return "BeetleChannels{" +
-                "connection=" + connection +
-                ", subscriberChannels=" + subscriberChannels +
-                ", publisherChannel=" + publisherChannel +
-                '}';
-        }
-    }
 
     private static Logger log = LoggerFactory.getLogger(Client.class);
 
     private LifeCycleStates state;
 
     private final List<URI> uris;
+
+    private final ExecutorService executorService;
+
+    private ExecutorCompletionService<HandlerResponse> completionService;
+
+    private ConnectionFactory connectionFactory;
 
     private final Map<Connection, URI> connections; // TODO synchronize access
 
@@ -103,8 +43,11 @@ public class Client implements ShutdownListener {
 
     private final Set<QueueHandlerTuple> handlers;
 
-    public Client(List<URI> uris) {
+    private AtomicBoolean running;
+
+    protected Client(List<URI> uris, ExecutorService executorService) {
         this.uris = uris;
+        this.executorService = executorService;
         connections = new HashMap<Connection, URI>(uris.size());
         channels = new HashMap<Connection, BeetleChannels>();
         reconnector = new ScheduledThreadPoolExecutor(1);
@@ -113,6 +56,8 @@ public class Client implements ShutdownListener {
         messages = new HashSet<Message>();
         handlers = new HashSet<QueueHandlerTuple>();
         state = LifeCycleStates.UNINITIALIZED;
+        completionService = new ExecutorCompletionService<HandlerResponse>(executorService);
+        running = new AtomicBoolean(false);
     }
 
     // isn't there a cleaner way of doing this in tests?
@@ -140,6 +85,7 @@ public class Client implements ShutdownListener {
             log.debug("Ignoring call to start() for an already started Beetle client.", new Throwable());
             return;
         }
+        running.set(true);
         for (final URI uri : uris) {
             connect(uri);
         }
@@ -148,6 +94,7 @@ public class Client implements ShutdownListener {
 
     public void stop() {
         reconnector.shutdownNow();
+        running.set(false);
         for (Connection connection : connections.keySet()) {
             try {
                 connection.close();
@@ -188,6 +135,7 @@ public class Client implements ShutdownListener {
 
             subscribe(beetleChannels);
 
+            new Thread(new AckNackHandler(), "ack-nack-handler " + uri.getHost() + ":" + uri.getPort()).start();
         } catch (IOException e) {
             log.warn("Unable to connect to {}. Will retry in 10 seconds.", uri, e);
             scheduleReconnect(uri);
@@ -205,18 +153,8 @@ public class Client implements ShutdownListener {
                     @Override
                     public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
                         try {
-                            final Callable<HandlerResponse> handlerProcessor = handler.process(envelope, properties, body);
-                            // TODO run via execution strategy
-                            final HandlerResponse response = handlerProcessor.call();
-                            if (response.isSuccess()) {
-                                log.debug("Sending ACK for successfully handled message (routing key {})", envelope.getRoutingKey());
-                                getChannel().basicAck(envelope.getDeliveryTag(), false);
-                            } else {
-                                // TODO differentiate between return codes, some should requeue the message, some give up immediately
-                                log.debug("Sending NACK for unsuccessful handling of message (routing key {}, handler return code {})",
-                                    envelope.getRoutingKey(), response.getResponseCode().toString());
-                                getChannel().basicNack(envelope.getDeliveryTag(), false, true);
-                            }
+                            final Callable<HandlerResponse> handlerProcessor = handler.process(subscriberChannel, envelope, properties, body);
+                            completionService.submit(handlerProcessor);
                         } catch (Exception e) {
                             // NACK the message if the handler threw an exception
                             log.error("Handler threw an exception, send NACK for message", e);
@@ -435,6 +373,7 @@ public class Client implements ShutdownListener {
         private static final String DEFAULT_VHOST = "/";
 
         private List<URI> uris = new ArrayList<URI>();
+        private ExecutorService executorService;
 
         public Builder addBroker(URI amqpUri) throws URISyntaxException {
             uris.add(amqpUri);
@@ -457,6 +396,11 @@ public class Client implements ShutdownListener {
             return addBroker(DEFAULT_HOST, port, DEFAULT_USERNAME, DEFAULT_PASSWORD, DEFAULT_VHOST);
         }
 
+        public Builder executorService(ExecutorService executorService) {
+            this.executorService = executorService;
+            return this;
+        }
+
         public Client build() {
             // add at least one uri
             if (uris.size() == 0) {
@@ -467,7 +411,118 @@ public class Client implements ShutdownListener {
                     // ignore
                 }
             }
-            return new Client(uris);
+            if (executorService == null) {
+                final int nThreads = Runtime.getRuntime().availableProcessors() / 2;
+                log.info("Added default fixed thread pool for message handler with {} threads", nThreads);
+                final ThreadFactory messageHandlerThreadFactory = new ThreadFactory() {
+                    private AtomicInteger threadNumber = new AtomicInteger(1);
+                    @Override
+                    public Thread newThread(Runnable r) {
+                        final Thread thread = new Thread(r, "message-handler-" + threadNumber.getAndIncrement());
+                        thread.setDaemon(true);
+                        return thread;
+                    }
+                };
+                executorService = Executors.newFixedThreadPool(nThreads, messageHandlerThreadFactory);
+            }
+            return new Client(uris, executorService);
+        }
+    }
+
+    private enum LifeCycleStates {
+        UNINITIALIZED,
+        STARTED,
+        STOPPED
+    }
+
+    private static class QueueHandlerTuple {
+        public final Queue queue;
+        public final DefaultMessageHandler handler;
+
+        public QueueHandlerTuple(Queue queue, DefaultMessageHandler handler) {
+            this.queue = queue;
+            this.handler = handler;
+        }
+    }
+
+    private static class BeetleChannels {
+        private final Set<Channel> subscriberChannels = Collections.synchronizedSet(new HashSet<Channel>());
+        private final Object publisherChannelMonitor = new Object();
+        private final Connection connection;
+        private Channel publisherChannel = null;
+
+        public BeetleChannels(Connection connection) {
+            this.connection = connection;
+        }
+
+
+        public Channel getPublisherChannel() throws IOException {
+            synchronized (publisherChannelMonitor) {
+                if (publisherChannel == null) {
+                    publisherChannel = connection.createChannel();
+                }
+                return publisherChannel;
+            }
+        }
+
+        public Channel createSubscriberChannel() throws IOException {
+            final Channel channel = connection.createChannel();
+            subscriberChannels.add(channel);
+            return channel;
+        }
+
+        public void removeChannel(Channel channel) {
+            if (! subscriberChannels.remove(channel)) {
+                // must be the publisherChannel, check that
+                if (channel == publisherChannel) {
+                    publisherChannel = null;
+                } else {
+                    log.error("Requested to remove unknown channel {} for connection {}", channel, connection);
+                }
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "BeetleChannels{" +
+                "connection=" + connection +
+                ", subscriberChannels=" + subscriberChannels +
+                ", publisherChannel=" + publisherChannel +
+                '}';
+        }
+    }
+
+    private class AckNackHandler implements Runnable {
+        @Override
+        public void run() {
+            while (running.get()) {
+                HandlerResponse response = null;
+                try {
+                    // poll because we want to be able to shut down at some point. take() would block forever
+                    final Future<HandlerResponse> handlerResponseFuture = completionService.poll(500, TimeUnit.MILLISECONDS);
+                    if (handlerResponseFuture == null) {
+                        // nothing to do yet.
+                        continue;
+                    }
+                    response = handlerResponseFuture.get();
+                    if (response.isSuccess()) {
+                        log.debug("ACKing message from routing key {}", response.getEnvelope().getRoutingKey());
+                        response.getChannel().basicAck(response.getEnvelope().getDeliveryTag(), false);
+                    }
+                } catch (InterruptedException ignored) {
+                } catch (ExecutionException e) {
+                    // TODO make decision whether to requeue or not
+                    try {
+                        log.debug("NACKing message from routing key {}", response.getEnvelope().getRoutingKey());
+                        response.getChannel().basicNack(response.getEnvelope().getDeliveryTag(), false, true);
+                    } catch (IOException e1) {
+                        log.error("Could not send NACK to broker in response to handler result.", e);
+                    }
+                } catch (IOException e) {
+                    log.error("Could not send ACK to broker in response to handler result.", e);
+                }
+
+            }
         }
     }
 }

@@ -1,13 +1,29 @@
 package com.xing.beetle;
 
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Envelope;
+
 /**
  *
  */
 public class HandlerResponse {
 
-    public static final HandlerResponse OK = new HandlerResponse(ResponseCode.OK);
-    public static final HandlerResponse INTERRUPTED = new HandlerResponse(ResponseCode.INTERRUPTED);
-    public static final HandlerResponse EXCEPTION = new HandlerResponse(ResponseCode.EXCEPTION);
+    public HandlerResponse(ResponseCode responseCode, Channel channel, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
+        this.responseCode = responseCode;
+        this.channel = channel;
+        this.envelope = envelope;
+        this.properties = properties;
+        this.body = body;
+    }
+
+    public static HandlerResponse ok(Channel channel, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
+        return new HandlerResponse(ResponseCode.OK, channel, envelope, properties, body);
+    }
+
+    public Channel getChannel() {
+        return channel;
+    }
 
     public static enum ResponseCode {
         OK,
@@ -16,11 +32,10 @@ public class HandlerResponse {
     }
 
     private ResponseCode responseCode;
-
-    public HandlerResponse(ResponseCode responseCode) {
-
-        this.responseCode = responseCode;
-    }
+    private final Channel channel;
+    private final Envelope envelope;
+    private final AMQP.BasicProperties properties;
+    private final byte[] body;
 
     public ResponseCode getResponseCode() {
         return responseCode;
@@ -32,5 +47,13 @@ public class HandlerResponse {
 
     public boolean isSuccess() {
         return responseCode == ResponseCode.OK;
+    }
+
+    public Envelope getEnvelope() {
+        return envelope;
+    }
+
+    public AMQP.BasicProperties getProperties() {
+        return properties;
     }
 }

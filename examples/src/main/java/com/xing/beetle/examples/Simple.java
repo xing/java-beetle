@@ -1,6 +1,7 @@
 package com.xing.beetle.examples;
 
 import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Envelope;
 import com.xing.beetle.*;
 import org.slf4j.Logger;
@@ -64,12 +65,13 @@ public class Simple {
 
         client.registerHandler(simpleQ, new DefaultMessageHandler() {
             @Override
-            public Callable<HandlerResponse> process(Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
+            public Callable<HandlerResponse> process(final Channel channel, final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
                 log.warn("Received message {}", new String(body));
                 return new Callable<HandlerResponse>() {
                     @Override
                     public HandlerResponse call() throws Exception {
-                        return HandlerResponse.OK;
+                        log.info("Handling message...");
+                        return HandlerResponse.ok(channel, envelope, properties, body);
                     }
                 };
             }
