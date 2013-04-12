@@ -23,8 +23,6 @@ public class Client implements ShutdownListener {
 
     private final List<URI> uris;
 
-    private final ExecutorService executorService;
-
     private ExecutorCompletionService<HandlerResponse> completionService;
 
     private ConnectionFactory connectionFactory;
@@ -47,7 +45,6 @@ public class Client implements ShutdownListener {
 
     protected Client(List<URI> uris, ExecutorService executorService) {
         this.uris = uris;
-        this.executorService = executorService;
         connections = new HashMap<Connection, URI>(uris.size());
         channels = new HashMap<Connection, BeetleChannels>();
         reconnector = new ScheduledThreadPoolExecutor(1);
@@ -152,13 +149,12 @@ public class Client implements ShutdownListener {
                 subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(subscriberChannel) {
                     @Override
                     public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                        final Callable<HandlerResponse> handlerProcessor = handler.process(subscriberChannel, envelope, properties, body);
                         try {
-                            final Callable<HandlerResponse> handlerProcessor = handler.process(subscriberChannel, envelope, properties, body);
                             completionService.submit(handlerProcessor);
-                        } catch (Exception e) {
-                            // NACK the message if the handler threw an exception
-                            log.error("Handler threw an exception, send NACK for message", e);
-                            getChannel().basicNack(envelope.getDeliveryTag(), false, true);
+                        } catch (RejectedExecutionException e) {
+                            log.error("Could not submit message processor to executor! Requeueing message.", e);
+                            subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
                         }
                     }
                 });
@@ -516,7 +512,7 @@ public class Client implements ShutdownListener {
                         log.debug("NACKing message from routing key {}", response.getEnvelope().getRoutingKey());
                         response.getChannel().basicNack(response.getEnvelope().getDeliveryTag(), false, true);
                     } catch (IOException e1) {
-                        log.error("Could not send NACK to broker in response to handler result.", e);
+                        log.error("Could not send NACK to broker in response to handler result.", e1);
                     }
                 } catch (IOException e) {
                     log.error("Could not send ACK to broker in response to handler result.", e);
