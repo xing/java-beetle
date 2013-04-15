@@ -71,10 +71,10 @@ public class Simple {
                     @Override
                     public HandlerResponse call() throws Exception {
                         log.info("Handling message...");
-                        /* the following exception will trigger an inifite loop currently, because we do not track exception counts per message currently.
+                        /* the following exception will trigger an inifite loop currently, because we do not track exception counts per message currently. */
                         if (new String(body).contains("other")) {
-                            throw new RuntimeException("I don't want 'other' exceptions!");
-                        } */
+                            throw new RuntimeException("I don't want 'other' messages!");
+                        }
                         return HandlerResponse.ok(channel, envelope, properties, body);
                     }
                 };

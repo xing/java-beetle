@@ -155,7 +155,7 @@ public class Client implements ShutdownListener {
                         final Callable<HandlerResponse> handlerProcessor = handler.process(subscriberChannel, envelope, properties, body);
                         try {
                             final Future<HandlerResponse> handlerResponseFuture = completionService.submit(handlerProcessor);
-                            handlerMessageInfo.put(handlerResponseFuture, new MessageInfo(subscriberChannel, envelope.getDeliveryTag(), envelope.getRoutingKey()));
+                            handlerMessageInfo.put(handlerResponseFuture, new MessageInfo(beetleChannels, envelope.getDeliveryTag(), envelope.getRoutingKey()));
                         } catch (RejectedExecutionException e) {
                             log.error("Could not submit message processor to executor! Requeueing message.", e);
                             subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
@@ -496,7 +496,7 @@ public class Client implements ShutdownListener {
         @Override
         public void run() {
             while (running.get()) {
-                HandlerResponse response = null;
+                HandlerResponse response;
                 MessageInfo messageInfo = null;
                 try {
                     // poll because we want to be able to shut down at some point. take() would block forever
@@ -514,8 +514,8 @@ public class Client implements ShutdownListener {
                     }
                     response = handlerResponseFuture.get();
                     if (response.isSuccess()) {
-                        log.debug("ACKing message from routing key {}", response.getEnvelope().getRoutingKey());
-                        response.getChannel().basicAck(response.getEnvelope().getDeliveryTag(), false);
+                        log.debug("ACKing message from routing key {}", messageInfo.getRoutingKey());
+                        messageInfo.getChannel().basicAck(messageInfo.getDeliveryTag(), false);
                     }
                 } catch (InterruptedException ignored) {
                 } catch (ExecutionException e) {
@@ -537,10 +537,10 @@ public class Client implements ShutdownListener {
     private class MessageInfo {
         private final long deliveryTag;
         private final String routingKey;
-        private Channel channel;
+        private BeetleChannels beetleChannels;
 
-        private MessageInfo(Channel subscriberChannel, long deliveryTag, String routingKey) {
-            channel = subscriberChannel;
+        private MessageInfo(BeetleChannels beetleChannels, long deliveryTag, String routingKey) {
+            this.beetleChannels = beetleChannels;
             this.deliveryTag = deliveryTag;
             this.routingKey = routingKey;
         }
@@ -554,7 +554,12 @@ public class Client implements ShutdownListener {
         }
 
         public Channel getChannel() {
-            return channel;
+            try {
+                return beetleChannels.getPublisherChannel();
+            } catch (IOException e) {
+                log.error("Cannot create publisher channel!", e);
+            }
+            return null;
         }
     }
 }
