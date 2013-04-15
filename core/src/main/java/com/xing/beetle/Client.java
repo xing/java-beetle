@@ -31,6 +31,8 @@ public class Client implements ShutdownListener {
 
     private final Map<Connection, BeetleChannels> channels; // TODO synchronize access
 
+    private final Map<Future<HandlerResponse>, MessageInfo> handlerMessageInfo;
+
     private final ScheduledExecutorService reconnector;
 
     private final Set<Exchange> exchanges;
@@ -55,6 +57,7 @@ public class Client implements ShutdownListener {
         state = LifeCycleStates.UNINITIALIZED;
         completionService = new ExecutorCompletionService<HandlerResponse>(executorService);
         running = new AtomicBoolean(false);
+        handlerMessageInfo = new ConcurrentHashMap<Future<HandlerResponse>, MessageInfo>();
     }
 
     // isn't there a cleaner way of doing this in tests?
@@ -151,7 +154,8 @@ public class Client implements ShutdownListener {
                     public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
                         final Callable<HandlerResponse> handlerProcessor = handler.process(subscriberChannel, envelope, properties, body);
                         try {
-                            completionService.submit(handlerProcessor);
+                            final Future<HandlerResponse> handlerResponseFuture = completionService.submit(handlerProcessor);
+                            handlerMessageInfo.put(handlerResponseFuture, new MessageInfo(subscriberChannel, envelope.getDeliveryTag(), envelope.getRoutingKey()));
                         } catch (RejectedExecutionException e) {
                             log.error("Could not submit message processor to executor! Requeueing message.", e);
                             subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
@@ -493,11 +497,19 @@ public class Client implements ShutdownListener {
         public void run() {
             while (running.get()) {
                 HandlerResponse response = null;
+                MessageInfo messageInfo = null;
                 try {
                     // poll because we want to be able to shut down at some point. take() would block forever
                     final Future<HandlerResponse> handlerResponseFuture = completionService.poll(500, TimeUnit.MILLISECONDS);
                     if (handlerResponseFuture == null) {
                         // nothing to do yet.
+                        continue;
+                    }
+                    // retrieve the routingkey and deliverytag associated with the future.
+                    // FIXME this isn't particularly nice, if we had a custom Future implementation, then that could hold the data.
+                    messageInfo = handlerMessageInfo.remove(handlerResponseFuture);
+                    if (messageInfo == null) {
+                        log.error("Unknown handler response object, this should never happen. Ignoring response.");
                         continue;
                     }
                     response = handlerResponseFuture.get();
@@ -509,8 +521,8 @@ public class Client implements ShutdownListener {
                 } catch (ExecutionException e) {
                     // TODO make decision whether to requeue or not
                     try {
-                        log.debug("NACKing message from routing key {}", response.getEnvelope().getRoutingKey());
-                        response.getChannel().basicNack(response.getEnvelope().getDeliveryTag(), false, true);
+                        log.debug("NACKing message from routing key {}", messageInfo.getRoutingKey());
+                        messageInfo.getChannel().basicNack(messageInfo.getDeliveryTag(), false, true);
                     } catch (IOException e1) {
                         log.error("Could not send NACK to broker in response to handler result.", e1);
                     }
@@ -519,6 +531,30 @@ public class Client implements ShutdownListener {
                 }
 
             }
+        }
+    }
+
+    private class MessageInfo {
+        private final long deliveryTag;
+        private final String routingKey;
+        private Channel channel;
+
+        private MessageInfo(Channel subscriberChannel, long deliveryTag, String routingKey) {
+            channel = subscriberChannel;
+            this.deliveryTag = deliveryTag;
+            this.routingKey = routingKey;
+        }
+
+        private long getDeliveryTag() {
+            return deliveryTag;
+        }
+
+        private String getRoutingKey() {
+            return routingKey;
+        }
+
+        public Channel getChannel() {
+            return channel;
         }
     }
 }
