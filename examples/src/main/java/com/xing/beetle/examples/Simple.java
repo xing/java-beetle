@@ -1,7 +1,6 @@
 package com.xing.beetle.examples;
 
 import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Envelope;
 import com.xing.beetle.*;
 import org.slf4j.Logger;
@@ -63,9 +62,9 @@ public class Simple {
             .build();
         client.registerMessage(redundantMsg);
 
-        client.registerHandler(simpleQ, new DefaultMessageHandler() {
+        client.registerHandler(simpleQ, new MessageHandler() {
             @Override
-            public Callable<HandlerResponse> process(final Channel channel, final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
+            public Callable<HandlerResponse> process(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
                 log.warn("Received message {}", new String(body));
                 return new Callable<HandlerResponse>() {
                     @Override
@@ -75,7 +74,7 @@ public class Simple {
                         if (new String(body).contains("other")) {
                             throw new RuntimeException("I don't want 'other' messages!");
                         }
-                        return HandlerResponse.ok(channel, envelope, properties, body);
+                        return HandlerResponse.ok(envelope, properties, body);
                     }
                 };
             }

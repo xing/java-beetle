@@ -25,9 +25,9 @@ public class Client implements ShutdownListener {
 
     private ConnectionFactory connectionFactory;
 
-    private final Map<Connection, URI> connections; // TODO synchronize access
+    private final Map<Connection, URI> connections;
 
-    private final Map<Connection, BeetleChannels> channels; // TODO synchronize access
+    private final Map<Connection, BeetleChannels> channels;
 
     private final Map<Future<HandlerResponse>, MessageInfo> handlerMessageInfo;
 
@@ -45,8 +45,8 @@ public class Client implements ShutdownListener {
 
     protected Client(List<URI> uris, ExecutorService executorService) {
         this.uris = uris;
-        connections = new HashMap<Connection, URI>(uris.size());
-        channels = new HashMap<Connection, BeetleChannels>();
+        connections = new ConcurrentHashMap<>(uris.size());
+        channels = new ConcurrentHashMap<>();
         reconnector = new ScheduledThreadPoolExecutor(1);
         exchanges = new HashSet<Exchange>();
         queues = new HashSet<Queue>();
@@ -55,7 +55,7 @@ public class Client implements ShutdownListener {
         state = LifecycleStates.UNINITIALIZED;
         completionService = new ExecutorCompletionService<HandlerResponse>(executorService);
         running = new AtomicBoolean(false);
-        handlerMessageInfo = new ConcurrentHashMap<Future<HandlerResponse>, MessageInfo>();
+        handlerMessageInfo = new ConcurrentHashMap<>();
     }
 
     // isn't there a cleaner way of doing this in tests?
@@ -143,7 +143,7 @@ public class Client implements ShutdownListener {
 
     private void subscribe(final BeetleChannels beetleChannels) {
         for (QueueHandlerTuple tuple : handlers) {
-            final DefaultMessageHandler handler = tuple.handler;
+            final MessageHandler handler = tuple.handler;
             final Queue queue = tuple.queue;
             log.debug("Subscribing {} to queue {}", handler, queue);
             try {
@@ -151,7 +151,7 @@ public class Client implements ShutdownListener {
                 subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(subscriberChannel) {
                     @Override
                     public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-                        final Callable<HandlerResponse> handlerProcessor = handler.process(subscriberChannel, envelope, properties, body);
+                        final Callable<HandlerResponse> handlerProcessor = handler.process(envelope, properties, body);
                         try {
                             final Future<HandlerResponse> handlerResponseFuture = completionService.submit(handlerProcessor);
                             handlerMessageInfo.put(handlerResponseFuture, new MessageInfo(beetleChannels, envelope.getDeliveryTag(), envelope.getRoutingKey()));
@@ -267,7 +267,7 @@ public class Client implements ShutdownListener {
         }
     }
 
-    public Client registerHandler(Queue queue, DefaultMessageHandler handler) {
+    public Client registerHandler(Queue queue, MessageHandler handler) {
         if (!queues.contains(queue)) {
             throw new IllegalArgumentException("Message " + queue + " must be pre-declared.");
         }
@@ -377,9 +377,9 @@ public class Client implements ShutdownListener {
 
     private static class QueueHandlerTuple {
         public final Queue queue;
-        public final DefaultMessageHandler handler;
+        public final MessageHandler handler;
 
-        public QueueHandlerTuple(Queue queue, DefaultMessageHandler handler) {
+        public QueueHandlerTuple(Queue queue, MessageHandler handler) {
             this.queue = queue;
             this.handler = handler;
         }

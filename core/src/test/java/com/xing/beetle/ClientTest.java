@@ -113,13 +113,13 @@ public class ClientTest {
 
         Queue queue = Queue.builder().name("test-queue").build();
         clientSpy.registerQueue(queue);
-        clientSpy.registerHandler(queue, new DefaultMessageHandler() {
+        clientSpy.registerHandler(queue, new MessageHandler() {
             @Override
-            public Callable<HandlerResponse> process(final Channel channel, final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
+            public Callable<HandlerResponse> process(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
                 return new Callable<HandlerResponse>() {
                     @Override
                     public HandlerResponse call() throws Exception {
-                        return HandlerResponse.ok(channel, envelope, properties, body);
+                        return HandlerResponse.ok(envelope, properties, body);
                     }
                 };
             }
