@@ -6,12 +6,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Client implements ShutdownListener {
 
@@ -19,7 +17,7 @@ public class Client implements ShutdownListener {
 
     private static Logger log = LoggerFactory.getLogger(Client.class);
 
-    private LifeCycleStates state;
+    private LifecycleStates state;
 
     private final List<URI> uris;
 
@@ -54,7 +52,7 @@ public class Client implements ShutdownListener {
         queues = new HashSet<Queue>();
         messages = new HashSet<Message>();
         handlers = new HashSet<QueueHandlerTuple>();
-        state = LifeCycleStates.UNINITIALIZED;
+        state = LifecycleStates.UNINITIALIZED;
         completionService = new ExecutorCompletionService<HandlerResponse>(executorService);
         running = new AtomicBoolean(false);
         handlerMessageInfo = new ConcurrentHashMap<Future<HandlerResponse>, MessageInfo>();
@@ -77,10 +75,10 @@ public class Client implements ShutdownListener {
      * Starts listening for the configured handlers.
      */
     public void start() {
-        if (state == LifeCycleStates.STOPPED) {
+        if (state == LifecycleStates.STOPPED) {
             throw new IllegalStateException("Cannot restart a stopped Beetle client. Construct a new one.");
         }
-        if (state == LifeCycleStates.STARTED) {
+        if (state == LifecycleStates.STARTED) {
             // this call does not make sense, log a Throwable to help identifying the caller.
             log.debug("Ignoring call to start() for an already started Beetle client.", new Throwable());
             return;
@@ -89,7 +87,7 @@ public class Client implements ShutdownListener {
         for (final URI uri : uris) {
             connect(uri);
         }
-        state = LifeCycleStates.STARTED;
+        state = LifecycleStates.STARTED;
     }
 
     public void stop() {
@@ -102,7 +100,7 @@ public class Client implements ShutdownListener {
                 log.warn("Caught exception while closing the broker connections.", e);
             }
         }
-        state = LifeCycleStates.STOPPED;
+        state = LifecycleStates.STOPPED;
     }
 
     protected void connect(final URI uri) {
@@ -140,7 +138,7 @@ public class Client implements ShutdownListener {
             scheduleReconnect(uri);
         }
         // we use only one thread for all brokers, contention should be low in this part of the code.
-        new Thread(new AckNackHandler(), "ack-nack-handler").start();
+        new Thread(new AckNackHandler(this), "ack-nack-handler").start();
     }
 
     private void subscribe(final BeetleChannels beetleChannels) {
@@ -228,8 +226,8 @@ public class Client implements ShutdownListener {
         }, 10, TimeUnit.SECONDS); // TODO make configurable via strategy
     }
 
-    public static Builder builder() {
-        return new Builder();
+    public static ClientBuilder builder() {
+        return new ClientBuilder();
     }
 
     public Client registerExchange(Exchange exchange) {
@@ -291,10 +289,10 @@ public class Client implements ShutdownListener {
      * @return this Client object, to allow method chaining
      */
     public Client publish(Message message, String payload) {
-        if (state == LifeCycleStates.UNINITIALIZED) {
+        if (state == LifecycleStates.UNINITIALIZED) {
             throw new IllegalStateException("Cannot publish message, Beetle client has not be started yet.");
         }
-        if (state == LifeCycleStates.STOPPED) {
+        if (state == LifecycleStates.STOPPED) {
             throw new IllegalStateException("Cannot publish message, Beetle client has already been stopped.");
         }
 
@@ -364,76 +362,17 @@ public class Client implements ShutdownListener {
     public Set<URI> getBrokerUris() {
         return new HashSet<URI>(uris);
     }
-
-    public static class Builder {
-
-        private static final String DEFAULT_HOST = "localhost";
-        private static final int DEFAULT_PORT = 5672;
-        private static final String DEFAULT_USERNAME = "guest";
-        private static final String DEFAULT_PASSWORD = "guest";
-        private static final String DEFAULT_VHOST = "/";
-
-        private List<URI> uris = new ArrayList<URI>();
-        private ExecutorService executorService;
-
-        public Builder addBroker(URI amqpUri) {
-            uris.add(amqpUri);
-            return this;
-        }
-
-        public Builder addBroker(String host, int port, String username, String password, String virtualHost) throws URISyntaxException {
-            return addBroker(new URI("amqp", username + ":" + password, host, port, virtualHost, null, null));
-        }
-
-        public Builder addBroker(String host, int port) throws URISyntaxException {
-            return addBroker(host, port, DEFAULT_USERNAME, DEFAULT_PASSWORD, DEFAULT_VHOST);
-        }
-
-        public Builder addBroker(String host) throws URISyntaxException {
-            return addBroker(host, DEFAULT_PORT, DEFAULT_USERNAME, DEFAULT_PASSWORD, DEFAULT_VHOST);
-        }
-
-        public Builder addBroker(int port) throws URISyntaxException {
-            return addBroker(DEFAULT_HOST, port, DEFAULT_USERNAME, DEFAULT_PASSWORD, DEFAULT_VHOST);
-        }
-
-        public Builder executorService(ExecutorService executorService) {
-            this.executorService = executorService;
-            return this;
-        }
-
-        public Client build() {
-            // add at least one uri
-            if (uris.size() == 0) {
-                try {
-                    addBroker(DEFAULT_HOST, DEFAULT_PORT, DEFAULT_USERNAME, DEFAULT_PASSWORD, DEFAULT_VHOST);
-                    log.info("Added default URI for local broker, because none was configured.");
-                } catch (URISyntaxException e) {
-                    // ignore
-                }
-            }
-            if (executorService == null) {
-                final int nThreads = Runtime.getRuntime().availableProcessors() / 2;
-                log.info("Added default fixed thread pool for message handler with {} threads", nThreads);
-                final ThreadFactory messageHandlerThreadFactory = new ThreadFactory() {
-                    private AtomicInteger threadNumber = new AtomicInteger(1);
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        final Thread thread = new Thread(r, "message-handler-" + threadNumber.getAndIncrement());
-                        thread.setDaemon(true);
-                        return thread;
-                    }
-                };
-                executorService = Executors.newFixedThreadPool(nThreads, messageHandlerThreadFactory);
-            }
-            return new Client(uris, executorService);
-        }
+    
+    public boolean isRunning() {
+    	return running.get();
     }
-
-    private enum LifeCycleStates {
-        UNINITIALIZED,
-        STARTED,
-        STOPPED
+    
+    public MessageInfo takeMessageInfo(Future<HandlerResponse> handlerResponseFuture) {
+    	return handlerMessageInfo.remove(handlerResponseFuture);
+    }
+    
+    public Future<HandlerResponse> pollForHandlerResponse() throws InterruptedException {
+    	return completionService.poll(500, TimeUnit.MILLISECONDS);
     }
 
     private static class QueueHandlerTuple {
@@ -446,121 +385,4 @@ public class Client implements ShutdownListener {
         }
     }
 
-    private static class BeetleChannels {
-        private final Set<Channel> subscriberChannels = Collections.synchronizedSet(new HashSet<Channel>());
-        private final Object publisherChannelMonitor = new Object();
-        private final Connection connection;
-        private Channel publisherChannel = null;
-
-        public BeetleChannels(Connection connection) {
-            this.connection = connection;
-        }
-
-
-        public Channel getPublisherChannel() throws IOException {
-            synchronized (publisherChannelMonitor) {
-                if (publisherChannel == null) {
-                    publisherChannel = connection.createChannel();
-                }
-                return publisherChannel;
-            }
-        }
-
-        public Channel createSubscriberChannel() throws IOException {
-            final Channel channel = connection.createChannel();
-            subscriberChannels.add(channel);
-            return channel;
-        }
-
-        public void removeChannel(Channel channel) {
-            if (! subscriberChannels.remove(channel)) {
-                // must be the publisherChannel, check that
-                if (channel == publisherChannel) {
-                    publisherChannel = null;
-                } else {
-                    log.error("Requested to remove unknown channel {} for connection {}", channel, connection);
-                }
-            }
-        }
-
-        @Override
-        public String toString() {
-            return "BeetleChannels{" +
-                "connection=" + connection +
-                ", subscriberChannels=" + subscriberChannels +
-                ", publisherChannel=" + publisherChannel +
-                '}';
-        }
-    }
-
-    private class AckNackHandler implements Runnable {
-        @Override
-        public void run() {
-            while (running.get()) {
-                HandlerResponse response;
-                MessageInfo messageInfo = null;
-                try {
-                    // poll because we want to be able to shut down at some point. take() would block forever
-                    final Future<HandlerResponse> handlerResponseFuture = completionService.poll(500, TimeUnit.MILLISECONDS);
-                    if (handlerResponseFuture == null) {
-                        // nothing to do yet.
-                        continue;
-                    }
-                    // retrieve the routingkey and deliverytag associated with the future.
-                    // FIXME this isn't particularly nice, if we had a custom Future implementation, then that could hold the data.
-                    messageInfo = handlerMessageInfo.remove(handlerResponseFuture);
-                    if (messageInfo == null) {
-                        log.error("Unknown handler response object, this should never happen. Ignoring response.");
-                        continue;
-                    }
-                    response = handlerResponseFuture.get();
-                    if (response.isSuccess()) {
-                        log.debug("ACKing message from routing key {}", messageInfo.getRoutingKey());
-                        messageInfo.getChannel().basicAck(messageInfo.getDeliveryTag(), false);
-                    }
-                } catch (InterruptedException ignored) {
-                } catch (ExecutionException e) {
-                    // TODO make decision whether to requeue or not
-                    try {
-                        log.debug("NACKing message from routing key {}", messageInfo.getRoutingKey());
-                        messageInfo.getChannel().basicNack(messageInfo.getDeliveryTag(), false, true);
-                    } catch (IOException e1) {
-                        log.error("Could not send NACK to broker in response to handler result.", e1);
-                    }
-                } catch (IOException e) {
-                    log.error("Could not send ACK to broker in response to handler result.", e);
-                }
-
-            }
-        }
-    }
-
-    private class MessageInfo {
-        private final long deliveryTag;
-        private final String routingKey;
-        private BeetleChannels beetleChannels;
-
-        private MessageInfo(BeetleChannels beetleChannels, long deliveryTag, String routingKey) {
-            this.beetleChannels = beetleChannels;
-            this.deliveryTag = deliveryTag;
-            this.routingKey = routingKey;
-        }
-
-        private long getDeliveryTag() {
-            return deliveryTag;
-        }
-
-        private String getRoutingKey() {
-            return routingKey;
-        }
-
-        public Channel getChannel() {
-            try {
-                return beetleChannels.getPublisherChannel();
-            } catch (IOException e) {
-                log.error("Cannot create publisher channel!", e);
-            }
-            return null;
-        }
-    }
 }
