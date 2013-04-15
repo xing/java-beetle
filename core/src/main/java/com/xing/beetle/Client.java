@@ -371,7 +371,7 @@ public class Client implements ShutdownListener {
         private List<URI> uris = new ArrayList<URI>();
         private ExecutorService executorService;
 
-        public Builder addBroker(URI amqpUri) throws URISyntaxException {
+        public Builder addBroker(URI amqpUri) {
             uris.add(amqpUri);
             return this;
         }
