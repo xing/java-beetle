@@ -27,9 +27,9 @@ public class Client implements ShutdownListener {
 
     private ConnectionFactory connectionFactory;
 
-    private final Map<Connection, URI> connections; // TODO synchronize access
+    private final Map<Connection, URI> connections;
 
-    private final Map<Connection, BeetleChannels> channels; // TODO synchronize access
+    private final Map<Connection, BeetleChannels> channels;
 
     private final Map<Future<HandlerResponse>, MessageInfo> handlerMessageInfo;
 
@@ -47,8 +47,8 @@ public class Client implements ShutdownListener {
 
     protected Client(List<URI> uris, ExecutorService executorService) {
         this.uris = uris;
-        connections = new HashMap<Connection, URI>(uris.size());
-        channels = new HashMap<Connection, BeetleChannels>();
+        connections = new ConcurrentHashMap<>(uris.size());
+        channels = new ConcurrentHashMap<>();
         reconnector = new ScheduledThreadPoolExecutor(1);
         exchanges = new HashSet<Exchange>();
         queues = new HashSet<Queue>();
@@ -57,7 +57,7 @@ public class Client implements ShutdownListener {
         state = LifeCycleStates.UNINITIALIZED;
         completionService = new ExecutorCompletionService<HandlerResponse>(executorService);
         running = new AtomicBoolean(false);
-        handlerMessageInfo = new ConcurrentHashMap<Future<HandlerResponse>, MessageInfo>();
+        handlerMessageInfo = new ConcurrentHashMap<>();
     }
 
     // isn't there a cleaner way of doing this in tests?
