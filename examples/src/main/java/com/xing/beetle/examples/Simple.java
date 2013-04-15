@@ -62,7 +62,7 @@ public class Simple {
             .build();
         client.registerMessage(redundantMsg);
 
-        client.registerHandler(simpleQ, new MessageHandler() {
+        client.registerHandler(new ConsumerConfiguration(simpleQ, new MessageHandler() {
             @Override
             public Callable<HandlerResponse> process(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
                 log.warn("Received message {}", new String(body));
@@ -78,7 +78,7 @@ public class Simple {
                     }
                 };
             }
-        });
+        }));
         client.start();
 
         client.publish(redundantMsg, "some payload");

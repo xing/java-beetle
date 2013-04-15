@@ -111,9 +111,7 @@ public class ClientTest {
 
         final Channel channel = mockedChannelForClient(clientSpy);
 
-        Queue queue = Queue.builder().name("test-queue").build();
-        clientSpy.registerQueue(queue);
-        clientSpy.registerHandler(queue, new MessageHandler() {
+        MessageHandler handler = new MessageHandler() {
             @Override
             public Callable<HandlerResponse> process(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
                 return new Callable<HandlerResponse>() {
@@ -123,7 +121,11 @@ public class ClientTest {
                     }
                 };
             }
-        });
+        };
+        
+        Queue queue = Queue.builder().name("test-queue").build();
+        clientSpy.registerQueue(queue);
+        clientSpy.registerHandler(new ConsumerConfiguration(queue, handler));
         clientSpy.start();
         verify(channel).basicConsume(eq("test-queue"), Matchers.<Consumer>anyObject());
     }

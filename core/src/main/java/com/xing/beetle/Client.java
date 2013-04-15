@@ -1,6 +1,7 @@
 package com.xing.beetle;
 
 import com.rabbitmq.client.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +40,7 @@ public class Client implements ShutdownListener {
 
     private final Set<Message> messages;
 
-    private final Set<QueueHandlerTuple> handlers;
+    private final Set<ConsumerConfiguration> handlers;
 
     private AtomicBoolean running;
 
@@ -51,7 +52,7 @@ public class Client implements ShutdownListener {
         exchanges = new HashSet<Exchange>();
         queues = new HashSet<Queue>();
         messages = new HashSet<Message>();
-        handlers = new HashSet<QueueHandlerTuple>();
+        handlers = new HashSet<ConsumerConfiguration>();
         state = LifecycleStates.UNINITIALIZED;
         completionService = new ExecutorCompletionService<HandlerResponse>(executorService);
         running = new AtomicBoolean(false);
@@ -142,30 +143,49 @@ public class Client implements ShutdownListener {
     }
 
     private void subscribe(final BeetleChannels beetleChannels) {
-        for (QueueHandlerTuple tuple : handlers) {
-            final MessageHandler handler = tuple.handler;
-            final Queue queue = tuple.queue;
-            log.debug("Subscribing {} to queue {}", handler, queue);
-            try {
-                final Channel subscriberChannel = beetleChannels.createSubscriberChannel();
-                subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(subscriberChannel) {
-                    @Override
-                    public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-                        final Callable<HandlerResponse> handlerProcessor = handler.process(envelope, properties, body);
-                        try {
-                            final Future<HandlerResponse> handlerResponseFuture = completionService.submit(handlerProcessor);
-                            handlerMessageInfo.put(handlerResponseFuture, new MessageInfo(beetleChannels, envelope.getDeliveryTag(), envelope.getRoutingKey()));
-                        } catch (RejectedExecutionException e) {
-                            log.error("Could not submit message processor to executor! Requeueing message.", e);
-                            subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
-                        }
-                    }
-                });
-            } catch (IOException e) {
-                log.error("Cannot subscribe {} to queue {}: {}", handler, queue, e.getMessage());
-            }
+        for (ConsumerConfiguration tuple : handlers) {
+            subscribe(beetleChannels, tuple);
         }
     }
+
+	private void subscribe(final BeetleChannels beetleChannels, ConsumerConfiguration config) {
+		final MessageHandler handler = config.getHandler();
+		final Queue queue = config.getQueue();
+		log.debug("Subscribing {} to queue {}", handler, queue);
+		try {
+		    final Channel subscriberChannel = beetleChannels.createSubscriberChannel();
+		    subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(subscriberChannel) {
+		        @Override
+		        public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+		            final Callable<HandlerResponse> handlerProcessor = handler.process(envelope, properties, body);
+		            try {
+		                final Future<HandlerResponse> handlerResponseFuture = completionService.submit(handlerProcessor);
+		                handlerMessageInfo.put(handlerResponseFuture, new MessageInfo(beetleChannels, envelope.getDeliveryTag(), envelope.getRoutingKey()));
+		            } catch (RejectedExecutionException e) {
+		                log.error("Could not submit message processor to executor! Requeueing message.", e);
+		                subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
+		            }
+		        }
+		    });
+		} catch (IOException e) {
+		    log.error("Cannot subscribe {} to queue {}: {}", handler, queue, e.getMessage());
+		}
+	}
+	
+	public void pause(ConsumerConfiguration config) throws IOException {
+		config.getHandler().pause();
+		handlers.remove(config);
+	}
+	
+	public void resume(ConsumerConfiguration config) {
+		if (!handlers.contains(config)) {
+			handlers.add(config);
+			
+			for(BeetleChannels beetleChannels : channels.values()) {
+				subscribe(beetleChannels, config);
+			}
+		}
+	}
 
     private void declareQueues(Channel channel) throws IOException {
         for (Queue queue : queues) {
@@ -267,11 +287,11 @@ public class Client implements ShutdownListener {
         }
     }
 
-    public Client registerHandler(Queue queue, MessageHandler handler) {
-        if (!queues.contains(queue)) {
-            throw new IllegalArgumentException("Message " + queue + " must be pre-declared.");
+    public Client registerHandler(ConsumerConfiguration config) {
+        if (!queues.contains(config.getQueue())) {
+            throw new IllegalArgumentException("Message " + config.getQueue() + " must be pre-declared.");
         }
-        handlers.add(new QueueHandlerTuple(queue, handler));
+        handlers.add(config);
         return this;
     }
 
@@ -373,16 +393,6 @@ public class Client implements ShutdownListener {
     
     public Future<HandlerResponse> pollForHandlerResponse() throws InterruptedException {
     	return completionService.poll(500, TimeUnit.MILLISECONDS);
-    }
-
-    private static class QueueHandlerTuple {
-        public final Queue queue;
-        public final MessageHandler handler;
-
-        public QueueHandlerTuple(Queue queue, MessageHandler handler) {
-            this.queue = queue;
-            this.handler = handler;
-        }
     }
 
 }
