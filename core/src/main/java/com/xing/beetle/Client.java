@@ -135,11 +135,12 @@ public class Client implements ShutdownListener {
 
             subscribe(beetleChannels);
 
-            new Thread(new AckNackHandler(), "ack-nack-handler " + uri.getHost() + ":" + uri.getPort()).start();
         } catch (IOException e) {
             log.warn("Unable to connect to {}. Will retry in 10 seconds.", uri, e);
             scheduleReconnect(uri);
         }
+        // we use only one thread for all brokers, contention should be low in this part of the code.
+        new Thread(new AckNackHandler(), "ack-nack-handler").start();
     }
 
     private void subscribe(final BeetleChannels beetleChannels) {
