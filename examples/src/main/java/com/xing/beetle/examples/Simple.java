@@ -69,11 +69,15 @@ public class Simple {
                 return new Callable<HandlerResponse>() {
                     @Override
                     public HandlerResponse call() throws Exception {
-                        log.info("Handling message...");
+                        log.info("Handling message...{}", "deliveryTag = " + envelope.getDeliveryTag() + " routingKey = " + envelope.getRoutingKey() + " exchange = " + envelope.getExchange());
+                        StringBuilder sb = new StringBuilder();
+                        // are you serious?!
+                        properties.appendArgumentDebugStringTo(sb);
+                        log.info("Properties: {}", sb.toString());
                         /* the following exception will trigger an inifite loop currently, because we do not track exception counts per message currently. */
-                        if (new String(body).contains("other")) {
+                        /*if (new String(body).contains("other")) {
                             throw new RuntimeException("I don't want 'other' messages!");
-                        }
+                        } */
                         return HandlerResponse.ok(envelope, properties, body);
                     }
                 };
@@ -83,7 +87,7 @@ public class Simple {
 
         client.publish(redundantMsg, "some payload");
 
-        client.publish(nonRedundantMsg, "some other payload");
+        //client.publish(nonRedundantMsg, "some other payload");
 
         System.err.println("sleeping for good measure (to actually receive the messages)");
         Thread.sleep(10 * 1000);

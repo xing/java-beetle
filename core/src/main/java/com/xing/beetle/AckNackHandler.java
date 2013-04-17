@@ -1,11 +1,13 @@
 package com.xing.beetle;
 
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class AckNackHandler implements Runnable {
 	
@@ -22,6 +24,7 @@ public class AckNackHandler implements Runnable {
         while (client.isRunning()) {
             HandlerResponse response;
             MessageInfo messageInfo = null;
+            Channel channel = null;
             try {
             	/*
             	 * pollForHandlerResponse() is actually polling, not taking. It will return null every few milliseconds
@@ -32,7 +35,7 @@ public class AckNackHandler implements Runnable {
                     // nothing to do yet.
                     continue;
                 }
-                
+
                 // retrieve the routingkey and deliverytag associated with the future.
                 // FIXME this isn't particularly nice, if we had a custom Future implementation, then that could hold the data.
                 messageInfo = client.takeMessageInfo(handlerResponseFuture);
@@ -40,18 +43,20 @@ public class AckNackHandler implements Runnable {
                     log.error("Unknown handler response object, this should never happen. Ignoring response.");
                     continue;
                 }
-                
+                channel = messageInfo.getChannel();
                 response = handlerResponseFuture.get();
                 if (response.isSuccess()) {
-                    log.debug("ACKing message from routing key {}", messageInfo.getRoutingKey());
-                    messageInfo.getChannel().basicAck(messageInfo.getDeliveryTag(), false);
+                    final Connection connection = channel.getConnection();
+                    log.debug("ACKing message from delivery tag {} on channel {} broker {}:{}",
+                        messageInfo.getDeliveryTag(), channel.getChannelNumber(), connection.getAddress(), connection.getPort());
+                    channel.basicAck(messageInfo.getDeliveryTag(), false);
                 }
             } catch (InterruptedException ignored) {
             } catch (ExecutionException e) {
                 // TODO make decision whether to requeue or not
                 try {
                     log.debug("NACKing message from routing key {}", messageInfo.getRoutingKey());
-                    messageInfo.getChannel().basicNack(messageInfo.getDeliveryTag(), false, true);
+                    channel.basicNack(messageInfo.getDeliveryTag(), false, true);
                 } catch (IOException e1) {
                     log.error("Could not send NACK to broker in response to handler result.", e1);
                 }

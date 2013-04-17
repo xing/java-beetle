@@ -1,7 +1,6 @@
 package com.xing.beetle;
 
 import com.rabbitmq.client.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +41,8 @@ public class Client implements ShutdownListener {
 
     private final Set<ConsumerConfiguration> handlers;
 
+    private final DeduplicationStore deduplicationStore;
+
     private AtomicBoolean running;
 
     protected Client(List<URI> uris, ExecutorService executorService) {
@@ -57,6 +58,7 @@ public class Client implements ShutdownListener {
         completionService = new ExecutorCompletionService<HandlerResponse>(executorService);
         running = new AtomicBoolean(false);
         handlerMessageInfo = new ConcurrentHashMap<>();
+        deduplicationStore = new DeduplicationStore();
     }
 
     // isn't there a cleaner way of doing this in tests?
@@ -148,44 +150,48 @@ public class Client implements ShutdownListener {
         }
     }
 
-	private void subscribe(final BeetleChannels beetleChannels, ConsumerConfiguration config) {
-		final MessageHandler handler = config.getHandler();
-		final Queue queue = config.getQueue();
-		log.debug("Subscribing {} to queue {}", handler, queue);
-		try {
-		    final Channel subscriberChannel = beetleChannels.createSubscriberChannel();
-		    subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(subscriberChannel) {
-		        @Override
-		        public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-		            final Callable<HandlerResponse> handlerProcessor = handler.process(envelope, properties, body);
-		            try {
-		                final Future<HandlerResponse> handlerResponseFuture = completionService.submit(handlerProcessor);
-		                handlerMessageInfo.put(handlerResponseFuture, new MessageInfo(beetleChannels, envelope.getDeliveryTag(), envelope.getRoutingKey()));
-		            } catch (RejectedExecutionException e) {
-		                log.error("Could not submit message processor to executor! Requeueing message.", e);
-		                subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
-		            }
-		        }
-		    });
-		} catch (IOException e) {
-		    log.error("Cannot subscribe {} to queue {}: {}", handler, queue, e.getMessage());
-		}
-	}
-	
-	public void pause(ConsumerConfiguration config) throws IOException {
-		config.getHandler().pause();
-		handlers.remove(config);
-	}
-	
-	public void resume(ConsumerConfiguration config) {
-		if (!handlers.contains(config)) {
-			handlers.add(config);
-			
-			for(BeetleChannels beetleChannels : channels.values()) {
-				subscribe(beetleChannels, config);
-			}
-		}
-	}
+    private void subscribe(final BeetleChannels beetleChannels, ConsumerConfiguration config) {
+        final MessageHandler handler = config.getHandler();
+        final Queue queue = config.getQueue();
+        log.debug("Subscribing {} to queue {}", handler, queue);
+        try {
+            final Channel subscriberChannel = beetleChannels.createSubscriberChannel();
+            subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(subscriberChannel) {
+
+                @Override
+                public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                    final Callable<HandlerResponse> handlerProcessor = handler.process(envelope, properties, body);
+                    try {
+
+                        final Future<HandlerResponse> handlerResponseFuture = completionService.submit(handlerProcessor);
+                        handlerMessageInfo.put(handlerResponseFuture, new MessageInfo(subscriberChannel, envelope.getDeliveryTag(), envelope.getRoutingKey()));
+
+                    } catch (RejectedExecutionException e) {
+                        log.error("Could not submit message processor to executor! Requeueing message.", e);
+                        subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
+                    }
+                }
+
+            });
+        } catch (IOException e) {
+            log.error("Cannot subscribe {} to queue {}: {}", handler, queue, e.getMessage());
+        }
+    }
+
+    public void pause(ConsumerConfiguration config) throws IOException {
+        config.getHandler().pause();
+        handlers.remove(config);
+    }
+
+    public void resume(ConsumerConfiguration config) {
+        if (!handlers.contains(config)) {
+            handlers.add(config);
+
+            for (BeetleChannels beetleChannels : channels.values()) {
+                subscribe(beetleChannels, config);
+            }
+        }
+    }
 
     private void declareQueues(Channel channel) throws IOException {
         for (Queue queue : queues) {
@@ -213,7 +219,7 @@ public class Client implements ShutdownListener {
     public void shutdownCompleted(ShutdownSignalException cause) {
         if (cause.isHardError()) {
             // type-cast hippies...
-            Connection connection = (Connection)cause.getReference();
+            Connection connection = (Connection) cause.getReference();
             if (!cause.isInitiatedByApplication()) {
                 // this presumably is a error with the broker, let's reconnect
                 log.warn("Connection to the broker at {}:{} lost, reconnecting in 10 seconds. Reason: {}",
@@ -229,7 +235,7 @@ public class Client implements ShutdownListener {
                 channels.remove(connection);
             }
         } else {
-            Channel channel = (Channel)cause.getReference();
+            Channel channel = (Channel) cause.getReference();
             // TODO presumably this does not mean we have an error, so we don't do anything.
             // is this supposed to be a normal application shutdown?
             log.info("AQMP channel shutdown {} because of {}. Doing nothing about it.", channel, cause.getReason());
@@ -297,16 +303,16 @@ public class Client implements ShutdownListener {
 
     /**
      * Publish a message with the given payload.
-     *
+     * <p/>
      * Depending on the message configuration it will be sent redundantly to two brokers, or use the failover handling
      * to send it to one connected broker.
-     *
+     * <p/>
      * If the message could not be sent to at least one broker, an unchecked {@link NoMessagePublishedException} is thrown.
      *
      * @param message a configured {@link Message Beetle message} to publish the payload under
      * @param payload an arbitrary string value to publish (assumed to be encoded in UTF-8)
-     * @throws IllegalStateException if the Client object is not started or {@link #stop()} has already been called.
      * @return this Client object, to allow method chaining
+     * @throws IllegalStateException if the Client object is not started or {@link #stop()} has already been called.
      */
     public Client publish(Message message, String payload) {
         if (state == LifecycleStates.UNINITIALIZED) {
@@ -358,6 +364,13 @@ public class Client implements ShutdownListener {
         int successfulSends = 0;
         final Iterator<Connection> connectionIterator = connections.keySet().iterator();
 
+        final HashMap<String, Object> headers = new HashMap<>();
+        final String messageId = UUID.randomUUID().toString();
+        headers.put("format_version", "1");
+        headers.put("flags", message.isRedundant() ? "1" : "0");
+        final long ttl = TimeUnit.SECONDS.convert(message.getDuration(), message.getTimeUnit());
+        headers.put("expires_at", Long.toString((System.currentTimeMillis() / 1000L) + ttl));
+
         while (successfulSends < requiredSends && connectionIterator.hasNext()) {
             final Connection connection = connectionIterator.next();
             final BeetleChannels beetleChannels = channels.get(connection);
@@ -365,12 +378,20 @@ public class Client implements ShutdownListener {
             try {
                 // this channel should be open already, but if it isn't this will open a new one.
                 final Channel channel = beetleChannels.getPublisherChannel();
+
+                final AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder()
+                    .messageId(messageId)
+                    .headers(headers)
+                    .build();
+
                 channel.basicPublish(
                     message.getExchange().getName(),
                     message.getKey(),
-                    null, // TODO publish settings
+                    properties,
                     payload
                 );
+                log.debug("Published message id {} to broker {}", messageId, channel.getConnection().getAddress());
+
                 successfulSends++;
             } catch (IOException e) {
                 log.warn("Unable to publish message {} to broker {}. Trying next broker.", message, connections.get(connection));
@@ -380,19 +401,19 @@ public class Client implements ShutdownListener {
     }
 
     public Set<URI> getBrokerUris() {
-        return new HashSet<URI>(uris);
+        return new HashSet<>(uris);
     }
-    
+
     public boolean isRunning() {
-    	return running.get();
+        return running.get();
     }
-    
+
     public MessageInfo takeMessageInfo(Future<HandlerResponse> handlerResponseFuture) {
-    	return handlerMessageInfo.remove(handlerResponseFuture);
+        return handlerMessageInfo.remove(handlerResponseFuture);
     }
-    
+
     public Future<HandlerResponse> pollForHandlerResponse() throws InterruptedException {
-    	return completionService.poll(500, TimeUnit.MILLISECONDS);
+        return completionService.poll(500, TimeUnit.MILLISECONDS);
     }
 
 }
