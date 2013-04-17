@@ -1,6 +1,7 @@
 package com.xing.beetle;
 
 import com.rabbitmq.client.*;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,15 +22,11 @@ public class Client implements ShutdownListener {
 
     private final List<URI> uris;
 
-    private ExecutorCompletionService<HandlerResponse> completionService;
-
     private ConnectionFactory connectionFactory;
 
     private final Map<Connection, URI> connections;
 
     private final Map<Connection, BeetleChannels> channels;
-
-    private final Map<Future<HandlerResponse>, MessageInfo> handlerMessageInfo;
 
     private final ScheduledExecutorService reconnector;
 
@@ -45,6 +42,8 @@ public class Client implements ShutdownListener {
 
     private AtomicBoolean running;
 
+	private final ExecutorService executor;
+
     protected Client(List<URI> uris, ExecutorService executorService) {
         this.uris = uris;
         connections = new ConcurrentHashMap<>(uris.size());
@@ -55,9 +54,8 @@ public class Client implements ShutdownListener {
         messages = new HashSet<Message>();
         handlers = new HashSet<ConsumerConfiguration>();
         state = LifecycleStates.UNINITIALIZED;
-        completionService = new ExecutorCompletionService<HandlerResponse>(executorService);
+        executor = executorService;
         running = new AtomicBoolean(false);
-        handlerMessageInfo = new ConcurrentHashMap<>();
         deduplicationStore = new DeduplicationStore();
     }
 
@@ -140,8 +138,6 @@ public class Client implements ShutdownListener {
             log.warn("Unable to connect to {}. Will retry in 10 seconds.", uri, e);
             scheduleReconnect(uri);
         }
-        // we use only one thread for all brokers, contention should be low in this part of the code.
-        new Thread(new AckNackHandler(this), "ack-nack-handler").start();
     }
 
     private void subscribe(final BeetleChannels beetleChannels) {
@@ -159,12 +155,40 @@ public class Client implements ShutdownListener {
             subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(subscriberChannel) {
 
                 @Override
-                public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                public void handleDelivery(String consumerTag, final Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                	
                     final Callable<HandlerResponse> handlerProcessor = handler.process(envelope, properties, body);
+                    
                     try {
-
-                        final Future<HandlerResponse> handlerResponseFuture = completionService.submit(handlerProcessor);
-                        handlerMessageInfo.put(handlerResponseFuture, new MessageInfo(subscriberChannel, envelope.getDeliveryTag(), envelope.getRoutingKey()));
+                    	final Runnable run = new Runnable() {
+							@Override
+							public void run() {
+								try {
+									HandlerResponse response = handlerProcessor.call();
+									if (response.isSuccess()) {
+					                    final Connection connection = subscriberChannel.getConnection();
+					                    log.debug("ACKing message from delivery tag {} on channel {} broker {}:{}",
+					                        envelope.getDeliveryTag(), subscriberChannel.getChannelNumber(), connection.getAddress(), connection.getPort());
+					                    
+					                    subscriberChannel.basicAck(envelope.getDeliveryTag(), false);
+					                } else {
+										try {
+											subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
+										} catch (IOException e1) {
+											log.error("Could not NACK message.", e1);
+										}
+					                }
+								} catch (Exception e) {
+									try {
+										subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
+									} catch (IOException e1) {
+										log.error("Could not NACK message.", e1);
+									}
+								}
+							}
+                    	};
+                    	
+                    	executor.submit(run);
 
                     } catch (RejectedExecutionException e) {
                         log.error("Could not submit message processor to executor! Requeueing message.", e);
@@ -406,14 +430,6 @@ public class Client implements ShutdownListener {
 
     public boolean isRunning() {
         return running.get();
-    }
-
-    public MessageInfo takeMessageInfo(Future<HandlerResponse> handlerResponseFuture) {
-        return handlerMessageInfo.remove(handlerResponseFuture);
-    }
-
-    public Future<HandlerResponse> pollForHandlerResponse() throws InterruptedException {
-        return completionService.poll(500, TimeUnit.MILLISECONDS);
     }
 
 }

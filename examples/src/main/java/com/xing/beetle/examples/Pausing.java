@@ -1,22 +1,28 @@
 package com.xing.beetle.examples;
 
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Envelope;
-import com.xing.beetle.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.net.URISyntaxException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
-public class Simple {
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-    private Logger log = LoggerFactory.getLogger(Simple.class);
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Envelope;
+import com.xing.beetle.Client;
+import com.xing.beetle.ConsumerConfiguration;
+import com.xing.beetle.HandlerResponse;
+import com.xing.beetle.Message;
+import com.xing.beetle.MessageHandler;
+import com.xing.beetle.Queue;
+
+public class Pausing {
+	
+    private Logger log = LoggerFactory.getLogger(Pausing.class);
 
     public static void main(String[] args) {
         try {
-            new Simple().run();
+            new Pausing().run();
         } catch (URISyntaxException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
@@ -69,8 +75,6 @@ public class Simple {
                 return new Callable<HandlerResponse>() {
                     @Override
                     public HandlerResponse call() throws Exception {
-                    	
-                    	Thread.sleep(987);
                         log.info("Handling message...{}", "deliveryTag = " + envelope.getDeliveryTag() + " routingKey = " + envelope.getRoutingKey() + " exchange = " + envelope.getExchange());
                         StringBuilder sb = new StringBuilder();
                         // are you serious?!
@@ -88,15 +92,12 @@ public class Simple {
         client.start();
 
         client.publish(redundantMsg, "some payload");
-        client.publish(redundantMsg, "some payload");
-        client.publish(redundantMsg, "some payload");
-        client.publish(redundantMsg, "some payload");
-        client.publish(redundantMsg, "some payload");
-        client.publish(nonRedundantMsg, "some other payload");
+
+        //client.publish(nonRedundantMsg, "some other payload");
 
         System.err.println("sleeping for good measure (to actually receive the messages)");
-        Thread.sleep(5 * 1000);
+        Thread.sleep(10 * 1000);
         client.stop();
     }
-
+    
 }
