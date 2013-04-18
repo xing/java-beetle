@@ -145,7 +145,9 @@ public class Client implements ShutdownListener {
         log.debug("Subscribing {} to queue {}", handler, queue);
         try {
             final Channel subscriberChannel = beetleChannels.createSubscriberChannel();
-            subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new BeetleConsumer(this, subscriberChannel, handler));
+            final String consumerTag = subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new BeetleConsumer(this, subscriberChannel, handler));
+            // potential race condition between setting the consumer tag and pausing the subscriber. Highly unlikely, though.
+            handler.setConsumerTag(consumerTag);
         } catch (IOException e) {
             log.error("Cannot subscribe {} to queue {}: {}", handler, queue, e.getMessage());
         }

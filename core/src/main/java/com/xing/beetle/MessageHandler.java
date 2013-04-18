@@ -37,4 +37,11 @@ public abstract class MessageHandler {
     	channels.clear();
     }
 
+    public void setConsumerTag(String consumerTag) {
+        this.consumerTag = consumerTag;
+    }
+
+    public String getConsumerTag() {
+        return consumerTag;
+    }
 }
