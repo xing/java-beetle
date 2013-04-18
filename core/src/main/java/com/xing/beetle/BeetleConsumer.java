@@ -30,6 +30,23 @@ public class BeetleConsumer extends DefaultConsumer {
     @Override
     public void handleDelivery(String consumerTag, final Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
 
+        final String messageId = properties.getMessageId();
+        final String expires_at = properties.getHeaders().get("expires_at").toString();
+        Long ttl = 0L;
+        if (expires_at != null) {
+            ttl = Long.valueOf(expires_at);
+        }
+        // check for outdated,expired message
+        if ((System.currentTimeMillis() / 1000L) > ttl) {
+            log.warn("NACK expired message id {} on {}", messageId, subscriberChannel);
+            nackSafely(envelope.getDeliveryTag(), false);
+            return;
+        }
+
+        if (! client.shouldProcessMessage(subscriberChannel, envelope.getDeliveryTag(), messageId)) {
+            return;
+        }
+
         final Callable<HandlerResponse> handlerProcessor = handler.process(envelope, properties, body);
 
         try {
@@ -39,23 +56,24 @@ public class BeetleConsumer extends DefaultConsumer {
                     try {
                         HandlerResponse response = handlerProcessor.call();
                         if (response.isSuccess()) {
-                            final Connection connection = subscriberChannel.getConnection();
-                            log.debug("ACKing message from delivery tag {} on channel {} broker {}:{}",
-                                envelope.getDeliveryTag(), subscriberChannel.getChannelNumber(), connection.getAddress(), connection.getPort());
-
-                            subscriberChannel.basicAck(envelope.getDeliveryTag(), false);
+                            // TODO move ack to this class instead?
+                            client.markMessageAsCompleted(subscriberChannel, envelope.getDeliveryTag(), messageId);
                         } else {
-                            try {
-                                subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
-                            } catch (IOException e1) {
-                                log.error("Could not NACK message.", e1);
-                            }
+                            // cannot happen right now. delete?
+                            nackSafely(envelope.getDeliveryTag(), true);
                         }
                     } catch (Exception e) {
-                        try {
-                            subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
-                        } catch (IOException e1) {
-                            log.error("Could not NACK message.", e1);
+                        final long exceptions = client.incrementExceptions(messageId);
+                        final long attempts = client.getAttemptsCount(messageId);
+                        // TODO read exceptions/attempts limit from declared Message!
+                        if (exceptions > 1 || attempts > 1) {
+                            // exceeded configured exception count
+                            log.warn("NACK message attempt or exception count exceeded. {} of {} attempts, {} of {} exceptions",
+                                new long[] {attempts, 1, exceptions, 1});
+                            nackSafely(envelope.getDeliveryTag(), false);
+                        } else {
+                            client.removeMessageHandlerLock(messageId);
+                            nackSafely(envelope.getDeliveryTag(), true);
                         }
                     }
                 }
@@ -65,7 +83,15 @@ public class BeetleConsumer extends DefaultConsumer {
 
         } catch (RejectedExecutionException e) {
             log.error("Could not submit message processor to executor! Requeueing message.", e);
-            subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
+            nackSafely(envelope.getDeliveryTag(), true);
+        }
+    }
+
+    private void nackSafely(long deliveryTag, boolean requeue) {
+        try {
+            subscriberChannel.basicNack(deliveryTag, false, requeue);
+        } catch (IOException e) {
+            log.error("Could not NACK message.", e);
         }
     }
 }

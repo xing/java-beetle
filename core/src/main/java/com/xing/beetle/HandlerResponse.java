@@ -20,9 +20,7 @@ public class HandlerResponse {
     }
 
     public static enum ResponseCode {
-        OK,
-        INTERRUPTED,
-        EXCEPTION, ANCIENT
+        OK
     }
 
     private ResponseCode responseCode;

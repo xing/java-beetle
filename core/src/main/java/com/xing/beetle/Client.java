@@ -384,4 +384,47 @@ public class Client implements ShutdownListener {
     public Future<?> submit(Runnable handlerTask) {
         return executor.submit(handlerTask);
     }
+
+    public boolean shouldProcessMessage(Channel channel, long deliveryTag, String messageId) {
+
+        if (deduplicationStore.isMessageNew(messageId)) {
+            deduplicationStore.incrementAttempts(messageId);
+            return true;
+        }
+
+        final HashMap<String, String> handlerStatus = deduplicationStore.getHandlerStatus(messageId);
+        // fugly, please make it right
+        if (handlerStatus.get(DeduplicationStore.STATUS).equals("complete")) {
+            try {
+                channel.basicAck(deliveryTag, false);
+            } catch (IOException e) {
+                log.error("Could not ACK message " + messageId, e);
+            }
+            // no need to handle anything, this message was already handled by some other consumer
+            return false;
+        }
+
+        return true;
+    }
+
+    public void markMessageAsCompleted(Channel subscriberChannel, long deliveryTag, String messageId) throws IOException {
+        final Connection connection = subscriberChannel.getConnection();
+        deduplicationStore.markMessageCompleted(messageId);
+        log.debug("ACKing message from delivery tag {} on channel {} broker {}:{}",
+            deliveryTag, subscriberChannel.getChannelNumber(), connection.getAddress(), connection.getPort());
+
+        subscriberChannel.basicAck(deliveryTag, false);
+    }
+
+    public long incrementExceptions(String messageId) {
+        return deduplicationStore.incrementExceptions(messageId);
+    }
+
+    public long getAttemptsCount(String messageId) {
+        return deduplicationStore.getAttemptsCount(messageId);
+    }
+
+    public void removeMessageHandlerLock(String messageId) {
+        deduplicationStore.removeMessageHandlerLock(messageId);
+    }
 }
