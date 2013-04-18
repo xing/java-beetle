@@ -1,7 +1,6 @@
 package com.xing.beetle;
 
 import com.rabbitmq.client.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,7 +9,6 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Client implements ShutdownListener {
 
@@ -40,9 +38,7 @@ public class Client implements ShutdownListener {
 
     private final DeduplicationStore deduplicationStore;
 
-    private AtomicBoolean running;
-
-	private final ExecutorService executor;
+    private final ExecutorService executor;
 
     protected Client(List<URI> uris, ExecutorService executorService) {
         this.uris = uris;
@@ -55,7 +51,6 @@ public class Client implements ShutdownListener {
         handlers = new HashSet<ConsumerConfiguration>();
         state = LifecycleStates.UNINITIALIZED;
         executor = executorService;
-        running = new AtomicBoolean(false);
         deduplicationStore = new DeduplicationStore();
     }
 
@@ -84,7 +79,6 @@ public class Client implements ShutdownListener {
             log.debug("Ignoring call to start() for an already started Beetle client.", new Throwable());
             return;
         }
-        running.set(true);
         for (final URI uri : uris) {
             connect(uri);
         }
@@ -93,7 +87,6 @@ public class Client implements ShutdownListener {
 
     public void stop() {
         reconnector.shutdownNow();
-        running.set(false);
         for (Connection connection : connections.keySet()) {
             try {
                 connection.close();
@@ -152,51 +145,7 @@ public class Client implements ShutdownListener {
         log.debug("Subscribing {} to queue {}", handler, queue);
         try {
             final Channel subscriberChannel = beetleChannels.createSubscriberChannel();
-            subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new DefaultConsumer(subscriberChannel) {
-
-                @Override
-                public void handleDelivery(String consumerTag, final Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-                	
-                    final Callable<HandlerResponse> handlerProcessor = handler.process(envelope, properties, body);
-                    
-                    try {
-                    	final Runnable run = new Runnable() {
-							@Override
-							public void run() {
-								try {
-									HandlerResponse response = handlerProcessor.call();
-									if (response.isSuccess()) {
-					                    final Connection connection = subscriberChannel.getConnection();
-					                    log.debug("ACKing message from delivery tag {} on channel {} broker {}:{}",
-					                        envelope.getDeliveryTag(), subscriberChannel.getChannelNumber(), connection.getAddress(), connection.getPort());
-					                    
-					                    subscriberChannel.basicAck(envelope.getDeliveryTag(), false);
-					                } else {
-										try {
-											subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
-										} catch (IOException e1) {
-											log.error("Could not NACK message.", e1);
-										}
-					                }
-								} catch (Exception e) {
-									try {
-										subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
-									} catch (IOException e1) {
-										log.error("Could not NACK message.", e1);
-									}
-								}
-							}
-                    	};
-                    	
-                    	executor.submit(run);
-
-                    } catch (RejectedExecutionException e) {
-                        log.error("Could not submit message processor to executor! Requeueing message.", e);
-                        subscriberChannel.basicNack(envelope.getDeliveryTag(), false, true);
-                    }
-                }
-
-            });
+            subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new BeetleConsumer(this, subscriberChannel, handler));
         } catch (IOException e) {
             log.error("Cannot subscribe {} to queue {}: {}", handler, queue, e.getMessage());
         }
@@ -428,8 +377,7 @@ public class Client implements ShutdownListener {
         return new HashSet<>(uris);
     }
 
-    public boolean isRunning() {
-        return running.get();
+    public Future<?> submit(Runnable handlerTask) {
+        return executor.submit(handlerTask);
     }
-
 }

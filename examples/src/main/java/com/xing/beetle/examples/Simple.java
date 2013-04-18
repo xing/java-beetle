@@ -88,10 +88,6 @@ public class Simple {
         client.start();
 
         client.publish(redundantMsg, "some payload");
-        client.publish(redundantMsg, "some payload");
-        client.publish(redundantMsg, "some payload");
-        client.publish(redundantMsg, "some payload");
-        client.publish(redundantMsg, "some payload");
         client.publish(nonRedundantMsg, "some other payload");
 
         System.err.println("sleeping for good measure (to actually receive the messages)");
