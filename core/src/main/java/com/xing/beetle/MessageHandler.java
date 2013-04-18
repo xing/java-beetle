@@ -7,41 +7,33 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class MessageHandler {
-	
-    private final Logger log;
 
-	private Set<Channel> channels = new HashSet<>(); // TODO: synchronized? (yolo)
-	private String consumerTag;
+    private final Logger log = LoggerFactory.getLogger(MessageHandler.class);
 
-    public MessageHandler() {
-    	log = LoggerFactory.getLogger(this.getClass());
-    }
-	
+	private ConcurrentHashMap<Channel, String> channels = new ConcurrentHashMap<>();
+
     public abstract Callable<HandlerResponse> process(Envelope envelope, AMQP.BasicProperties properties, byte[] body);
 
     public void pause() {
-    	for (Channel channel : channels) {
-    		try {
+    	for (Map.Entry<Channel, String> entry : channels.entrySet()) {
+            final Channel channel = entry.getKey();
+            final String consumerTag = entry.getValue();
+            try {
+                log.info("Canceling consumer {} on {}", consumerTag, channel);
 				channel.basicCancel(consumerTag);
-				channel.close();
 			} catch (IOException e) {
 				log.warn("Could not pause channel.", e);
 			}
     	}
-    	
     	channels.clear();
     }
 
-    public void setConsumerTag(String consumerTag) {
-        this.consumerTag = consumerTag;
-    }
-
-    public String getConsumerTag() {
-        return consumerTag;
+    public void addChannel(Channel subscriberChannel, String consumerTag) {
+        channels.put(subscriberChannel, consumerTag);
     }
 }

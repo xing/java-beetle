@@ -147,18 +147,20 @@ public class Client implements ShutdownListener {
             final Channel subscriberChannel = beetleChannels.createSubscriberChannel();
             final String consumerTag = subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new BeetleConsumer(this, subscriberChannel, handler));
             // potential race condition between setting the consumer tag and pausing the subscriber. Highly unlikely, though.
-            handler.setConsumerTag(consumerTag);
+            handler.addChannel(subscriberChannel, consumerTag);
         } catch (IOException e) {
             log.error("Cannot subscribe {} to queue {}: {}", handler, queue, e.getMessage());
         }
     }
 
     public void pause(ConsumerConfiguration config) throws IOException {
+        // TODO YOLO PAUSE -> muss warten bis alle handler durch sind
         config.getHandler().pause();
         handlers.remove(config);
     }
 
     public void resume(ConsumerConfiguration config) {
+        log.info("Resuming subscriber for {}", config.getQueue());
         if (!handlers.contains(config)) {
             handlers.add(config);
 
@@ -297,7 +299,7 @@ public class Client implements ShutdownListener {
             throw new IllegalStateException("Cannot publish message, Beetle client has already been stopped.");
         }
 
-        log.debug("Publishing `{}` for message {}", payload, message);
+        log.info("Publishing `{}` for {}", payload, message);
         int successfulSends;
         if (message.isRedundant()) {
             // publish to at least two brokers
@@ -307,11 +309,11 @@ public class Client implements ShutdownListener {
                     log.error("No message published.");
                     throw new NoMessagePublishedException(message, payload);
                 case 1:
-                    log.warn("Message {} (payload: {}) was not published redundantly.", message, payload);
+                    log.warn("{} (payload: {}) was not published redundantly.", message, payload);
                     break;
                 case 2:
                     // ignore, all fine
-                    log.debug("Message {} successfully published.", message);
+                    log.debug("{} successfully published.", message);
                     break;
                 default:
                     log.error("Unexpected number of published messages for a redundant message. Should be 2 but {} copies published.", successfulSends);
@@ -325,7 +327,7 @@ public class Client implements ShutdownListener {
                     throw new NoMessagePublishedException(message, payload);
                 case 1:
                     // ignore, all fine
-                    log.debug("Message {} successfully published.", message);
+                    log.debug("{} successfully published.", message);
                     break;
                 default:
                     log.error("Unexpected number of published messages for a non-redundant message. Should be 1 but {} copies published.", successfulSends);
@@ -369,7 +371,7 @@ public class Client implements ShutdownListener {
 
                 successfulSends++;
             } catch (IOException e) {
-                log.warn("Unable to publish message {} to broker {}. Trying next broker.", message, connections.get(connection));
+                log.warn("Unable to publish {} to broker {}. Trying next broker.", message, connections.get(connection));
             }
         }
         return successfulSends;

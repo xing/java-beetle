@@ -1,24 +1,22 @@
 package com.xing.beetle.examples;
 
-import java.net.URISyntaxException;
-import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
-
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Envelope;
+import com.xing.beetle.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Envelope;
-import com.xing.beetle.Client;
-import com.xing.beetle.ConsumerConfiguration;
-import com.xing.beetle.HandlerResponse;
-import com.xing.beetle.Message;
-import com.xing.beetle.MessageHandler;
-import com.xing.beetle.Queue;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Pausing {
 	
     private Logger log = LoggerFactory.getLogger(Pausing.class);
+    private AtomicBoolean running = new AtomicBoolean(true);
 
     public static void main(String[] args) {
         try {
@@ -32,15 +30,10 @@ public class Pausing {
 
     private void run() throws URISyntaxException, InterruptedException {
 
-        Client client = Client.builder()
+        final Client client = Client.builder()
             .addBroker(5672)
             .addBroker(5671)
             .build();
-
-        // these are the default settings, except of course the name() option
-        // You can also pass the builder instead of the built object, if you plan to reuse the builder.
-//        final Exchange simpleXchg = Exchange.builder().name("simpleXchg").topic(true).durable(true).build();
-//        client.registerExchange(simpleXchg);
 
         final Queue simpleQ = Queue.builder()
             .name("simpleQ")
@@ -68,7 +61,7 @@ public class Pausing {
             .build();
         client.registerMessage(redundantMsg);
 
-        client.registerHandler(new ConsumerConfiguration(simpleQ, new MessageHandler() {
+        final ConsumerConfiguration simpleMsgHandler = new ConsumerConfiguration(simpleQ, new MessageHandler() {
             @Override
             public Callable<HandlerResponse> process(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
                 log.warn("Received message {}", new String(body));
@@ -76,10 +69,10 @@ public class Pausing {
                     @Override
                     public HandlerResponse call() throws Exception {
                         log.info("Handling message...{}", "deliveryTag = " + envelope.getDeliveryTag() + " routingKey = " + envelope.getRoutingKey() + " exchange = " + envelope.getExchange());
-                        StringBuilder sb = new StringBuilder();
+                        //StringBuilder sb = new StringBuilder();
                         // are you serious?!
-                        properties.appendArgumentDebugStringTo(sb);
-                        log.info("Properties: {}", sb.toString());
+                        //properties.appendArgumentDebugStringTo(sb);
+                        //log.info("Properties: {}", sb.toString());
                         /* the following exception will trigger an inifite loop currently, because we do not track exception counts per message currently. */
                         /*if (new String(body).contains("other")) {
                             throw new RuntimeException("I don't want 'other' messages!");
@@ -88,15 +81,51 @@ public class Pausing {
                     }
                 };
             }
-        }));
+        });
+        client.registerHandler(simpleMsgHandler);
         client.start();
+        final CountDownLatch shutdownLatch = new CountDownLatch(2);
 
-        client.publish(redundantMsg, "some payload");
+        Runnable publisher = new Runnable() {
+            private int i = 0;
+            @Override
+            public void run() {
+                while (running.get()) {
+                    client.publish(redundantMsg, "Redundant message " + i++);
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException ignored) {}
+                }
+                shutdownLatch.countDown();
+            }
+        };
+        Runnable subscriber = new Runnable() {
+            @Override
+            public void run() {
+                while (running.get()) {
+                    try {
+                        Thread.sleep(1000);
+                        client.pause(simpleMsgHandler);
+                        Thread.sleep(2000);
+                        client.resume(simpleMsgHandler);
+                    }
+                    catch (InterruptedException ignored) {}
+                    catch (IOException e) {
+                        e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                    }
+                }
+                shutdownLatch.countDown();
+            }
+        };
 
-        //client.publish(nonRedundantMsg, "some other payload");
+        new Thread(publisher, "publisher").start();
+        new Thread(subscriber, "subscriber").start();
 
-        System.err.println("sleeping for good measure (to actually receive the messages)");
-        Thread.sleep(10 * 1000);
+        Thread.sleep(TimeUnit.MILLISECONDS.convert(10, TimeUnit.SECONDS));
+        running.set(false);
+        // wait for threads to stop.
+        shutdownLatch.await();
+
         client.stop();
     }
     
