@@ -57,8 +57,8 @@ public class BeetleConsumer extends DefaultConsumer {
                     try {
                         HandlerResponse response = handlerProcessor.call();
                         if (response.isSuccess()) {
-                            // TODO move ack to this class instead?
-                            client.markMessageAsCompleted(subscriberChannel, deliveryTag, messageId);
+                            client.markMessageAsCompleted(messageId);
+                            acknowledgeMessage(deliveryTag);
                         } else {
                             // cannot happen right now. delete?
                             processMessageAgainLater(deliveryTag);
@@ -85,6 +85,14 @@ public class BeetleConsumer extends DefaultConsumer {
         } catch (RejectedExecutionException e) {
             log.error("Could not submit message processor to executor! Requeueing message.", e);
             processMessageAgainLater(deliveryTag);
+        }
+    }
+
+    private void acknowledgeMessage(long deliveryTag) {
+        try {
+            subscriberChannel.basicAck(deliveryTag, false);
+        } catch (IOException e) {
+            log.error("Could not ACK message", e);
         }
     }
 

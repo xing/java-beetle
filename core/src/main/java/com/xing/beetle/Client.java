@@ -407,13 +407,8 @@ public class Client implements ShutdownListener {
         return true;
     }
 
-    public void markMessageAsCompleted(Channel subscriberChannel, long deliveryTag, String messageId) throws IOException {
-        final Connection connection = subscriberChannel.getConnection();
+    public void markMessageAsCompleted(String messageId) {
         deduplicationStore.markMessageCompleted(messageId);
-        log.debug("ACKing message from delivery tag {} on channel {} broker {}:{}",
-            deliveryTag, subscriberChannel.getChannelNumber(), connection.getAddress(), connection.getPort());
-
-        subscriberChannel.basicAck(deliveryTag, false);
     }
 
     public long incrementExceptions(String messageId) {
