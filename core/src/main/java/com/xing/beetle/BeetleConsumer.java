@@ -29,6 +29,7 @@ public class BeetleConsumer extends DefaultConsumer {
 
     @Override
     public void handleDelivery(String consumerTag, final Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+        final long deliveryTag = envelope.getDeliveryTag();
 
         final String messageId = properties.getMessageId();
         final String expires_at = properties.getHeaders().get("expires_at").toString();
@@ -39,11 +40,11 @@ public class BeetleConsumer extends DefaultConsumer {
         // check for outdated,expired message
         if ((System.currentTimeMillis() / 1000L) > ttl) {
             log.warn("NACK expired message id {} on {}", messageId, subscriberChannel);
-            nackSafely(envelope.getDeliveryTag(), false);
+            discardMessage(deliveryTag);
             return;
         }
 
-        if (! client.shouldProcessMessage(subscriberChannel, envelope.getDeliveryTag(), messageId)) {
+        if (! client.shouldProcessMessage(subscriberChannel, deliveryTag, messageId)) {
             return;
         }
 
@@ -57,10 +58,10 @@ public class BeetleConsumer extends DefaultConsumer {
                         HandlerResponse response = handlerProcessor.call();
                         if (response.isSuccess()) {
                             // TODO move ack to this class instead?
-                            client.markMessageAsCompleted(subscriberChannel, envelope.getDeliveryTag(), messageId);
+                            client.markMessageAsCompleted(subscriberChannel, deliveryTag, messageId);
                         } else {
                             // cannot happen right now. delete?
-                            nackSafely(envelope.getDeliveryTag(), true);
+                            processMessageAgainLater(deliveryTag);
                         }
                     } catch (Exception e) {
                         final long exceptions = client.incrementExceptions(messageId);
@@ -70,10 +71,10 @@ public class BeetleConsumer extends DefaultConsumer {
                             // exceeded configured exception count
                             log.warn("NACK message attempt or exception count exceeded. {} of {} attempts, {} of {} exceptions",
                                 new long[] {attempts, 1, exceptions, 1});
-                            nackSafely(envelope.getDeliveryTag(), false);
+                            discardMessage(deliveryTag);
                         } else {
                             client.removeMessageHandlerLock(messageId);
-                            nackSafely(envelope.getDeliveryTag(), true);
+                            processMessageAgainLater(deliveryTag);
                         }
                     }
                 }
@@ -83,8 +84,16 @@ public class BeetleConsumer extends DefaultConsumer {
 
         } catch (RejectedExecutionException e) {
             log.error("Could not submit message processor to executor! Requeueing message.", e);
-            nackSafely(envelope.getDeliveryTag(), true);
+            processMessageAgainLater(deliveryTag);
         }
+    }
+
+    private void discardMessage(long deliveryTag) {
+        nackSafely(deliveryTag, false);
+    }
+
+    private void processMessageAgainLater(long deliveryTag) {
+        nackSafely(deliveryTag, true);
     }
 
     private void nackSafely(long deliveryTag, boolean requeue) {
