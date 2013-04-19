@@ -83,6 +83,15 @@ public class DeduplicationStore {
         }
     }
 
+    public long getExceptionsCount(String messageId) {
+        final Jedis jedis = pool.getResource();
+        try {
+            return Long.valueOf(jedis.get(key(messageId, EXCEPTIONS)));
+        } finally {
+            pool.returnResource(jedis);
+        }
+    }
+
     public void removeMessageHandlerLock(String messageId) {
         final Jedis jedis = pool.getResource();
         try {
@@ -111,5 +120,28 @@ public class DeduplicationStore {
         } finally {
             pool.returnResource(jedis);
         }
+    }
+
+    /**
+     *
+     * @param messageId
+     * @return boolean whether to handle the message (true) or not (false)
+     */
+    public boolean acquireSharedHandlerMutex(String messageId) {
+        final Jedis jedis = pool.getResource();
+        try {
+            jedis.set(key(messageId, TIMEOUT), Long.toString((System.currentTimeMillis() / 1000L) + 600));
+            if (jedis.setnx(key(messageId, MUTEX), Long.toString(System.currentTimeMillis() / 1000L)) == 0) {
+                jedis.del(key(messageId, MUTEX));
+                return false;
+            }
+            return true;
+        } finally {
+            pool.returnResource(jedis);
+        }
+    }
+
+    public void close() {
+        pool.destroy();
     }
 }

@@ -87,6 +87,7 @@ public class Client implements ShutdownListener {
 
     public void stop() {
         reconnector.shutdownNow();
+        deduplicationStore.close();
         for (Connection connection : connections.keySet()) {
             try {
                 connection.close();
@@ -403,7 +404,50 @@ public class Client implements ShutdownListener {
             // no need to handle anything, this message was already handled by some other consumer
             return false;
         }
+        final String delayValue = handlerStatus.get(DeduplicationStore.DELAY);
+        if (Long.valueOf(delayValue != null ? delayValue : "0") > (System.currentTimeMillis()/1000L)) {
+            // processing message should still be delayed, requeue
+            try {
+                channel.basicNack(deliveryTag, false, true);
+            } catch (IOException e) {
+                log.error("Could not requeue message " + messageId, e);
+            }
+            return false;
+        }
+        final String timeoutValue = handlerStatus.get(DeduplicationStore.TIMEOUT);
+        if (Long.valueOf(timeoutValue != null ? timeoutValue : "0") > (System.currentTimeMillis()/1000L)) {
+            // another handler is working on this message, we need to reprocess this message later
+            // to determine whether we have to re-execute the handler
+            try {
+                channel.basicNack(deliveryTag, false, true);
+            } catch (IOException e) {
+                log.error("Could not requeue message " + messageId, e);
+            }
+            return false;
+        }
+        final long attempts = getAttemptsCount(messageId);
+        final long exceptions = getExceptionsCount(messageId);
+        if (attempts > 1 || exceptions > 1) {
+            // message handler has been tried too many times or produced too many exceptions
+            try {
+                channel.basicNack(deliveryTag, false, false);
+            } catch (IOException e) {
+                log.error("Could not NACK message " + messageId, e);
+            }
+            return false;
+        }
 
+        if (! acquireSharedHandlerMutex(messageId)) {
+            // we could not acquire the mutex, so we need to requeue the message and check for execution later.
+            try {
+                channel.basicNack(deliveryTag, false, true);
+            } catch (IOException e) {
+                log.error("Could not requeue message " + messageId, e);
+            }
+            return false;
+        }
+
+        // mutex acquired, no one else is working on this message, so we handle it
         return true;
     }
 
@@ -419,7 +463,15 @@ public class Client implements ShutdownListener {
         return deduplicationStore.getAttemptsCount(messageId);
     }
 
+    public long getExceptionsCount(String messageId) {
+        return deduplicationStore.getExceptionsCount(messageId);
+    }
+
     public void removeMessageHandlerLock(String messageId) {
         deduplicationStore.removeMessageHandlerLock(messageId);
+    }
+
+    public boolean acquireSharedHandlerMutex(String messageId) {
+        return deduplicationStore.acquireSharedHandlerMutex(messageId);
     }
 }

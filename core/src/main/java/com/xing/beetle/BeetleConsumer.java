@@ -70,7 +70,7 @@ public class BeetleConsumer extends DefaultConsumer {
                         if (exceptions > 1 || attempts > 1) {
                             // exceeded configured exception count
                             log.warn("NACK message attempt or exception count exceeded. {} of {} attempts, {} of {} exceptions",
-                                new long[] {attempts, 1, exceptions, 1});
+                                attempts, 1, exceptions, 1);
                             discardMessage(deliveryTag);
                         } else {
                             client.removeMessageHandlerLock(messageId);
