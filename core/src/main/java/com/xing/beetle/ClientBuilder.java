@@ -21,14 +21,30 @@ public class ClientBuilder {
 	private static final String DEFAULT_USERNAME = "guest";
 	private static final String DEFAULT_PASSWORD = "guest";
 	private static final String DEFAULT_VHOST = "/";
+
+    private static final String DEFAULT_REDIS_HOST = "127.0.0.1";
+    private static final int DEFAULT_REDIS_PORT = 6379;
 	
 	private List<URI> uris = new ArrayList<URI>();
+    private String redisHost = DEFAULT_REDIS_HOST;
+    private int redisPort = DEFAULT_REDIS_PORT;
 	private ExecutorService executorService;
-	
+
 	public ClientBuilder addBroker(URI amqpUri) {
 	    uris.add(amqpUri);
 	    return this;
 	}
+
+    public ClientBuilder setRedis(String host, int port) {
+        this.redisHost = host;
+        this.redisPort = port;
+        return this;
+    }
+
+    public ClientBuilder setRedis(String host) {
+        this.redisHost = host;
+        return this;
+    }
 	
 	public ClientBuilder addBroker(String host, int port, String username, String password, String virtualHost) throws URISyntaxException {
 	    return addBroker(new URI("amqp", username + ":" + password, host, port, virtualHost, null, null));
@@ -77,7 +93,7 @@ public class ClientBuilder {
 	        };
 	        executorService = Executors.newFixedThreadPool(nThreads, messageHandlerThreadFactory);
 	    }
-	    return new Client(uris, executorService);
+	    return new Client(uris, redisHost, redisPort, executorService);
 	}
         
 }

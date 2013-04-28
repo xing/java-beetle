@@ -20,9 +20,9 @@ public class DeduplicationStore {
     public static final String DELAY = "delay";
     private final JedisPool pool;
 
-    public DeduplicationStore() {
+    public DeduplicationStore(String hostname, int port) {
         // TODO use system configuration message and write current master to file
-        pool = new JedisPool(new JedisPoolConfig(), "127.0.0.1", 6379);
+        pool = new JedisPool(new JedisPoolConfig(), hostname, port);
     }
 
     public boolean isMessageNew(String messageId) {
