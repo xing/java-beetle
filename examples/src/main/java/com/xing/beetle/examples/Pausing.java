@@ -33,6 +33,7 @@ public class Pausing {
         final Client client = Client.builder()
             .addBroker(5672)
             .addBroker(5671)
+            .setDeduplicationStore(new RedisConfiguration("127.0.0.1"))
             .build();
 
         final Queue simpleQ = Queue.builder()

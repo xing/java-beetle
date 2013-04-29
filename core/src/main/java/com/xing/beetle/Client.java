@@ -40,7 +40,7 @@ public class Client implements ShutdownListener {
 
     private final ExecutorService executor;
 
-    protected Client(List<URI> uris, String redisHost, int redisPort, ExecutorService executorService) {
+    protected Client(List<URI> uris, RedisConfiguration dedupConfig, ExecutorService executorService) {
         this.uris = uris;
         connections = new ConcurrentHashMap<>(uris.size());
         channels = new ConcurrentHashMap<>();
@@ -51,7 +51,7 @@ public class Client implements ShutdownListener {
         handlers = new HashSet<ConsumerConfiguration>();
         state = LifecycleStates.UNINITIALIZED;
         executor = executorService;
-        deduplicationStore = new DeduplicationStore(redisHost, redisPort);
+        deduplicationStore = new DeduplicationStore(dedupConfig);
     }
 
     // isn't there a cleaner way of doing this in tests?

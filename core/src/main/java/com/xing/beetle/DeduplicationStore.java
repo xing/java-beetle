@@ -20,9 +20,9 @@ public class DeduplicationStore {
     public static final String DELAY = "delay";
     private final JedisPool pool;
 
-    public DeduplicationStore(String hostname, int port) {
+    public DeduplicationStore(RedisConfiguration config) {
         // TODO use system configuration message and write current master to file
-        pool = new JedisPool(new JedisPoolConfig(), hostname, port);
+        pool = new JedisPool(new JedisPoolConfig(), config.getHostname(), config.getPort());
     }
 
     public boolean isMessageNew(String messageId) {

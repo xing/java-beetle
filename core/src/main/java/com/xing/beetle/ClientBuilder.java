@@ -21,13 +21,9 @@ public class ClientBuilder {
 	private static final String DEFAULT_USERNAME = "guest";
 	private static final String DEFAULT_PASSWORD = "guest";
 	private static final String DEFAULT_VHOST = "/";
-
-    private static final String DEFAULT_REDIS_HOST = "127.0.0.1";
-    private static final int DEFAULT_REDIS_PORT = 6379;
 	
 	private List<URI> uris = new ArrayList<URI>();
-    private String redisHost = DEFAULT_REDIS_HOST;
-    private int redisPort = DEFAULT_REDIS_PORT;
+    private RedisConfiguration dedupConfig = new RedisConfiguration();
 	private ExecutorService executorService;
 
 	public ClientBuilder addBroker(URI amqpUri) {
@@ -35,14 +31,8 @@ public class ClientBuilder {
 	    return this;
 	}
 
-    public ClientBuilder setRedis(String host, int port) {
-        this.redisHost = host;
-        this.redisPort = port;
-        return this;
-    }
-
-    public ClientBuilder setRedis(String host) {
-        this.redisHost = host;
+    public ClientBuilder setDeduplicationStore(RedisConfiguration config) {
+        this.dedupConfig = config;
         return this;
     }
 	
@@ -93,7 +83,7 @@ public class ClientBuilder {
 	        };
 	        executorService = Executors.newFixedThreadPool(nThreads, messageHandlerThreadFactory);
 	    }
-	    return new Client(uris, redisHost, redisPort, executorService);
+	    return new Client(uris, dedupConfig, executorService);
 	}
         
 }
