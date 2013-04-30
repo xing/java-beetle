@@ -393,9 +393,8 @@ public class Client implements ShutdownListener {
             return true;
         }
 
-        final HashMap<String, String> handlerStatus = deduplicationStore.getHandlerStatus(messageId);
-        // fugly, please make it right
-        if (handlerStatus.get(DeduplicationStore.STATUS).equals("complete")) {
+        final HandlerStatus handlerStatus = deduplicationStore.getHandlerStatus(messageId);
+        if (handlerStatus.isCompleted()) {
             try {
                 channel.basicAck(deliveryTag, false);
             } catch (IOException e) {
@@ -404,8 +403,8 @@ public class Client implements ShutdownListener {
             // no need to handle anything, this message was already handled by some other consumer
             return false;
         }
-        final String delayValue = handlerStatus.get(DeduplicationStore.DELAY);
-        if (Long.valueOf(delayValue != null ? delayValue : "0") > (System.currentTimeMillis()/1000L)) {
+
+        if (handlerStatus.shouldDelay()) {
             // processing message should still be delayed, requeue
             try {
                 channel.basicNack(deliveryTag, false, true);
@@ -414,8 +413,8 @@ public class Client implements ShutdownListener {
             }
             return false;
         }
-        final String timeoutValue = handlerStatus.get(DeduplicationStore.TIMEOUT);
-        if (Long.valueOf(timeoutValue != null ? timeoutValue : "0") > (System.currentTimeMillis()/1000L)) {
+
+        if (handlerStatus.isTimedOut()) {
             // another handler is working on this message, we need to reprocess this message later
             // to determine whether we have to re-execute the handler
             try {
@@ -425,9 +424,8 @@ public class Client implements ShutdownListener {
             }
             return false;
         }
-        final long attempts = getAttemptsCount(messageId);
-        final long exceptions = getExceptionsCount(messageId);
-        if (attempts > 1 || exceptions > 1) {
+
+        if (handlerStatus.getAttempts() > 1 || handlerStatus.getExceptions() > 1) {
             // message handler has been tried too many times or produced too many exceptions
             try {
                 channel.basicNack(deliveryTag, false, false);
@@ -457,14 +455,6 @@ public class Client implements ShutdownListener {
 
     public long incrementExceptions(String messageId) {
         return deduplicationStore.incrementExceptions(messageId);
-    }
-
-    public long getAttemptsCount(String messageId) {
-        return deduplicationStore.getAttemptsCount(messageId);
-    }
-
-    public long getExceptionsCount(String messageId) {
-        return deduplicationStore.getExceptionsCount(messageId);
     }
 
     public void removeMessageHandlerLock(String messageId) {

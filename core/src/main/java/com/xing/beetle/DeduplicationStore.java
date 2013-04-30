@@ -47,46 +47,18 @@ public class DeduplicationStore {
         return messageId + ":" + suffix;
     }
 
-    public void incrementAttempts(String messageId) {
-        final Jedis jedis = pool.getResource();
-        try {
-            jedis.incr(key(messageId, ATTEMPTS));
-        } finally {
-            pool.returnResource(jedis);
-        }
+    public long incrementAttempts(String messageId) {
+        return increment(messageId, ATTEMPTS);
+    }
+
+    public long incrementExceptions(String messageId) {
+        return increment(messageId, EXCEPTIONS);
     }
 
     public void markMessageCompleted(String messageId) {
         final Jedis jedis = pool.getResource();
         try {
             jedis.set(key(messageId, STATUS), "complete");
-        } finally {
-            pool.returnResource(jedis);
-        }
-    }
-
-    public long incrementExceptions(String messageId) {
-        final Jedis jedis = pool.getResource();
-        try {
-            return jedis.incr(key(messageId, EXCEPTIONS));
-        } finally {
-            pool.returnResource(jedis);
-        }
-    }
-
-    public long getAttemptsCount(String messageId) {
-        final Jedis jedis = pool.getResource();
-        try {
-            return Long.valueOf(jedis.get(key(messageId, ATTEMPTS)));
-        } finally {
-            pool.returnResource(jedis);
-        }
-    }
-
-    public long getExceptionsCount(String messageId) {
-        final Jedis jedis = pool.getResource();
-        try {
-            return Long.valueOf(jedis.get(key(messageId, EXCEPTIONS)));
         } finally {
             pool.returnResource(jedis);
         }
@@ -103,20 +75,17 @@ public class DeduplicationStore {
         }
     }
 
-    public HashMap<String, String> getHandlerStatus(String messageId) {
+    public HandlerStatus getHandlerStatus(String messageId) {
         final Jedis jedis = pool.getResource();
         try {
             final List<String> statusValues = jedis.mget(
                 key(messageId, STATUS),
                 key(messageId, TIMEOUT),
                 key(messageId, ATTEMPTS),
-                key(messageId, EXCEPTIONS));
-            final HashMap<String, String> handlerStatus = new HashMap<>();
-            handlerStatus.put(STATUS, statusValues.get(0));
-            handlerStatus.put(TIMEOUT, statusValues.get(1));
-            handlerStatus.put(ATTEMPTS, statusValues.get(2));
-            handlerStatus.put(EXCEPTIONS, statusValues.get(3));
-            return handlerStatus;
+                key(messageId, EXCEPTIONS),
+                key(messageId, DELAY));
+
+            return new HandlerStatus(statusValues.get(0), statusValues.get(1), statusValues.get(2), statusValues.get(3), statusValues.get(4));
         } finally {
             pool.returnResource(jedis);
         }
@@ -143,5 +112,23 @@ public class DeduplicationStore {
 
     public void close() {
         pool.destroy();
+    }
+
+    private String get(String messageId, String field) {
+        final Jedis jedis = pool.getResource();
+        try {
+            return jedis.get(key(messageId, field));
+        } finally {
+            pool.returnResource(jedis);
+        }
+    }
+
+    private long increment(String messageId, String key) {
+        final Jedis jedis = pool.getResource();
+        try {
+            return jedis.incr(key(messageId, key));
+        } finally {
+            pool.returnResource(jedis);
+        }
     }
 }
