@@ -1,5 +1,7 @@
 package com.xing.beetle;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -10,6 +12,8 @@ import java.util.List;
  * TODO refactor with exception handling/failover
  */
 public class DeduplicationStore {
+
+    private static final Logger log = LoggerFactory.getLogger(DeduplicationStore.class);
 
     public static final String STATUS = "status";
     public static final String TIMEOUT = "timeout";
@@ -110,6 +114,7 @@ public class DeduplicationStore {
     }
 
     public void close() {
+        log.debug("Closing Jedis connection pool.");
         pool.destroy();
     }
 

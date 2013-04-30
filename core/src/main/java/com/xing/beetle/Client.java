@@ -87,7 +87,7 @@ public class Client implements ShutdownListener {
 
     public void stop() {
         reconnector.shutdownNow();
-        deduplicationStore.close();
+        // first stop the consumers by shutting down the amqp connections
         for (Connection connection : connections.keySet()) {
             try {
                 connection.close();
@@ -95,6 +95,8 @@ public class Client implements ShutdownListener {
                 log.warn("Caught exception while closing the broker connections.", e);
             }
         }
+        // and _after_ that close the redis connections, because handlers might still use them
+        deduplicationStore.close();
         state = LifecycleStates.STOPPED;
     }
 
@@ -394,59 +396,80 @@ public class Client implements ShutdownListener {
         }
 
         final HandlerStatus handlerStatus = deduplicationStore.getHandlerStatus(messageId);
-        if (handlerStatus.isCompleted()) {
-            try {
-                channel.basicAck(deliveryTag, false);
-            } catch (IOException e) {
-                log.error("Could not ACK message " + messageId, e);
+        try {
+            if (handlerStatus.isCompleted()) {
+                log.debug("Handler complete for {}", messageId);
+                try {
+                    channel.basicAck(deliveryTag, false);
+                } catch (IOException e) {
+                    log.error("Could not ACK message " + messageId, e);
+                }
+                // no need to handle anything, this message was already handled by some other consumer
+                return false;
             }
-            // no need to handle anything, this message was already handled by some other consumer
+
+            if (handlerStatus.shouldDelay()) {
+                log.debug("Handler should delay message {}", messageId);
+                // processing message should still be delayed, requeue
+                try {
+                    sleepUninterrutibly(250);
+                    if (channel.isOpen()) {
+                        channel.basicNack(deliveryTag, false, true);
+                    }
+                } catch (IOException e) {
+                    log.error("Could not requeue message " + messageId, e);
+                }
+                return false;
+            }
+
+            if (! handlerStatus.isTimedOut()) {
+                // another handler is working on this message, we need to reprocess this message later
+                // to determine whether we have to re-execute the handler
+                log.debug("Handler timed out for message {}", messageId);
+                try {
+                    sleepUninterrutibly(250);
+                    if (channel.isOpen()) {
+                        channel.basicNack(deliveryTag, false, true);
+                    }
+                } catch (IOException e) {
+                    log.error("Could not requeue message " + messageId, e);
+                }
+                return false;
+            }
+
+            final long attempts = handlerStatus.getAttempts();
+            final long exceptions = handlerStatus.getExceptions();
+            if (attempts > 1 || exceptions > 1) {
+                // message handler has been tried too many times or produced too many exceptions
+                log.debug("Attempt {} or exception {} count exceeded", attempts, exceptions);
+                try {
+                    channel.basicNack(deliveryTag, false, false);
+                } catch (IOException e) {
+                    log.error("Could not NACK message " + messageId, e);
+                }
+                return false;
+            }
+
+            if (! acquireSharedHandlerMutex(messageId)) {
+                // we could not acquire the mutex, so we need to requeue the message and check for execution later.
+                try {
+                    channel.basicNack(deliveryTag, false, true);
+                } catch (IOException e) {
+                    log.error("Could not requeue message " + messageId, e);
+                }
+                return false;
+            }
+        } catch (AlreadyClosedException ace) {
             return false;
         }
-
-        if (handlerStatus.shouldDelay()) {
-            // processing message should still be delayed, requeue
-            try {
-                channel.basicNack(deliveryTag, false, true);
-            } catch (IOException e) {
-                log.error("Could not requeue message " + messageId, e);
-            }
-            return false;
-        }
-
-        if (handlerStatus.isTimedOut()) {
-            // another handler is working on this message, we need to reprocess this message later
-            // to determine whether we have to re-execute the handler
-            try {
-                channel.basicNack(deliveryTag, false, true);
-            } catch (IOException e) {
-                log.error("Could not requeue message " + messageId, e);
-            }
-            return false;
-        }
-
-        if (handlerStatus.getAttempts() > 1 || handlerStatus.getExceptions() > 1) {
-            // message handler has been tried too many times or produced too many exceptions
-            try {
-                channel.basicNack(deliveryTag, false, false);
-            } catch (IOException e) {
-                log.error("Could not NACK message " + messageId, e);
-            }
-            return false;
-        }
-
-        if (! acquireSharedHandlerMutex(messageId)) {
-            // we could not acquire the mutex, so we need to requeue the message and check for execution later.
-            try {
-                channel.basicNack(deliveryTag, false, true);
-            } catch (IOException e) {
-                log.error("Could not requeue message " + messageId, e);
-            }
-            return false;
-        }
-
         // mutex acquired, no one else is working on this message, so we handle it
         return true;
+    }
+
+    private void sleepUninterrutibly(long l) {
+        try {
+            Thread.sleep(l);
+        } catch (InterruptedException ignore) {}
     }
 
     public void markMessageAsCompleted(String messageId) {
