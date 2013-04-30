@@ -22,9 +22,12 @@ public class ClientTest {
 
     private Channel mockedChannelForClient(Client client) throws IOException {
         final ConnectionFactory mockFactory = mock(ConnectionFactory.class);
+
         final Connection mockConnection = mock(Connection.class);
         when(mockFactory.newConnection()).thenReturn(mockConnection);
+
         final Channel mockChannel = mock(Channel.class);
+        when(mockChannel.basicConsume(any(String.class), any(Consumer.class))).thenReturn("consumerTag");
         when(mockConnection.createChannel()).thenReturn(mockChannel);
         client.setConnectionFactory(mockFactory);
         return mockChannel;
