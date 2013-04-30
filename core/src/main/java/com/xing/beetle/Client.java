@@ -464,4 +464,8 @@ public class Client implements ShutdownListener {
     public boolean acquireSharedHandlerMutex(String messageId) {
         return deduplicationStore.acquireSharedHandlerMutex(messageId);
     }
+
+    public long getAttemptsCount(String messageId) {
+        return deduplicationStore.getAttempts(messageId);
+    }
 }
