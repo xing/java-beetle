@@ -77,7 +77,7 @@ public class Simple {
                         // are you serious?!
                         properties.appendArgumentDebugStringTo(sb);
                         log.info("Properties: {}", sb.toString());
-                        /* the following exception will trigger an inifite loop currently, because we do not track exception counts per message currently. */
+                        /* the following exception will trigger an infinite loop currently, because we do not track exception counts per message currently. */
                         if (new String(body).contains("other")) {
                             throw new RuntimeException("I don't want 'other' messages!");
                         }
