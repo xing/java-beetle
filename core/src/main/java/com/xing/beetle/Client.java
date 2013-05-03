@@ -37,6 +37,7 @@ public class Client implements ShutdownListener {
     private final Set<ConsumerConfiguration> handlers;
 
     private final DeduplicationStore deduplicationStore;
+    private final RedisConfiguration deduplicationStoreConfig;
 
     private final ExecutorService executor;
 
@@ -51,6 +52,7 @@ public class Client implements ShutdownListener {
         handlers = new HashSet<ConsumerConfiguration>();
         state = LifecycleStates.UNINITIALIZED;
         executor = executorService;
+        deduplicationStoreConfig = dedupConfig;
         deduplicationStore = new DeduplicationStore(dedupConfig);
     }
 
@@ -382,6 +384,10 @@ public class Client implements ShutdownListener {
 
     public Set<URI> getBrokerUris() {
         return new HashSet<>(uris);
+    }
+
+    public RedisConfiguration getDeduplicationStoreConfiguration() {
+        return deduplicationStoreConfig;
     }
 
     public Future<?> submit(Runnable handlerTask) {

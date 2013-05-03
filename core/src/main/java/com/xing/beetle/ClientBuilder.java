@@ -30,13 +30,13 @@ public class ClientBuilder {
 	    uris.add(amqpUri);
 	    return this;
 	}
-
-    public ClientBuilder setDeduplicationStore(RedisConfiguration config) {
-        this.dedupConfig = config;
-        return this;
-    }
 	
 	public ClientBuilder addBroker(String host, int port, String username, String password, String virtualHost) throws URISyntaxException {
+        // The virtualHost has to start with a / or you would get a URISyntaxException. This is not obvious and we avoid common problems here.
+        if (virtualHost != null && !virtualHost.startsWith("/")) {
+            virtualHost = "/" + virtualHost;
+        }
+
 	    return addBroker(new URI("amqp", username + ":" + password, host, port, virtualHost, null, null));
 	}
 	
@@ -56,6 +56,11 @@ public class ClientBuilder {
 	    this.executorService = executorService;
 	    return this;
 	}
+
+    public ClientBuilder setDeduplicationStore(RedisConfiguration config) {
+        this.dedupConfig = config;
+        return this;
+    }
 	
 	public Client build() {
 	    // add at least one uri

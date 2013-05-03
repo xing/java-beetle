@@ -102,12 +102,6 @@ public class ClientTest {
     }
 
     @Test
-    public void clientBuilderHasDefaultBroker() {
-        final Client client = Client.builder().build();
-        Assert.assertEquals("ClientBuilder should add at a least a default broker.", 1, client.getBrokerUris().size());
-    }
-
-    @Test
     public void clientStartStartsConsumers() throws IOException {
         final Client client = Client.builder().build();
         final Client clientSpy = spy(client);
