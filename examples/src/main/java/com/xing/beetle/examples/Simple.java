@@ -30,6 +30,7 @@ public class Simple {
             .addBroker(5672)
             .addBroker(5671)
             .setDeduplicationStore(new RedisConfiguration("127.0.0.1"))
+            .setRedisFailoverMasterFile("/tmp/beetle_redis_master")
             .build();
 
         // these are the default settings, except of course the name() option

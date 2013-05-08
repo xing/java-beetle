@@ -24,6 +24,7 @@ public class ClientBuilder {
 	
 	private List<URI> uris = new ArrayList<URI>();
     private RedisConfiguration dedupConfig = new RedisConfiguration();
+    private String redisFailOverMasterFile;
 	private ExecutorService executorService;
 
 	public ClientBuilder addBroker(URI amqpUri) {
@@ -61,6 +62,11 @@ public class ClientBuilder {
         this.dedupConfig = config;
         return this;
     }
+
+    public ClientBuilder setRedisFailoverMasterFile(String path) {
+        this.redisFailOverMasterFile = path;
+        return this;
+    }
 	
 	public Client build() {
 	    // add at least one uri
@@ -88,7 +94,7 @@ public class ClientBuilder {
 	        };
 	        executorService = Executors.newFixedThreadPool(nThreads, messageHandlerThreadFactory);
 	    }
-	    return new Client(uris, dedupConfig, executorService);
+	    return new Client(uris, dedupConfig, redisFailOverMasterFile, executorService);
 	}
         
 }

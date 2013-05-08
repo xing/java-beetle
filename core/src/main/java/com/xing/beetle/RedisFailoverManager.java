@@ -73,4 +73,12 @@ public class RedisFailoverManager implements Runnable {
         return currentMaster;
     }
 
+    public String getMasterFile() {
+        return masterFile;
+    }
+
+    public boolean hasMasterFile() {
+        return masterFile != null && !masterFile.isEmpty();
+    }
+
 }
