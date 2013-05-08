@@ -39,7 +39,10 @@ public class Client implements ShutdownListener {
     private final DeduplicationStore deduplicationStore;
     private final RedisConfiguration deduplicationStoreConfig;
 
-    private final ExecutorService executor;
+    private final RedisFailoverManager redisFailoverManager;
+
+    private final ExecutorService redisFailoverExecutor;
+    private final ExecutorService handlerExecutor;
 
     protected Client(List<URI> uris, RedisConfiguration dedupConfig, ExecutorService executorService) {
         this.uris = uris;
@@ -51,7 +54,9 @@ public class Client implements ShutdownListener {
         messages = new HashSet<Message>();
         handlers = new HashSet<ConsumerConfiguration>();
         state = LifecycleStates.UNINITIALIZED;
-        executor = executorService;
+        handlerExecutor = executorService;
+        redisFailoverExecutor = Executors.newSingleThreadExecutor();
+        redisFailoverManager = new RedisFailoverManager("/tmp/beetle_redis_master", dedupConfig);
         deduplicationStoreConfig = dedupConfig;
         deduplicationStore = new DeduplicationStore(dedupConfig);
     }
@@ -81,9 +86,14 @@ public class Client implements ShutdownListener {
             log.debug("Ignoring call to start() for an already started Beetle client.", new Throwable());
             return;
         }
+
+        // Watcher for redis master file. An external daemon is updating this file in case of a redis master switch.
+        redisFailoverExecutor.submit(redisFailoverManager);
+
         for (final URI uri : uris) {
             connect(uri);
         }
+
         state = LifecycleStates.STARTED;
     }
 
@@ -97,6 +107,9 @@ public class Client implements ShutdownListener {
                 log.warn("Caught exception while closing the broker connections.", e);
             }
         }
+
+        redisFailoverExecutor.shutdownNow();
+
         // and _after_ that close the redis connections, because handlers might still use them
         deduplicationStore.close();
         state = LifecycleStates.STOPPED;
@@ -391,7 +404,7 @@ public class Client implements ShutdownListener {
     }
 
     public Future<?> submit(Runnable handlerTask) {
-        return executor.submit(handlerTask);
+        return handlerExecutor.submit(handlerTask);
     }
 
     public boolean shouldProcessMessage(Channel channel, long deliveryTag, String messageId) {
@@ -497,4 +510,9 @@ public class Client implements ShutdownListener {
     public long getAttemptsCount(String messageId) {
         return deduplicationStore.getAttempts(messageId);
     }
+
+    public String getCurrentRedisMaster() {
+        return redisFailoverManager.getCurrentMaster();
+    }
+
 }
