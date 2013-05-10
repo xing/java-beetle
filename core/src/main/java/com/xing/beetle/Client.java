@@ -56,7 +56,7 @@ public class Client implements ShutdownListener {
         state = LifecycleStates.UNINITIALIZED;
         handlerExecutor = executorService;
         redisFailoverExecutor = Executors.newSingleThreadScheduledExecutor();
-        redisFailoverManager = new RedisFailoverManager(redisFailOverMasterFile, dedupConfig);
+        redisFailoverManager = new RedisFailoverManager(this, redisFailOverMasterFile, dedupConfig);
         deduplicationStoreConfig = dedupConfig;
         deduplicationStore = new DeduplicationStore(dedupConfig);
     }
@@ -519,4 +519,7 @@ public class Client implements ShutdownListener {
         return redisFailoverManager.getCurrentMaster();
     }
 
+    public DeduplicationStore getDeduplicationStore() {
+        return deduplicationStore;
+    }
 }

@@ -15,9 +15,11 @@ public class RedisFailoverManager implements Runnable {
     private static Logger log = LoggerFactory.getLogger(RedisFailoverManager.class);
 
     private String currentMaster;
+    private final Client client;
     private final String masterFile;
 
-    public RedisFailoverManager(String masterFile, RedisConfiguration initialConfig) {
+    public RedisFailoverManager(Client client, String masterFile, RedisConfiguration initialConfig) {
+        this.client = client;
         this.masterFile = masterFile;
         this.currentMaster = initialConfig.getHostname() + ":" + initialConfig.getPort();
     }
@@ -27,10 +29,11 @@ public class RedisFailoverManager implements Runnable {
             String masterInFile = readCurrentMaster();
             if (!currentMaster.equals(masterInFile)) {
                 log.warn("Redis master switch! " + currentMaster + " -> " + masterInFile);
-
-                // Re-connect.
-
                 currentMaster = masterInFile;
+
+                // TODO check format etc
+                final String[] masterHostPort = currentMaster.split(":");
+                client.getDeduplicationStore().reconnect(new RedisConfiguration(masterHostPort[0], Integer.valueOf(masterHostPort[1])));
             }
         } catch(Exception e) {
             log.error("Error when trying to read current Redis master. Retrying.", e);
