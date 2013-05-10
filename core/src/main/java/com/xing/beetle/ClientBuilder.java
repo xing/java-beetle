@@ -79,7 +79,7 @@ public class ClientBuilder {
 	        }
 	    }
 	    if (executorService == null) {
-	    	// We want at least 2 threads, even if we only have 2 CPUS.
+	    	// We want at least 4 threads, even if we only have 2 CPUS.
 	    	int nThreads = Math.max(4, Runtime.getRuntime().availableProcessors() / 2);
 	        
 	        log.info("Added default fixed thread pool for message handler with {} threads", nThreads);

@@ -23,28 +23,17 @@ public class RedisFailoverManager implements Runnable {
     }
     @Override
     public void run() {
-        log.info("Redis failover manager running.");
+        try {
+            String masterInFile = readCurrentMaster();
+            if (!currentMaster.equals(masterInFile)) {
+                log.warn("Redis master switch! " + currentMaster + " -> " + masterInFile);
 
-        while (true) {
-            try {
-                String masterInFile = readCurrentMaster();
-                if (!currentMaster.equals(masterInFile)) {
-                    log.warn("Redis master switch! " + currentMaster + " -> " + masterInFile);
+                // Re-connect.
 
-                    // Re-connect.
-
-                    currentMaster = masterInFile;
-                }
-            } catch(Exception e) {
-                log.error("Error when trying to read current Redis master. Retrying.", e);
+                currentMaster = masterInFile;
             }
-
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                log.info("Interrupted.");
-                return;
-            }
+        } catch(Exception e) {
+            log.error("Error when trying to read current Redis master. Retrying.", e);
         }
     }
 

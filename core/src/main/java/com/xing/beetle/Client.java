@@ -41,7 +41,7 @@ public class Client implements ShutdownListener {
 
     private final RedisFailoverManager redisFailoverManager;
 
-    private final ExecutorService redisFailoverExecutor;
+    private final ScheduledExecutorService redisFailoverExecutor;
     private final ExecutorService handlerExecutor;
 
     protected Client(List<URI> uris, RedisConfiguration dedupConfig, String redisFailOverMasterFile, ExecutorService executorService) {
@@ -55,7 +55,7 @@ public class Client implements ShutdownListener {
         handlers = new HashSet<ConsumerConfiguration>();
         state = LifecycleStates.UNINITIALIZED;
         handlerExecutor = executorService;
-        redisFailoverExecutor = Executors.newSingleThreadExecutor();
+        redisFailoverExecutor = Executors.newSingleThreadScheduledExecutor();
         redisFailoverManager = new RedisFailoverManager(redisFailOverMasterFile, dedupConfig);
         deduplicationStoreConfig = dedupConfig;
         deduplicationStore = new DeduplicationStore(dedupConfig);
@@ -89,7 +89,7 @@ public class Client implements ShutdownListener {
 
         // Watcher for redis master file. An external daemon is updating this file in case of a redis master switch.
         if (redisFailoverManager.hasMasterFile()) {
-            redisFailoverExecutor.submit(redisFailoverManager);
+            redisFailoverExecutor.scheduleAtFixedRate(redisFailoverManager, 0, 1, TimeUnit.SECONDS);
         } else {
             log.info("Not starting Redis failover manager because no master file path was set.");
         }
