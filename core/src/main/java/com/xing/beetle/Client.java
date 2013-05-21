@@ -180,7 +180,6 @@ public class Client implements ShutdownListener {
     }
 
     public void pause(ConsumerConfiguration config) throws IOException {
-        // TODO YOLO PAUSE -> muss warten bis alle handler durch sind
         config.getHandler().pause();
         handlers.remove(config);
     }

@@ -64,20 +64,14 @@ public class Pausing {
 
         final ConsumerConfiguration simpleMsgHandler = new ConsumerConfiguration(simpleQ, new MessageHandler() {
             @Override
-            public Callable<HandlerResponse> process(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
+            public Callable<HandlerResponse> doProcess(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
                 log.info("Received message {}", new String(body));
                 return new Callable<HandlerResponse>() {
                     @Override
                     public HandlerResponse call() throws Exception {
                         log.info("Handling message...{}", "deliveryTag = " + envelope.getDeliveryTag() + " routingKey = " + envelope.getRoutingKey() + " exchange = " + envelope.getExchange());
-                        //StringBuilder sb = new StringBuilder();
-                        // are you serious?!
-                        //properties.appendArgumentDebugStringTo(sb);
-                        //log.info("Properties: {}", sb.toString());
-                        /* the following exception will trigger an inifite loop currently, because we do not track exception counts per message currently. */
-                        /*if (new String(body).contains("other")) {
-                            throw new RuntimeException("I don't want 'other' messages!");
-                        } */
+                        // make a race condition between pausing and still use the consumer on the channel
+                        Thread.sleep(500);
                         return HandlerResponse.ok(envelope, properties, body);
                     }
                 };

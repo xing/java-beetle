@@ -110,7 +110,7 @@ public class ClientTest {
 
         MessageHandler handler = new MessageHandler() {
             @Override
-            public Callable<HandlerResponse> process(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
+            public Callable<HandlerResponse> doProcess(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
                 return new Callable<HandlerResponse>() {
                     @Override
                     public HandlerResponse call() throws Exception {

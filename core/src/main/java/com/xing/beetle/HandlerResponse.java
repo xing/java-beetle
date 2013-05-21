@@ -19,8 +19,12 @@ public class HandlerResponse {
         return new HandlerResponse(ResponseCode.OK, envelope, properties, body);
     }
 
+    public static HandlerResponse noOp() {
+        return new HandlerResponse(ResponseCode.NOOP, null, null, null);
+    }
+
     public static enum ResponseCode {
-        OK
+        NOOP, OK
     }
 
     private ResponseCode responseCode;
@@ -38,6 +42,10 @@ public class HandlerResponse {
 
     public boolean isSuccess() {
         return responseCode == ResponseCode.OK;
+    }
+
+    public boolean isNoOp() {
+        return responseCode == ResponseCode.NOOP;
     }
 
     public Envelope getEnvelope() {

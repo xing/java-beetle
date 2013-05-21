@@ -66,7 +66,7 @@ public class Simple {
 
         client.registerHandler(new ConsumerConfiguration(simpleQ, new MessageHandler() {
             @Override
-            public Callable<HandlerResponse> process(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
+            public Callable<HandlerResponse> doProcess(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
                 log.warn("Received message {}", new String(body));
                 return new Callable<HandlerResponse>() {
                     @Override

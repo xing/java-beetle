@@ -59,6 +59,9 @@ public class BeetleConsumer extends DefaultConsumer {
                         if (response.isSuccess()) {
                             client.markMessageAsCompleted(messageId);
                             acknowledgeMessage(deliveryTag);
+                        } else if (response.isNoOp()) {
+                            // completely ignore this response, happens when pause was called after a handler started already.
+                            log.debug("Ignoring message processing result because this consumer was already canceled. The message will be redelivered later (or to a different subscriber).");
                         } else {
                             // cannot happen right now. delete?
                             processMessageAgainLater(deliveryTag);
