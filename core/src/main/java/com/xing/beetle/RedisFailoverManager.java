@@ -12,7 +12,7 @@ import java.nio.charset.Charset;
 
 public class RedisFailoverManager implements Runnable {
 
-    private static Logger log = LoggerFactory.getLogger(RedisFailoverManager.class);
+    private static final Logger log = LoggerFactory.getLogger(RedisFailoverManager.class);
 
     private String currentMaster;
     private final Client client;
@@ -41,15 +41,12 @@ public class RedisFailoverManager implements Runnable {
     }
 
     private String readCurrentMaster() throws IOException {
-        FileInputStream stream = new FileInputStream(new File(masterFile));
 
-        try {
+        try (FileInputStream stream = new FileInputStream(new File(masterFile))) {
             FileChannel fc = stream.getChannel();
             MappedByteBuffer bb = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size());
 
             return sanitizeMasterString(Charset.forName("UTF-8").decode(bb).toString());
-        } finally {
-            stream.close();
         }
     }
 

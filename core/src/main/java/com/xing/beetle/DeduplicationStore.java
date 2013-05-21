@@ -17,12 +17,12 @@ public class DeduplicationStore {
 
     private static final Logger log = LoggerFactory.getLogger(DeduplicationStore.class);
 
-    public static final String STATUS = "status";
-    public static final String TIMEOUT = "timeout";
-    public static final String ATTEMPTS = "attempts";
-    public static final String EXCEPTIONS = "exceptions";
-    public static final String MUTEX = "mutex";
-    public static final String DELAY = "delay";
+    private static final String STATUS = "status";
+    private static final String TIMEOUT = "timeout";
+    private static final String ATTEMPTS = "attempts";
+    private static final String EXCEPTIONS = "exceptions";
+    private static final String MUTEX = "mutex";
+    private static final String DELAY = "delay";
     private final AtomicReference<JedisPool> poolRef;
 
     public DeduplicationStore(RedisConfiguration config) {
@@ -116,7 +116,7 @@ public class DeduplicationStore {
 
     /**
      *
-     * @param messageId
+     * @param messageId the uuid of the message
      * @return boolean whether to handle the message (true) or not (false)
      */
     public boolean acquireSharedHandlerMutex(String messageId) {

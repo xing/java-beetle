@@ -1,5 +1,8 @@
 package com.xing.beetle;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -9,12 +12,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class ClientBuilder {
 	
-    private static Logger log = LoggerFactory.getLogger(ClientBuilder.class);
+    private static final Logger log = LoggerFactory.getLogger(ClientBuilder.class);
 
 	private static final String DEFAULT_HOST = "localhost";
 	private static final int DEFAULT_PORT = 5672;
@@ -22,7 +22,7 @@ public class ClientBuilder {
 	private static final String DEFAULT_PASSWORD = "guest";
 	private static final String DEFAULT_VHOST = "/";
 	
-	private List<URI> uris = new ArrayList<URI>();
+	private final List<URI> uris = new ArrayList<>();
     private RedisConfiguration dedupConfig = new RedisConfiguration();
     private String redisFailOverMasterFile;
 	private ExecutorService executorService;
@@ -84,7 +84,7 @@ public class ClientBuilder {
 	        
 	        log.info("Added default fixed thread pool for message handler with {} threads", nThreads);
 	        final ThreadFactory messageHandlerThreadFactory = new ThreadFactory() {
-	            private AtomicInteger threadNumber = new AtomicInteger(1);
+	            private final AtomicInteger threadNumber = new AtomicInteger(1);
 	            @Override
 	            public Thread newThread(Runnable r) {
 	                final Thread thread = new Thread(r, "message-handler-" + threadNumber.getAndIncrement());

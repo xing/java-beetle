@@ -15,7 +15,7 @@ public class Message {
     private final long duration;
     private final TimeUnit timeUnit;
 
-    public Message(String name, String key, Exchange exchange, boolean redundant, long duration, TimeUnit timeUnit) {
+    private Message(String name, String key, Exchange exchange, boolean redundant, long duration, TimeUnit timeUnit) {
         this.name = name;
         this.key = key;
         this.exchange = exchange;

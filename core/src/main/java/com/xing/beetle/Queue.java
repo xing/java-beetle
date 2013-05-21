@@ -12,7 +12,7 @@ public class Queue {
     private final Exchange exchange;
     private final boolean autoDelete;
 
-    public Queue(String name, String key, String queueNameOnBroker, Exchange exchange, boolean autoDelete) {
+    private Queue(String name, String key, String queueNameOnBroker, Exchange exchange, boolean autoDelete) {
         this.name = name;
         this.key = key;
         this.queueNameOnBroker = queueNameOnBroker;

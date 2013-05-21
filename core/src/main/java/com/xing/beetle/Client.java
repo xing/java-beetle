@@ -14,7 +14,7 @@ public class Client implements ShutdownListener {
 
     private static final Charset UTF8 = Charset.forName("UTF-8");
 
-    private static Logger log = LoggerFactory.getLogger(Client.class);
+    private static final Logger log = LoggerFactory.getLogger(Client.class);
 
     private LifecycleStates state;
 
@@ -49,10 +49,10 @@ public class Client implements ShutdownListener {
         connections = new ConcurrentHashMap<>(uris.size());
         channels = new ConcurrentHashMap<>();
         reconnector = new ScheduledThreadPoolExecutor(1);
-        exchanges = new HashSet<Exchange>();
-        queues = new HashSet<Queue>();
-        messages = new HashSet<Message>();
-        handlers = new HashSet<ConsumerConfiguration>();
+        exchanges = new HashSet<>();
+        queues = new HashSet<>();
+        messages = new HashSet<>();
+        handlers = new HashSet<>();
         state = LifecycleStates.UNINITIALIZED;
         handlerExecutor = executorService;
         redisFailoverExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -179,7 +179,7 @@ public class Client implements ShutdownListener {
         }
     }
 
-    public void pause(ConsumerConfiguration config) throws IOException {
+    public void pause(ConsumerConfiguration config) {
         config.getHandler().pause();
         handlers.remove(config);
     }

@@ -16,9 +16,9 @@ public abstract class MessageHandler {
 
     private final Logger log = LoggerFactory.getLogger(MessageHandler.class);
 
-	private ConcurrentHashMap<Channel, String> channels = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Channel, String> channels = new ConcurrentHashMap<>();
 
-    private ReentrantReadWriteLock rwChannelLock = new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock rwChannelLock = new ReentrantReadWriteLock();
 
     public abstract Callable<HandlerResponse> doProcess(Envelope envelope, AMQP.BasicProperties properties, byte[] body);
 

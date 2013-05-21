@@ -8,7 +8,7 @@ import com.rabbitmq.client.Envelope;
  */
 public class HandlerResponse {
 
-    public HandlerResponse(ResponseCode responseCode, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
+    private HandlerResponse(ResponseCode responseCode, Envelope envelope, AMQP.BasicProperties properties, byte[] body) {
         this.responseCode = responseCode;
         this.envelope = envelope;
         this.properties = properties;

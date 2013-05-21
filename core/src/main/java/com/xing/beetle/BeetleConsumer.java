@@ -16,8 +16,8 @@ public class BeetleConsumer extends DefaultConsumer {
     private final Logger log = LoggerFactory.getLogger(this.getClass());
 
     private final Client client;
-    protected final Channel subscriberChannel;
-    protected final MessageHandler handler;
+    private final Channel subscriberChannel;
+    private final MessageHandler handler;
 
     public BeetleConsumer(Client client, Channel subscriberChannel, MessageHandler handler) {
         super(subscriberChannel);

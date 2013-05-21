@@ -11,7 +11,7 @@ public class Exchange {
     private final boolean topic;
     private final boolean durable;
 
-    public Exchange(String name, boolean topic, boolean durable) {
+    private Exchange(String name, boolean topic, boolean durable) {
         this.name = name;
         this.topic = topic;
         this.durable = durable;
