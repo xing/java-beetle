@@ -49,7 +49,7 @@ public class Message {
     }
 
     public static Message.Builder builder() {
-        return new Builder();
+        return new Builder().redundant(false).ttl(1, TimeUnit.DAYS);
     }
 
     @Override
@@ -92,9 +92,9 @@ public class Message {
         private String key;
         private String exchangeName;
 
-        private boolean redundant = false;
-        private long duration = 1;
-        private TimeUnit timeUnit = TimeUnit.DAYS;
+        private boolean redundant;
+        private long duration;
+        private TimeUnit timeUnit;
         private Exchange exchange;
 
         /**

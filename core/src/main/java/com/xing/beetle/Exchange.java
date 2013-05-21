@@ -58,14 +58,14 @@ public class Exchange {
     }
 
     public static Builder builder() {
-        return new Builder();
+        return new Builder().topic(true).durable(true);
     }
 
     public static class Builder {
 
         private String name;
-        private boolean topic = true;
-        private boolean durable = true;
+        private boolean topic;
+        private boolean durable;
 
         public Builder name(String name) {
             this.name = name;

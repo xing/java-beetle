@@ -45,7 +45,7 @@ public class Queue {
     }
 
     public static Builder builder() {
-        return new Builder();
+        return new Builder().autoDelete(false);
     }
 
     @Override
@@ -86,7 +86,7 @@ public class Queue {
         private String key;
         private Exchange exchange;
         private String exchangeName;
-        private boolean autoDelete = false;
+        private boolean autoDelete;
 
         public Builder name(String name) {
             this.name = name;
