@@ -435,14 +435,7 @@ public class Client implements ShutdownListener {
             if (handlerStatus.shouldDelay()) {
                 log.debug("Handler should delay message {}", messageId);
                 // processing message should still be delayed, requeue
-                try {
-                    sleepUninterrutibly(250);
-                    if (channel.isOpen()) {
-                        channel.basicNack(deliveryTag, false, true);
-                    }
-                } catch (IOException e) {
-                    log.error("Could not requeue message " + messageId, e);
-                }
+                rejectMessage(channel, deliveryTag, messageId, true, 250);
                 return false;
             }
 
@@ -450,14 +443,7 @@ public class Client implements ShutdownListener {
                 // another handler is working on this message, we need to reprocess this message later
                 // to determine whether we have to re-execute the handler
                 log.debug("Handler timed out for message {}", messageId);
-                try {
-                    sleepUninterrutibly(250);
-                    if (channel.isOpen()) {
-                        channel.basicNack(deliveryTag, false, true);
-                    }
-                } catch (IOException e) {
-                    log.error("Could not requeue message " + messageId, e);
-                }
+                rejectMessage(channel, deliveryTag, messageId, true, 250);
                 return false;
             }
 
@@ -465,22 +451,15 @@ public class Client implements ShutdownListener {
             final long exceptions = handlerStatus.getExceptions();
             if (attempts > 1 || exceptions > 1) {
                 // message handler has been tried too many times or produced too many exceptions
-                log.debug("Attempt {} or exception {} count exceeded", attempts, exceptions);
-                try {
-                    channel.basicNack(deliveryTag, false, false);
-                } catch (IOException e) {
-                    log.error("Could not NACK message " + messageId, e);
-                }
+                log.debug("Attempt ({}) or exception ({}) count exceeded", attempts, exceptions);
+                rejectMessage(channel, deliveryTag, messageId, false, 0);
                 return false;
             }
 
             if (! acquireSharedHandlerMutex(messageId)) {
                 // we could not acquire the mutex, so we need to requeue the message and check for execution later.
-                try {
-                    channel.basicNack(deliveryTag, false, true);
-                } catch (IOException e) {
-                    log.error("Could not requeue message " + messageId, e);
-                }
+                log.debug("Could not acquire mutex for message {}, requeueing to process again later.", messageId);
+                rejectMessage(channel, deliveryTag, messageId, true, 0);
                 return false;
             }
         } catch (IllegalStateException ise) {
@@ -493,10 +472,17 @@ public class Client implements ShutdownListener {
         return true;
     }
 
-    private void sleepUninterrutibly(long l) {
+    private void rejectMessage(Channel channel, long deliveryTag, String messageId, boolean requeue, long delay) {
         try {
-            Thread.sleep(l);
-        } catch (InterruptedException ignore) {}
+            if (delay > 0) {
+                try {
+                    Thread.sleep(delay); // delay execution to prevent very fast re-delivery of this message
+                } catch (InterruptedException ignore) {}
+            }
+            channel.basicNack(deliveryTag, false, requeue);
+        } catch (IOException e) {
+            log.error("Could not NACK message " + messageId, e);
+        }
     }
 
     public void markMessageAsCompleted(String messageId) {

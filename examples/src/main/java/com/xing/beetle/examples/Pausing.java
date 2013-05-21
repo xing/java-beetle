@@ -65,7 +65,7 @@ public class Pausing {
         final ConsumerConfiguration simpleMsgHandler = new ConsumerConfiguration(simpleQ, new MessageHandler() {
             @Override
             public Callable<HandlerResponse> process(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
-                log.warn("Received message {}", new String(body));
+                log.info("Received message {}", new String(body));
                 return new Callable<HandlerResponse>() {
                     @Override
                     public HandlerResponse call() throws Exception {
