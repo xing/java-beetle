@@ -102,6 +102,10 @@ public class Client implements ShutdownListener {
     }
 
     public void stop() {
+        if (state == LifecycleStates.STOPPED) {
+            log.debug("Ignoring call to stop() for an already stopped Beetle client.", new Throwable());
+            return;
+        }
         reconnector.shutdownNow();
         // first stop the consumers by shutting down the amqp connections
         for (Connection connection : connections.keySet()) {
