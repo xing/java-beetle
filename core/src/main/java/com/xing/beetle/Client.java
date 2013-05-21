@@ -413,13 +413,14 @@ public class Client implements ShutdownListener {
 
     public boolean shouldProcessMessage(Channel channel, long deliveryTag, String messageId) {
 
-        if (deduplicationStore.isMessageNew(messageId)) {
-            deduplicationStore.incrementAttempts(messageId);
-            return true;
-        }
-
-        final HandlerStatus handlerStatus = deduplicationStore.getHandlerStatus(messageId);
         try {
+            if (deduplicationStore.isMessageNew(messageId)) {
+                deduplicationStore.incrementAttempts(messageId);
+                return true;
+            }
+
+            final HandlerStatus handlerStatus = deduplicationStore.getHandlerStatus(messageId);
+
             if (handlerStatus.isCompleted()) {
                 log.debug("Handler complete for {}", messageId);
                 try {
@@ -482,6 +483,9 @@ public class Client implements ShutdownListener {
                 }
                 return false;
             }
+        } catch (IllegalStateException ise) {
+            log.warn("Could not process message, no redis available. Requeueing message " + messageId, ise);
+            return false;
         } catch (AlreadyClosedException ace) {
             return false;
         }

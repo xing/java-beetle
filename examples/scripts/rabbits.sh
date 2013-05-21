@@ -1,0 +1,3 @@
+#!/bin/bash
+RABBITMQ_NODE_PORT=5671 RABBITMQ_NODENAME=node1 rabbitmq-server &
+RABBITMQ_NODE_PORT=5672 RABBITMQ_NODENAME=node2 rabbitmq-server &

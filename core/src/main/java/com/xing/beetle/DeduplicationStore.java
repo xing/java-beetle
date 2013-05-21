@@ -26,7 +26,6 @@ public class DeduplicationStore {
     private final AtomicReference<JedisPool> poolRef;
 
     public DeduplicationStore(RedisConfiguration config) {
-        // TODO use system configuration message and write current master to file
         JedisPool pool = new JedisPool(new JedisPoolConfig(), config.getHostname(), config.getPort());
         poolRef = new AtomicReference<>(pool);
     }
@@ -184,6 +183,10 @@ public class DeduplicationStore {
                 jedis = pool.getResource();
             }
         }
+        if (jedis == null) {
+            throw new IllegalStateException("No Redis connection available, cannot process message. Check the redis configuration.");
+        }
+
         return Pair.createPair(jedis, pool);
     }
 }
