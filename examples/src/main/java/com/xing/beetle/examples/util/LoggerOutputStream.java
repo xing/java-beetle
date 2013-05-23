@@ -1,4 +1,4 @@
-package com.xing.beetle.examples;
+package com.xing.beetle.examples.util;
 
 import org.slf4j.Logger;
 

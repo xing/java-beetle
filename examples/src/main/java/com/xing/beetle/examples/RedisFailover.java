@@ -2,6 +2,8 @@ package com.xing.beetle.examples;
 
 import com.xing.beetle.Client;
 import com.xing.beetle.RedisConfiguration;
+import com.xing.beetle.examples.util.AsyncStreamCopier;
+import com.xing.beetle.examples.util.LoggerOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

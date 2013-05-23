@@ -1,4 +1,4 @@
-package com.xing.beetle.examples;
+package com.xing.beetle.examples.util;
 
 import java.io.IOException;
 import java.io.InputStream;
