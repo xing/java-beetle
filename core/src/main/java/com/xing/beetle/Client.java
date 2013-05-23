@@ -32,7 +32,7 @@ public class Client implements ShutdownListener {
 
     private final Set<Queue> queues;
 
-    private final Set<Message> messages;
+    private final Map<String, Message> messages;
 
     private final Set<ConsumerConfiguration> handlers;
 
@@ -51,7 +51,7 @@ public class Client implements ShutdownListener {
         reconnector = new ScheduledThreadPoolExecutor(1);
         exchanges = new HashSet<>();
         queues = new HashSet<>();
-        messages = new HashSet<>();
+        messages = new HashMap<>();
         handlers = new HashSet<>();
         state = LifecycleStates.UNINITIALIZED;
         handlerExecutor = executorService;
@@ -278,7 +278,7 @@ public class Client implements ShutdownListener {
     }
 
     public Client registerMessage(Message message) {
-        messages.add(message);
+        messages.put(message.getName(), message);
         ensureExchange(message.getExchange());
         return this;
     }
@@ -300,6 +300,15 @@ public class Client implements ShutdownListener {
             throw new IllegalArgumentException("Message " + config.getQueue() + " must be pre-declared.");
         }
         handlers.add(config);
+        return this;
+    }
+
+    public Client publish(String messageName, String payload) {
+        final Message message = messages.get(messageName);
+        if (message == null) {
+            throw new IllegalArgumentException("Trying to publish an undeclared message named " + messageName);
+        }
+        publish(message, payload);
         return this;
     }
 
