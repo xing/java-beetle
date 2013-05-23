@@ -26,11 +26,13 @@ public class DeduplicationStore {
     private final AtomicReference<JedisPool> poolRef;
 
     public DeduplicationStore(RedisConfiguration config) {
+        log.debug("Connecting to redis master at {}:{}", config.getHostname(), config.getPort());
         JedisPool pool = new JedisPool(new JedisPoolConfig(), config.getHostname(), config.getPort());
         poolRef = new AtomicReference<>(pool);
     }
 
     public void reconnect(RedisConfiguration config) {
+        log.debug("Reconnecting to redis master at {}:{}", config.getHostname(), config.getPort());
         final JedisPool jedisPool = new JedisPool(new JedisPoolConfig(), config.getHostname(), config.getPort());
         final JedisPool oldPool = poolRef.getAndSet(jedisPool);
         // destroy will allow old instances to be returned to the pool, but new getResource() calls will fail.

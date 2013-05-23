@@ -105,9 +105,6 @@ public class Pausing {
                         client.resume(simpleMsgHandler);
                     }
                     catch (InterruptedException ignored) {}
-                    catch (IOException e) {
-                        e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-                    }
                 }
                 shutdownLatch.countDown();
             }

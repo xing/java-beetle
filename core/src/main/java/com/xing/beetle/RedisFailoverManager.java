@@ -28,13 +28,18 @@ public class RedisFailoverManager implements Runnable {
         try {
             String masterInFile = readCurrentMaster();
             if (!currentMaster.equals(masterInFile)) {
-                log.warn("Redis master switch! " + currentMaster + " -> " + masterInFile);
+                log.info("Redis master configuration file changed: " + currentMaster + " -> " + masterInFile);
                 currentMaster = masterInFile;
 
-                // TODO check format etc
-                final String[] masterHostPort = currentMaster.split(":");
-                client.getDeduplicationStore().reconnect(new RedisConfiguration(masterHostPort[0], Integer.valueOf(masterHostPort[1])));
+                final String[] masterHostPort = masterInFile.split(":");
+                if (masterHostPort.length != 2) {
+                    log.warn("Invalid file content '{}' in redis master file {}. Not performing master switch.", masterInFile, getMasterFile());
+                } else {
+                    client.getDeduplicationStore().reconnect(new RedisConfiguration(masterHostPort[0], Integer.valueOf(masterHostPort[1])));
+                }
             }
+        } catch (NumberFormatException nfe) {
+            log.error("Malformed port number for new redis master.", nfe);
         } catch(Exception e) {
             log.error("Error when trying to read current Redis master. Retrying.", e);
         }
