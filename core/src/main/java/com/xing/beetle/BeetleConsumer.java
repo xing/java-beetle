@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.RejectedExecutionException;
 
+import static com.xing.beetle.Util.currentTimeSeconds;
+
 /**
  *
  */
@@ -38,7 +40,7 @@ public class BeetleConsumer extends DefaultConsumer {
             ttl = Long.valueOf(expires_at);
         }
         // check for outdated,expired message
-        if ((System.currentTimeMillis() / 1000L) > ttl) {
+        if (currentTimeSeconds() > ttl) {
             log.warn("NACK expired message id {} on {}", messageId, subscriberChannel);
             discardMessage(deliveryTag);
             return;

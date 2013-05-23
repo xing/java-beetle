@@ -1,5 +1,7 @@
 package com.xing.beetle;
 
+import static com.xing.beetle.Util.currentTimeSeconds;
+
 public class HandlerStatus {
 
     private final String status;
@@ -21,11 +23,11 @@ public class HandlerStatus {
     }
 
     public boolean isTimedOut() {
-        return timeout > (System.currentTimeMillis()/1000L);
+        return timeout > currentTimeSeconds();
     }
 
     public boolean shouldDelay() {
-        return delay > (System.currentTimeMillis()/1000L);
+        return delay > currentTimeSeconds();
     }
 
     public long getAttempts() {

@@ -10,6 +10,8 @@ import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.*;
 
+import static com.xing.beetle.Util.currentTimeSeconds;
+
 public class Client implements ShutdownListener {
 
     private static final Charset UTF8 = Charset.forName("UTF-8");
@@ -380,7 +382,7 @@ public class Client implements ShutdownListener {
         headers.put("format_version", "1");
         headers.put("flags", message.isRedundant() ? "1" : "0");
         final long ttl = TimeUnit.SECONDS.convert(message.getDuration(), message.getTimeUnit());
-        headers.put("expires_at", Long.toString((System.currentTimeMillis() / 1000L) + ttl));
+        headers.put("expires_at", Long.toString(currentTimeSeconds() + ttl));
 
         while (successfulSends < requiredSends && connectionIterator.hasNext()) {
             final Connection connection = connectionIterator.next();

@@ -10,6 +10,8 @@ import redis.clients.jedis.exceptions.JedisConnectionException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.xing.beetle.Util.currentTimeSeconds;
+
 /**
  * TODO refactor with exception handling/failover
  */
@@ -48,7 +50,7 @@ public class DeduplicationStore {
         try {
             if (jedis.msetnx(
                 key(messageId, STATUS), "incomplete",
-                key(messageId, TIMEOUT), Long.toString((System.currentTimeMillis() / 1000L) + 600), // TODO get from handler config
+                key(messageId, TIMEOUT), Long.toString(currentTimeSeconds() + 600), // TODO get from handler config
                 key(messageId, ATTEMPTS), "0",
                 key(messageId, EXCEPTIONS), "0"
             ) == 1) {
@@ -91,7 +93,7 @@ public class DeduplicationStore {
         try {
             jedis.del(key(messageId, MUTEX));
             jedis.set(key(messageId, TIMEOUT), "0");
-            jedis.set(key(messageId, DELAY), Long.toString((System.currentTimeMillis() / 1000L) + 10)); // TODO get from handler config
+            jedis.set(key(messageId, DELAY), Long.toString(currentTimeSeconds() + 10)); // TODO get from handler config
         } finally {
             pool.returnResource(jedis);
         }
@@ -126,8 +128,8 @@ public class DeduplicationStore {
         final Jedis jedis = connAndPool.getLeft();
         final JedisPool pool = connAndPool.getRight();
         try {
-            jedis.set(key(messageId, TIMEOUT), Long.toString((System.currentTimeMillis() / 1000L) + 600));
-            if (jedis.setnx(key(messageId, MUTEX), Long.toString(System.currentTimeMillis() / 1000L)) == 0) {
+            jedis.set(key(messageId, TIMEOUT), Long.toString(currentTimeSeconds() + 600));
+            if (jedis.setnx(key(messageId, MUTEX), Long.toString(currentTimeSeconds())) == 0) {
                 jedis.del(key(messageId, MUTEX));
                 return false;
             }
