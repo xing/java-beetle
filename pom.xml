@@ -11,7 +11,7 @@
   </parent>
   <groupId>com.xing.beetle</groupId>
   <artifactId>beetle-parent</artifactId>
-  <version>0.1-SNAPSHOT</version>
+  <version>1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>XING Java Beetle Client Parent Project</name>
