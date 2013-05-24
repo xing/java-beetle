@@ -19,14 +19,14 @@ public class BeetleConsumer extends DefaultConsumer {
 
     private final Client client;
     private final Channel subscriberChannel;
-    private final MessageHandler handler;
+    private final ConsumerConfiguration config;
 
-    public BeetleConsumer(Client client, Channel subscriberChannel, MessageHandler handler) {
+    public BeetleConsumer(Client client, Channel subscriberChannel, ConsumerConfiguration config) {
         super(subscriberChannel);
 
         this.client = client;
         this.subscriberChannel = subscriberChannel;
-        this.handler = handler;
+        this.config = config;
     }
 
     @Override
@@ -46,11 +46,11 @@ public class BeetleConsumer extends DefaultConsumer {
             return;
         }
 
-        if (! client.shouldProcessMessage(subscriberChannel, deliveryTag, messageId)) {
+        if (! client.shouldProcessMessage(subscriberChannel, deliveryTag, messageId, config)) {
             return;
         }
 
-        final Callable<HandlerResponse> handlerProcessor = handler.process(envelope, properties, body);
+        final Callable<HandlerResponse> handlerProcessor = config.getHandler().process(envelope, properties, body);
 
         try {
             final Runnable handlerTask = new Runnable() {
@@ -69,16 +69,16 @@ public class BeetleConsumer extends DefaultConsumer {
                             processMessageAgainLater(deliveryTag);
                         }
                     } catch (Exception e) {
+                        log.debug("Message {}: handler threw an exception", messageId);
                         final long exceptions = client.incrementExceptions(messageId);
                         final long attempts = client.getAttemptsCount(messageId);
-                        // TODO read exceptions/attempts limit from declared Message!
-                        if (exceptions > 1 || attempts > 1) {
+                        if (exceptions >= config.getExceptions() || attempts >= config.getAttempts()) {
                             // exceeded configured exception count
-                            log.warn("NACK message attempt or exception count exceeded. {} of {} attempts, {} of {} exceptions",
-                                attempts, 1, exceptions, 1);
+                            log.warn("NACK message {} attempt or exception count exceeded. {} of {} attempts, {} of {} exceptions",
+                                messageId, attempts, config.getAttempts(), exceptions, config.getExceptions());
                             discardMessage(deliveryTag);
                         } else {
-                            client.removeMessageHandlerLock(messageId);
+                            client.removeMessageHandlerLock(messageId, config);
                             processMessageAgainLater(deliveryTag);
                         }
                     }

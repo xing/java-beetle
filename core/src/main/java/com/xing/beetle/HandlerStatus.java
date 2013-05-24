@@ -23,7 +23,7 @@ public class HandlerStatus {
     }
 
     public boolean isTimedOut() {
-        return timeout > currentTimeSeconds();
+        return timeout < currentTimeSeconds();
     }
 
     public boolean shouldDelay() {
@@ -36,5 +36,16 @@ public class HandlerStatus {
 
     public long getExceptions() {
         return exceptions;
+    }
+
+    @Override
+    public String toString() {
+        return "HandlerStatus{" +
+            "status='" + status + '\'' +
+            ", timeout=" + timeout +
+            ", attempts=" + attempts +
+            ", exceptions=" + exceptions +
+            ", delay=" + delay +
+            '}';
     }
 }

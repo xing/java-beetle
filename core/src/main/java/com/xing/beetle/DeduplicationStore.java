@@ -8,6 +8,7 @@ import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.xing.beetle.Util.currentTimeSeconds;
@@ -42,7 +43,7 @@ public class DeduplicationStore {
         oldPool.destroy();
     }
 
-    public boolean isMessageNew(String messageId) {
+    public boolean isMessageNew(String messageId, ConsumerConfiguration config) {
         final Pair<Jedis, JedisPool> connAndPool = safelyGetConnection();
         final Jedis jedis = connAndPool.getLeft();
         final JedisPool pool = connAndPool.getRight();
@@ -50,15 +51,18 @@ public class DeduplicationStore {
         try {
             if (jedis.msetnx(
                 key(messageId, STATUS), "incomplete",
-                key(messageId, TIMEOUT), Long.toString(currentTimeSeconds() + 600), // TODO get from handler config
+                key(messageId, TIMEOUT),
+                    Long.toString(currentTimeSeconds() + TimeUnit.SECONDS.convert(config.getHandlerTimeout(), config.getHandlerTimeoutUnit())),
                 key(messageId, ATTEMPTS), "0",
                 key(messageId, EXCEPTIONS), "0"
             ) == 1) {
+                log.debug("Message {}: Initialized message status, timeout, attempt and exception counts", messageId);
                 return true;
             }
         } finally {
             pool.returnResource(jedis);
         }
+        log.debug("Message {}: Did not initialize message status, it already exists.", messageId);
         return false;
     }
 
@@ -85,7 +89,7 @@ public class DeduplicationStore {
         }
     }
 
-    public void removeMessageHandlerLock(String messageId) {
+    public void removeMessageHandlerLock(String messageId, ConsumerConfiguration config) {
         final Pair<Jedis, JedisPool> connAndPool = safelyGetConnection();
         final Jedis jedis = connAndPool.getLeft();
         final JedisPool pool = connAndPool.getRight();
@@ -93,7 +97,7 @@ public class DeduplicationStore {
         try {
             jedis.del(key(messageId, MUTEX));
             jedis.set(key(messageId, TIMEOUT), "0");
-            jedis.set(key(messageId, DELAY), Long.toString(currentTimeSeconds() + 10)); // TODO get from handler config
+            jedis.set(key(messageId, DELAY), Long.toString(currentTimeSeconds() + TimeUnit.SECONDS.convert(config.getRetryDelay(), config.getRetryDelayUnit())));
         } finally {
             pool.returnResource(jedis);
         }
@@ -111,8 +115,8 @@ public class DeduplicationStore {
                 key(messageId, ATTEMPTS),
                 key(messageId, EXCEPTIONS),
                 key(messageId, DELAY));
-
             return new HandlerStatus(statusValues.get(0), statusValues.get(1), statusValues.get(2), statusValues.get(3), statusValues.get(4));
+
         } finally {
             pool.returnResource(jedis);
         }
@@ -120,16 +124,21 @@ public class DeduplicationStore {
 
     /**
      *
+     *
      * @param messageId the uuid of the message
+     * @param config
      * @return boolean whether to handle the message (true) or not (false)
      */
-    public boolean acquireSharedHandlerMutex(String messageId) {
+    public boolean acquireSharedHandlerMutex(String messageId, ConsumerConfiguration config) {
         final Pair<Jedis, JedisPool> connAndPool = safelyGetConnection();
         final Jedis jedis = connAndPool.getLeft();
         final JedisPool pool = connAndPool.getRight();
         try {
-            jedis.set(key(messageId, TIMEOUT), Long.toString(currentTimeSeconds() + 600));
+            final String timeout = Long.toString(currentTimeSeconds() + TimeUnit.SECONDS.convert(config.getHandlerTimeout(), config.getHandlerTimeoutUnit()));
+            log.debug("Message {}: setting handler timeout to {}", messageId, timeout);
+            jedis.set(key(messageId, TIMEOUT), timeout);
             if (jedis.setnx(key(messageId, MUTEX), Long.toString(currentTimeSeconds())) == 0) {
+                log.debug("Message {}: removing mutex", messageId);
                 jedis.del(key(messageId, MUTEX));
                 return false;
             }
@@ -150,7 +159,9 @@ public class DeduplicationStore {
         final Jedis jedis = connAndPool.getLeft();
         final JedisPool pool = connAndPool.getRight();
         try {
-            return jedis.get(key(messageId, field));
+            final String v = jedis.get(key(messageId, field));
+            log.debug("Message {}: Retrieving {} = {}", messageId, field, v);
+            return v;
         } finally {
             pool.returnResource(jedis);
         }
@@ -161,6 +172,7 @@ public class DeduplicationStore {
         final Jedis jedis = connAndPool.getLeft();
         final JedisPool pool = connAndPool.getRight();
         try {
+            log.debug("Message {}: Incrementing {}", messageId, key);
             return jedis.incr(key(messageId, key));
         } finally {
             pool.returnResource(jedis);
@@ -169,6 +181,7 @@ public class DeduplicationStore {
 
     public long getAttempts(String messageId) {
         final String attempts = get(messageId, ATTEMPTS);
+        log.debug("Message {}: Attempt count is {}", messageId, attempts);
         return Long.valueOf(attempts == null ? "0" : attempts);
     }
 

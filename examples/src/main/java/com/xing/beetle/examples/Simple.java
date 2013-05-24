@@ -30,7 +30,7 @@ public class Simple {
             .addBroker(5672)
             .addBroker(5671)
             .setDeduplicationStore(new RedisConfiguration("127.0.0.1"))
-            .setRedisFailoverMasterFile("/tmp/beetle_redis_master")
+//            .setRedisFailoverMasterFile("/tmp/beetle_redis_master")
             .build();
 
         // these are the default settings, except of course the name() option
@@ -62,23 +62,19 @@ public class Simple {
             .exchange("simpleXchg")
             .ttl(2, TimeUnit.MINUTES)
             .build();
-        client.registerMessage(redundantMsg);
+        client.registerMessage(nonRedundantMsg);
 
-        client.registerHandler(new ConsumerConfiguration(simpleQ, new MessageHandler() {
+        final MessageHandler messageHandler = new MessageHandler() {
             @Override
             public Callable<HandlerResponse> doProcess(final Envelope envelope, final AMQP.BasicProperties properties, final byte[] body) {
                 log.warn("Received message {}", new String(body));
                 return new Callable<HandlerResponse>() {
                     @Override
                     public HandlerResponse call() throws Exception {
-                    	
-                    	Thread.sleep(987);
+
+                        Thread.sleep(987);
                         log.info("Handling message...{}", "deliveryTag = " + envelope.getDeliveryTag() + " routingKey = " + envelope.getRoutingKey() + " exchange = " + envelope.getExchange());
-                        StringBuilder sb = new StringBuilder();
-                        // are you serious?!
-                        properties.appendArgumentDebugStringTo(sb);
-                        log.info("Properties: {}", sb.toString());
-                        /* the following exception will trigger an infinite loop currently, because we do not track exception counts per message currently. */
+
                         if (new String(body).contains("other")) {
                             throw new RuntimeException("I don't want 'other' messages!");
                         }
@@ -86,11 +82,19 @@ public class Simple {
                     }
                 };
             }
-        }));
+        };
+        final ConsumerConfiguration consumerConfig =
+            new ConsumerConfiguration(simpleQ, messageHandler)
+                .attempts(2)
+                .exceptions(2)
+                .handlerRetryDelay(2, TimeUnit.SECONDS);
+        client.registerHandler(consumerConfig);
         client.start();
 
         client.publish(redundantMsg, "some payload");
-        client.publish(nonRedundantMsg, "some other payload");
+        // the following messages will trigger an exception in the handler
+        client.publish("simpleMsg", "some other payload");
+        client.publish(redundantMsg, "some other payload");
 
         log.warn("sleeping for good measure (to actually receive the messages)");
         Thread.sleep(5 * 1000);

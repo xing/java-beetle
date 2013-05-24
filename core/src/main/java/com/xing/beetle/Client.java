@@ -173,7 +173,7 @@ public class Client implements ShutdownListener {
         log.debug("Subscribing {} to queue {}", handler, queue);
         try {
             final Channel subscriberChannel = beetleChannels.createSubscriberChannel();
-            final String consumerTag = subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new BeetleConsumer(this, subscriberChannel, handler));
+            final String consumerTag = subscriberChannel.basicConsume(queue.getQueueNameOnBroker(), new BeetleConsumer(this, subscriberChannel, config));
             // potential race condition between setting the consumer tag and pausing the subscriber. Highly unlikely, though.
             handler.addChannel(subscriberChannel, consumerTag);
         } catch (IOException e) {
@@ -425,10 +425,10 @@ public class Client implements ShutdownListener {
         return handlerExecutor.submit(handlerTask);
     }
 
-    public boolean shouldProcessMessage(Channel channel, long deliveryTag, String messageId) {
+    public boolean shouldProcessMessage(Channel channel, long deliveryTag, String messageId, ConsumerConfiguration config) {
 
         try {
-            if (deduplicationStore.isMessageNew(messageId)) {
+            if (deduplicationStore.isMessageNew(messageId, config)) {
                 deduplicationStore.incrementAttempts(messageId);
                 return true;
             }
@@ -470,7 +470,7 @@ public class Client implements ShutdownListener {
                 return false;
             }
 
-            if (! acquireSharedHandlerMutex(messageId)) {
+            if (! acquireSharedHandlerMutex(messageId, config)) {
                 // we could not acquire the mutex, so we need to requeue the message and check for execution later.
                 log.debug("Could not acquire mutex for message {}, requeueing to process again later.", messageId);
                 rejectMessage(channel, deliveryTag, messageId, true, 0);
@@ -507,12 +507,12 @@ public class Client implements ShutdownListener {
         return deduplicationStore.incrementExceptions(messageId);
     }
 
-    public void removeMessageHandlerLock(String messageId) {
-        deduplicationStore.removeMessageHandlerLock(messageId);
+    public void removeMessageHandlerLock(String messageId, ConsumerConfiguration config) {
+        deduplicationStore.removeMessageHandlerLock(messageId, config);
     }
 
-    public boolean acquireSharedHandlerMutex(String messageId) {
-        return deduplicationStore.acquireSharedHandlerMutex(messageId);
+    public boolean acquireSharedHandlerMutex(String messageId, ConsumerConfiguration config) {
+        return deduplicationStore.acquireSharedHandlerMutex(messageId, config);
     }
 
     public long getAttemptsCount(String messageId) {
