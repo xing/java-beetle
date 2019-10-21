@@ -70,7 +70,7 @@ class BeetleAcceptanceIT {
 
   private static final int MESSAGE_COUNT = 100;
   private static final int HANDLER_PROCESSING_IN_MILLIS = 100;
-  private static final double TOLERATED_OVERHEAD = 1.05;
+  private static final double TOLERATED_OVERHEAD = 1.10;
   private static final String TEST_QUEUE_NAME = "testqueue";
 
   static URI brokerUri(RabbitMQContainer c) {
@@ -89,7 +89,7 @@ class BeetleAcceptanceIT {
   @Container GenericContainer<?> redis = new GenericContainer<>("redis").withExposedPorts(6379);
 
   @ParameterizedTest(name = "Handlers={0}, Brokers={1}")
-  @CsvSource({"1,1", "4,1", "2,2", "4,2"})
+  @CsvSource({"1,1", "4,1", "1,2", "4,2"})
   void checkBeetleWith(
       int nHandlerThreads,
       @ContainerType(RabbitMQContainer.class) @ConvertWith(ContainerType.Converter.class)
