@@ -1,18 +1,15 @@
 package com.xing.beetle;
 
 import static org.junit.Assert.assertEquals;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
 import com.github.dockerjava.api.model.PortBinding;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConnectionFactory;
@@ -25,10 +22,8 @@ class RabbitRecoverableIT {
 
   @Container
   RabbitMQContainer rabbit =
-      new RabbitMQContainer()
-          .withExposedPorts(5672)
-          .withCreateContainerCmdModifier(
-              cmd -> cmd.withPortBindings(PortBinding.parse(PORT + ":5672")));
+      new RabbitMQContainer().withExposedPorts(5672).withCreateContainerCmdModifier(
+          cmd -> cmd.withPortBindings(PortBinding.parse(PORT + ":5672")));
 
   Channel channel;
 
@@ -57,7 +52,7 @@ class RabbitRecoverableIT {
     restart(rabbit);
 
     assertEquals(1, messages.size());
-    Thread.sleep(100);
+    Thread.sleep(2000);
     channel.basicPublish("", queue, null, "test2".getBytes());
     Thread.sleep(100);
     assertEquals(2, messages.size());
