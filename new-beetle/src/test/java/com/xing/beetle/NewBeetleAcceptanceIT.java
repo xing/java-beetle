@@ -57,7 +57,7 @@ class NewBeetleAcceptanceIT {
   static final String QUEUE = "testQueue";
 
   static final Supplier<BasicProperties> REDUNDANT = () -> new BasicProperties.Builder()
-      .headers(Map.of(BeetleChannel.REDUNDANT_HEADER_KEY, 2)).build();
+      .headers(Map.of(BeetleHeader.PUBLISH_REDUNDANCY, 2)).build();
 
   static Channel createConnection(RabbitMQContainer[] containers, boolean lazy) throws Exception {
     BeetleConnectionFactory factory = new BeetleConnectionFactory();

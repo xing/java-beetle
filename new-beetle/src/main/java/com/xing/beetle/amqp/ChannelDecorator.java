@@ -327,6 +327,51 @@ public interface ChannelDecorator extends Channel {
   interface Single extends ChannelDecorator {
 
     @Override
+    default void abort(int closeCode, String closeMessage) throws IOException {
+      delegate().abort(closeCode, closeMessage);
+    }
+
+    @Override
+    default void basicPublish(String exchange, String routingKey, boolean mandatory, boolean immediate, AMQP.BasicProperties props, byte[] body) throws IOException {
+      delegate().basicPublish(exchange, routingKey, mandatory, immediate, props, body);
+    }
+
+    @Override
+    default String basicConsume(String queue, boolean autoAck, String consumerTag, boolean noLocal, boolean exclusive, Map<String, Object> arguments, Consumer callback) throws IOException {
+      return delegate().basicConsume(queue, autoAck, consumerTag, noLocal, exclusive, arguments, callback);
+    }
+
+    @Override
+    default void basicCancel(String consumerTag) throws IOException {
+      delegate().basicCancel(consumerTag);
+    }
+
+    @Override
+    default AMQP.Confirm.SelectOk confirmSelect() throws IOException {
+      return delegate().confirmSelect();
+    }
+
+    @Override
+    default void asyncRpc(Method method) throws IOException {
+      delegate().asyncRpc(method);
+    }
+
+    @Override
+    default Command rpc(Method method) throws IOException {
+      return delegate().rpc(method);
+    }
+
+    @Override
+    default CompletableFuture<Command> asyncCompletableRpc(Method method) throws IOException {
+      return delegate().asyncCompletableRpc(method);
+    }
+
+    @Override
+    default void close(int closeCode, String closeMessage) throws IOException, TimeoutException {
+      delegate().close(closeCode, closeMessage);
+    }
+
+    @Override
     default void addConfirmListener(ConfirmListener listener) {
       delegate().addConfirmListener(requireNonNull(listener));
     }

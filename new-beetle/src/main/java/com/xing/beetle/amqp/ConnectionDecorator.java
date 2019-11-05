@@ -261,11 +261,6 @@ public interface ConnectionDecorator extends Connection {
       delegate().close(closeCode, closeMessage, timeout);
     }
 
-    @Override
-    default Channel createChannel(int channelNumber) throws IOException {
-      return delegate().createChannel(channelNumber);
-    }
-
     Connection delegate();
 
     @Override
