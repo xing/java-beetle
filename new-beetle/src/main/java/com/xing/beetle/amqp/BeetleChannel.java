@@ -11,40 +11,18 @@ import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Stream;
 
 public class BeetleChannel implements ChannelDecorator.Multiple {
 
-    private static class Metadata {
-
-        private final Map<String, String> consumerTags;
-
-        Metadata() {
-            this.consumerTags = new ConcurrentHashMap<>();
-        }
-
-        void subscribe(String virtualConsumerTag, String actualConsumerTag) {
-            consumerTags.putIfAbsent(virtualConsumerTag, actualConsumerTag);
-        }
-
-        Optional<String> unsubscribe(String consumerTag) {
-            return Optional.ofNullable(consumerTags.remove(consumerTag));
-        }
-    }
-
     private static final Logger LOGGER = System.getLogger(BeetleChannel.class.getName());
 
     private final RingStream<Channel> delegates;
-    private final ConcurrentMap<Channel, Metadata> metadata;
     private final MsgDeliveryTagMapping tagMapping;
 
     public BeetleChannel(List<Channel> channels) {
         this.delegates = new RingStream<>(channels.toArray(new Channel[channels.size()]));
-        this.metadata = new ConcurrentHashMap<>(channels.size());
         this.tagMapping = new MsgDeliveryTagMapping();
     }
 

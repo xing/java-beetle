@@ -36,7 +36,6 @@ class BeetleChannelIT extends BaseBeetleIT {
         return Math.min((int) REDUNDANT.get().getHeaders().get(BeetleHeader.PUBLISH_REDUNDANCY), containers.length);
     }
 
-
     @ParameterizedTest(name = "BeetleChannel={0}")
     @ValueSource(ints = {1, 2, 3})
     @ExtendWith(ContainerLifecycle.class)

@@ -60,11 +60,12 @@ public class MultiPlexingConnectionIT {
             @Override
             int read(Channel channel, AckStrategy strategy) throws Exception {
                 AtomicInteger messageCount = new AtomicInteger();
-                channel.basicConsume(QUEUE, strategy.isAuto(), (tag, msg) -> {
+                String consumerTag = channel.basicConsume(QUEUE, strategy.isAuto(), (tag, msg) -> {
                     messageCount.incrementAndGet();
                     strategy.ack(channel, msg.getEnvelope().getDeliveryTag());
                 }, System.err::println);
                 Thread.sleep(1000);
+                channel.basicCancel(consumerTag);
                 return messageCount.get();
             }
         };
