@@ -39,7 +39,7 @@ public class BeetleConnection implements ConnectionDecorator.Multiple, ShutdownL
   public Channel createChannel(int channelNumber) throws IOException {
     List<Channel> channels = new ArrayList<>();
     for (Connection connection : delegates) {
-      channels.add(new MultiPlexingChannel(connection, channelNumber));
+      channels.add(new MultiPlexingConnection.MultiPlexingChannel(connection, channelNumber));
     }
     return new BeetleChannel(channels);
   }

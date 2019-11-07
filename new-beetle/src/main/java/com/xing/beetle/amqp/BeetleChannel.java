@@ -1,76 +1,23 @@
 package com.xing.beetle.amqp;
 
+import com.rabbitmq.client.AMQP.BasicProperties;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Consumer;
+import com.xing.beetle.BeetleHeader;
+import com.xing.beetle.util.RingStream;
+
 import java.io.IOException;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ConcurrentNavigableMap;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
-import com.rabbitmq.client.AMQP.BasicProperties;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Consumer;
-import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.ShutdownSignalException;
-import com.xing.beetle.BeetleHeader;
-import com.xing.beetle.util.RingStream;
-
-import static java.util.Objects.requireNonNull;
-
 public class BeetleChannel implements ChannelDecorator.Multiple {
-
-    //TODO serialize calls from multiple brokers
-    private static class MappingConsumer implements Consumer {
-
-        private Consumer delegate;
-        private Channel channel;
-        private MsgDeliveryTagMapping tagMapping;
-
-        MappingConsumer(Consumer delegate, Channel channel, MsgDeliveryTagMapping tagMapping) {
-            this.delegate = requireNonNull(delegate);
-            this.channel = requireNonNull(channel);
-            this.tagMapping = requireNonNull(tagMapping);
-        }
-
-        @Override
-        public void handleConsumeOk(String consumerTag) {
-            delegate.handleConsumeOk(consumerTag);
-        }
-
-        @Override
-        public void handleCancelOk(String consumerTag) {
-            delegate.handleCancelOk(consumerTag);
-        }
-
-        @Override
-        public void handleCancel(String consumerTag) throws IOException {
-            delegate.handleCancel(consumerTag);
-        }
-
-        @Override
-        public void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
-            delegate.handleShutdownSignal(consumerTag, sig);
-        }
-
-        @Override
-        public void handleRecoverOk(String consumerTag) {
-            delegate.handleRecoverOk(consumerTag);
-        }
-
-        @Override
-        public void handleDelivery(String consumerTag, Envelope envelope, BasicProperties properties, byte[] body) throws IOException {
-            envelope = tagMapping.mapEnvelope(channel, envelope);
-            delegate.handleDelivery(consumerTag, envelope, properties, body);
-        }
-    }
 
     private static class Metadata {
 
@@ -102,6 +49,11 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
     }
 
     @Override
+    public MsgDeliveryTagMapping deliveryTagMapping() {
+        return tagMapping;
+    }
+
+    @Override
     public void basicAck(long deliveryTag, boolean multiple) throws IOException {
         tagMapping.basicAck(deliveryTag, multiple);
     }
@@ -117,7 +69,7 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
         String tag =
                 consumerTag == null || consumerTag.isEmpty() ? UUID.randomUUID().toString() : consumerTag;
         boolean all = delegateMap(
-                c -> c.basicConsume(queue, autoAck, tag, noLocal, exclusive, arguments, new MappingConsumer(callback, c, tagMapping)))
+                c -> c.basicConsume(queue, autoAck, tag, noLocal, exclusive, arguments,tagMapping.createConsumerDecorator(callback, c)))
                 .allMatch(tag::equals);
         if (!all) {
             throw new AssertionError("Returned consumer tags dont match");

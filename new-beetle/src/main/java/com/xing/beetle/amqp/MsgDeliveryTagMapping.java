@@ -3,17 +3,84 @@ package com.xing.beetle.amqp;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
+import com.rabbitmq.client.GetResponse;
+import com.rabbitmq.client.ShutdownSignalException;
 import com.xing.beetle.util.ExceptionSupport;
 
+import static java.util.Objects.requireNonNull;
+
 public class MsgDeliveryTagMapping {
+
+    private class MappingConsumer implements Consumer {
+
+        private Consumer delegate;
+        private Channel channel;
+
+        MappingConsumer(Consumer delegate, Channel channel) {
+            this.delegate = requireNonNull(delegate);
+            this.channel = requireNonNull(channel);
+        }
+
+        @Override
+        public void handleConsumeOk(String consumerTag) {
+            delegate.handleConsumeOk(consumerTag);
+        }
+
+        @Override
+        public void handleCancelOk(String consumerTag) {
+            delegate.handleCancelOk(consumerTag);
+        }
+
+        @Override
+        public void handleCancel(String consumerTag) throws IOException {
+            delegate.handleCancel(consumerTag);
+        }
+
+        @Override
+        public void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
+            delegate.handleShutdownSignal(consumerTag, sig);
+        }
+
+        @Override
+        public void handleRecoverOk(String consumerTag) {
+            delegate.handleRecoverOk(consumerTag);
+        }
+
+        @Override
+        public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+            envelope = mapEnvelope(channel, envelope);
+            delegate.handleDelivery(consumerTag, envelope, properties, body);
+        }
+    }
+
+    private static class Metadata {
+
+        private final Map<String, String> consumerTags;
+
+        Metadata() {
+            this.consumerTags = new ConcurrentHashMap<>();
+        }
+
+        void subscribe(String virtualConsumerTag, String actualConsumerTag) {
+            consumerTags.putIfAbsent(virtualConsumerTag, actualConsumerTag);
+        }
+
+        Optional<String> unsubscribe(String consumerTag) {
+            return Optional.ofNullable(consumerTags.remove(consumerTag));
+        }
+    }
 
     private interface Acknowledgement {
 
@@ -66,10 +133,13 @@ public class MsgDeliveryTagMapping {
         acks.clear();
     }
 
-    private void doWithEachChannelOnlyOnce(Map<Long, Acknowledgement> acks, Mode mode, boolean multiple, boolean requeue) {
+    private void doWithEachChannelOnlyOnce(Map<Long, Acknowledgement> acks, Mode mode, boolean multiple, boolean requeue) throws IOException {
+        if (acks.isEmpty()) {
+            throw new IOException("Unknown delivery tag");
+        }
         Set<Channel> alreadyUsed = new HashSet<>();
         acks.forEach((ExceptionSupport.BiConsumer<Long, Acknowledgement>) (tag, ack) -> {
-            ack.perform(Mode.ACK, multiple, false, alreadyUsed::add);
+            ack.perform(Mode.ACK, multiple, requeue, alreadyUsed::add);
         });
     }
 
@@ -81,7 +151,7 @@ public class MsgDeliveryTagMapping {
 
     public void basicReject(long deliveryTag, boolean requeue) throws IOException {
         Map<Long, Acknowledgement> acks = deliveryTags.subMap(deliveryTag, deliveryTag + 1);
-        doWithEachChannelOnlyOnce(acks, Mode.NACK, false, requeue);
+        doWithEachChannelOnlyOnce(acks, Mode.REJECT, false, requeue);
         acks.clear();
     }
 
@@ -95,5 +165,14 @@ public class MsgDeliveryTagMapping {
     public Envelope mapEnvelope(Channel channel, Envelope envelope) {
         long tag = mapDelivery(channel, envelope.getDeliveryTag());
         return new Envelope(tag, envelope.isRedeliver(), envelope.getExchange(), envelope.getRoutingKey());
+    }
+
+    public GetResponse mapResponse(Channel channel, GetResponse response) {
+        Envelope envelope = mapEnvelope(channel, response.getEnvelope());
+        return new GetResponse(envelope, response.getProps(), response.getBody(), response.getMessageCount());
+    }
+
+    public Consumer createConsumerDecorator(Consumer delegate, Channel channel) {
+        return new MappingConsumer(delegate, channel);
     }
 }
