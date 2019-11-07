@@ -168,8 +168,12 @@ public class MsgDeliveryTagMapping {
     }
 
     public GetResponse mapResponse(Channel channel, GetResponse response) {
-        Envelope envelope = mapEnvelope(channel, response.getEnvelope());
-        return new GetResponse(envelope, response.getProps(), response.getBody(), response.getMessageCount());
+        if (response != null) {
+            Envelope envelope = mapEnvelope(channel, response.getEnvelope());
+            return new GetResponse(envelope, response.getProps(), response.getBody(), response.getMessageCount());
+        } else {
+            return null;
+        }
     }
 
     public Consumer createConsumerDecorator(Consumer delegate, Channel channel) {
