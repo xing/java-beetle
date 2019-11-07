@@ -139,7 +139,7 @@ public class MsgDeliveryTagMapping {
         }
         Set<Channel> alreadyUsed = new HashSet<>();
         acks.forEach((ExceptionSupport.BiConsumer<Long, Acknowledgement>) (tag, ack) -> {
-            ack.perform(Mode.ACK, multiple, requeue, alreadyUsed::add);
+            ack.perform(mode, multiple, requeue, alreadyUsed::add);
         });
     }
 

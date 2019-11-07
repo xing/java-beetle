@@ -11,13 +11,13 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-public class MultiPlexingConnectionIT {
+class MultiPlexingConnectionIT {
 
     private static final String QUEUE = "test-queue";
     private static final int NUMBER_OF_MESSAGES = 10;
 
     @Container
-    RabbitMQContainer container = new RabbitMQContainer();
+    private RabbitMQContainer container = new RabbitMQContainer();
 
     @Test
     void simpleGet() throws Exception {
