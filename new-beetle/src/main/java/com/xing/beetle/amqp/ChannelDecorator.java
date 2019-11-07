@@ -285,7 +285,7 @@ public interface ChannelDecorator extends Channel {
                     this.response = response;
                 }
             }
-            return delegateMap(c -> new ChannelResponse(c, c.basicGet(queue, false)))
+            return delegateMap(c -> new ChannelResponse(c, c.basicGet(queue, autoAck)))
                     .filter(cr -> cr.response != null)
                     .map(cr -> deliveryTagMapping().mapResponse(cr.channel, cr.response))
                     .findAny()

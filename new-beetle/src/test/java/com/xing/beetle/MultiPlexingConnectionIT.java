@@ -2,76 +2,16 @@ package com.xing.beetle;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.GetResponse;
 import com.xing.beetle.amqp.MultiPlexingConnection;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
-
 @Testcontainers
 public class MultiPlexingConnectionIT {
-
-    enum AckStrategy {
-        AUTO {
-            @Override
-            void ack(Channel channel, long deliveryTag) throws IOException {
-            }
-        }, SINGLE {
-            @Override
-            void ack(Channel channel, long deliveryTag) throws IOException {
-                channel.basicAck(deliveryTag, false);
-            }
-        }, MULTIPLE {
-            @Override
-            void ack(Channel channel, long deliveryTag) throws IOException {
-                if (deliveryTag == NUMBER_OF_MESSAGES) {
-                    channel.basicAck(deliveryTag, true);
-                }
-            }
-        };
-
-        abstract void ack(Channel channel, long deliveryTag) throws IOException;
-
-        boolean isAuto() {
-            return this == AUTO;
-        }
-    }
-
-    enum ReadMode {
-        GET {
-            @Override
-            int read(Channel channel, AckStrategy strategy) throws Exception {
-                int messageCount = 0;
-                GetResponse msg;
-                while ((msg = channel.basicGet(QUEUE, strategy.isAuto())) != null) {
-                    messageCount++;
-                    strategy.ack(channel, msg.getEnvelope().getDeliveryTag());
-                }
-                return messageCount;
-            }
-        }, CONSUME {
-            @Override
-            int read(Channel channel, AckStrategy strategy) throws Exception {
-                AtomicInteger messageCount = new AtomicInteger();
-                String consumerTag = channel.basicConsume(QUEUE, strategy.isAuto(), (tag, msg) -> {
-                    messageCount.incrementAndGet();
-                    strategy.ack(channel, msg.getEnvelope().getDeliveryTag());
-                }, System.err::println);
-                Thread.sleep(1000);
-                channel.basicCancel(consumerTag);
-                return messageCount.get();
-            }
-        };
-
-        abstract int read(Channel channel, AckStrategy strategy) throws Exception;
-    }
 
     private static final String QUEUE = "test-queue";
     private static final int NUMBER_OF_MESSAGES = 10;
@@ -81,7 +21,7 @@ public class MultiPlexingConnectionIT {
 
     @ParameterizedTest
     @CsvSource({"GET,AUTO", "GET,SINGLE", "GET,MULTIPLE", "CONSUME,AUTO", "CONSUME,SINGLE", "CONSUME,MULTIPLE"})
-    void test(ReadMode mode, AckStrategy strategy) throws Exception {
+    void test(ChannelReadMode mode, MessageAcknowledgementStrategy strategy) throws Exception {
         ConnectionFactory factory = new ConnectionFactory();
         factory.setHost(container.getContainerIpAddress());
         factory.setPort(container.getAmqpPort());
@@ -93,7 +33,7 @@ public class MultiPlexingConnectionIT {
             channel.basicPublish("", QUEUE, null, new byte[]{i});
         }
 
-        int messageCount = mode.read(channel, strategy);
+        int messageCount = mode.read(channel, QUEUE, strategy, NUMBER_OF_MESSAGES);
         Assertions.assertEquals(NUMBER_OF_MESSAGES, messageCount);
 
         channel.close();

@@ -42,6 +42,11 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
     }
 
     @Override
+    public long messageCount(String queue) throws IOException {
+        return delegateMap(c->c.messageCount(queue)).mapToLong(Long::longValue).sum();
+    }
+
+    @Override
     public String basicConsume(String queue, boolean autoAck, String consumerTag, boolean noLocal,
                                boolean exclusive, Map<String, Object> arguments, Consumer callback) throws IOException {
         String tag =

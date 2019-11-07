@@ -48,6 +48,7 @@ public class BeetleConnectionFactory extends ConnectionFactory {
                         .map(ListAddressResolver::new).map(res -> connection(executor, res, clientProvidedName))
                         .map(retryExecutor::supply).map(RetryableConnection::new)
                         .map(c -> new RequeueAtEndConnection(c, requeueAtEndDelayInMillis))
+                        .map(MultiPlexingConnection::new)
                         .collect(Collectors.toList());
         return new BeetleConnection(connections);
     }
