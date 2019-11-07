@@ -3,9 +3,7 @@ package com.xing.beetle;
 import com.github.dockerjava.api.model.PortBinding;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.Delivery;
-import com.xing.beetle.amqp.BeetleConnection;
 import com.xing.beetle.amqp.BeetleConnectionFactory;
 import com.xing.beetle.testcontainers.ContainerLifecycle;
 import com.xing.beetle.testcontainers.Containers;
@@ -19,15 +17,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @Testcontainers
 class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
@@ -69,6 +63,7 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
 
         Thread.sleep(500);
         assertEquals(1, messages.size());
+        messages.clear();
         channel.basicPublish("", QUEUE, REDUNDANT.apply(2), "test2".getBytes());
         Thread.sleep(500);
         assertEquals(Math.min(containers.length, 2), messages.size());
