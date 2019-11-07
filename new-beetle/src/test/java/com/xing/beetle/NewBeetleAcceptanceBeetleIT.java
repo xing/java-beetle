@@ -59,20 +59,19 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     @ValueSource(ints = {1, 2})
     @ExtendWith(ContainerLifecycle.class)
     void checkWith(@Containers RabbitMQContainer[] containers) throws Exception {
-        ConnectionFactory factory = new ConnectionFactory();
-        Stream<Connection> connections = createConnections(factory, containers);
-        BeetleConnection beetleConnection = new BeetleConnection(connections.collect(Collectors.toList()));
-        Channel channel = beetleConnection.createChannel();
+        BeetleConnectionFactory factory = new BeetleConnectionFactory();
+        Connection connection = createConnection(factory, containers);
+        Channel channel = connection.createChannel();
         channel.queueDeclare(QUEUE, false, false, false, null);
         channel.basicPublish("", QUEUE, REDUNDANT.apply(1), "test1".getBytes());
         List<Delivery> messages = new ArrayList<>();
-        channel.basicConsume(QUEUE, false, (tag, msg) -> messages.add(msg), System.out::println);
+        channel.basicConsume(QUEUE, true, (tag, msg) -> messages.add(msg), System.out::println);
 
         Thread.sleep(500);
-        assertEquals(1 * containers.length, messages.size());
+        assertEquals(1, messages.size());
         channel.basicPublish("", QUEUE, REDUNDANT.apply(2), "test2".getBytes());
         Thread.sleep(500);
-        assertEquals(2 * containers.length, messages.size());
+        assertEquals(Math.min(containers.length, 2), messages.size());
     }
 
 //    @Test
