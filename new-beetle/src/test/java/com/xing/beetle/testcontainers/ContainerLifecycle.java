@@ -19,7 +19,7 @@ public class ContainerLifecycle implements InvocationInterceptor {
     CompletableFuture<?>[] futures =
         context.getArguments().stream().flatMap(ContainerLifecycle::flatten)
             .filter(Startable.class::isInstance).map(Startable.class::cast)
-            .map(s -> runAsync(s::start)).toArray(CompletableFuture<?>[]::new);
+            .map(s -> runAsync(() -> action.accept(s))).toArray(CompletableFuture<?>[]::new);
     CompletableFuture.allOf(futures).join();
   }
 
