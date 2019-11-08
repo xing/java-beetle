@@ -9,7 +9,6 @@ import com.xing.beetle.testcontainers.Containers;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -26,12 +25,10 @@ class BeetleConnectionIT extends BaseBeetleIT {
 
     private static final int NUMBER_OF_MESSAGES = 10;
 
-    //@ParameterizedTest(name = "BeetleChannel={0}")
-    //@ValueSource(ints = {1, 2, 3})
     @ExtendWith(ContainerLifecycle.class)
     @ParameterizedTest
-    @MethodSource
-    void testBasicGet(@Containers RabbitMQContainer[] containers, ChannelReadMode mode, MessageAcknowledgementStrategy strategy) throws Exception {
+    @MethodSource("generateTestParameters")
+    void testReadAck(@Containers RabbitMQContainer[] containers, ChannelReadMode mode, MessageAcknowledgementStrategy strategy) throws Exception {
         ConnectionFactory factory = new ConnectionFactory();
         Stream<Connection> connections = createConnections(factory, containers);
         BeetleConnection beetleConnection = new BeetleConnection(connections.collect(Collectors.toList()));
@@ -43,9 +40,33 @@ class BeetleConnectionIT extends BaseBeetleIT {
             channel.basicPublish("", QUEUE, REDUNDANT.apply(redundancy), "test1".getBytes());
         }
 
-        long expectedNumberOfMessages =NUMBER_OF_MESSAGES * Math.min(containers.length, redundancy);
-        int messageCount = mode.read(channel, QUEUE, strategy, expectedNumberOfMessages);
+        long expectedNumberOfMessages = NUMBER_OF_MESSAGES * Math.min(containers.length, redundancy);
+        int messageCount = mode.readAck(channel, QUEUE, strategy, expectedNumberOfMessages);
         assertEquals(expectedNumberOfMessages, messageCount);
+
+        channel.close();
+        channel = beetleConnection.createChannel();
+        assertEquals(0, channel.messageCount(QUEUE));
+    }
+
+    @ExtendWith(ContainerLifecycle.class)
+    @ParameterizedTest
+    @MethodSource("generateTestParametersNack")
+    void testReadNack(@Containers RabbitMQContainer[] containers, ChannelReadMode mode, MessageAcknowledgementStrategy strategy) throws Exception {
+        ConnectionFactory factory = new ConnectionFactory();
+        Stream<Connection> connections = createConnections(factory, containers);
+        BeetleConnection beetleConnection = new BeetleConnection(connections.collect(Collectors.toList()));
+        Channel channel = beetleConnection.createChannel();
+
+        channel.queueDeclare(QUEUE, false, false, false, null);
+        int redundancy = 2;
+        for (int i = 0; i < NUMBER_OF_MESSAGES; i++) {
+            channel.basicPublish("", QUEUE, REDUNDANT.apply(redundancy), "test1".getBytes());
+        }
+
+        long numberOfMessagesToNack = NUMBER_OF_MESSAGES * Math.min(containers.length, redundancy);
+        int messageCount = mode.readNack(channel, QUEUE, strategy, true, numberOfMessagesToNack);
+        assertEquals(2 * numberOfMessagesToNack, messageCount);
 
         channel.close();
         channel = beetleConnection.createChannel();
@@ -58,16 +79,20 @@ class BeetleConnectionIT extends BaseBeetleIT {
         return result;
     }
 
-    static Stream<Object[]> testBasicGet() {
+    static Stream<Object[]> generateTestParameters() {
         return IntStream.rangeClosed(1, 3)
                 .mapToObj(cc -> add(new Object[0], cc))
                 .flatMap(args -> Stream.of(ChannelReadMode.values()).map(rm -> add(args, rm)))
                 .flatMap(args -> Stream.of(MessageAcknowledgementStrategy.values()).map(rm -> add(args, rm)));
     }
 
+    static Stream<Object[]> generateTestParametersNack() {
+        return generateTestParameters().filter(objects -> Arrays.stream(objects).noneMatch(o -> o.toString().contains("AUTO")));
+    }
+
     @Test
     void testParams() {
-        assertEquals(18, testBasicGet().count());
+        assertEquals(18, generateTestParameters().count());
     }
 
 

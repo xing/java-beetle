@@ -33,7 +33,7 @@ public class MultiPlexingConnectionIT {
             channel.basicPublish("", QUEUE, null, new byte[]{i});
         }
 
-        int messageCount = mode.read(channel, QUEUE, strategy, NUMBER_OF_MESSAGES);
+        int messageCount = mode.readAck(channel, QUEUE, strategy, NUMBER_OF_MESSAGES);
         Assertions.assertEquals(NUMBER_OF_MESSAGES, messageCount);
 
         channel.close();
