@@ -2,15 +2,53 @@ package com.xing.beetle.dedup.spi;
 
 import com.xing.beetle.dedup.MessageHandlingState;
 
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
 public interface DedupStore<K> {
 
-  void deleteMutex(K key);
+    class InMemoryStore<K> implements DedupStore<K> {
 
-  MessageHandlingState<K> retrieve(K key);
+        private Map<K, MessageHandlingState<K>> data = new ConcurrentHashMap<>();
 
-  boolean setMutex(K key);
+        @Override
+        public void deleteMutex(K key) {
 
-  boolean tryInsert(MessageHandlingState<K> state);
+        }
 
-  boolean update(MessageHandlingState<K> state);
+        @Override
+        public Optional<MessageHandlingState<K>> tryFind(K key) {
+            return Optional.ofNullable(data.get(key));
+        }
+
+        @Override
+        public boolean setMutex(K key) {
+            return false;
+        }
+
+        @Override
+        public boolean tryInsert(MessageHandlingState<K> state) {
+            return false;
+        }
+
+        @Override
+        public boolean update(MessageHandlingState<K> state) {
+            return false;
+        }
+    }
+
+    void deleteMutex(K key);
+
+    Optional<MessageHandlingState<K>> tryFind(K key);
+
+    default MessageHandlingState<K> find(K key) {
+        return tryFind(key).orElse(MessageHandlingState.initialTry(key));
+    }
+
+    boolean setMutex(K key);
+
+    boolean tryInsert(MessageHandlingState<K> state);
+
+    boolean update(MessageHandlingState<K> state);
 }

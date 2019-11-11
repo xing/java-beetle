@@ -1,5 +1,7 @@
 package com.xing.beetle.dedup.api;
 
+import com.xing.beetle.util.ExceptionSupport;
+
 import static java.util.Objects.requireNonNull;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
@@ -23,7 +25,7 @@ public interface MessageListener<M> {
     }
 
     @Override
-    public boolean handleFailed(Exception exception, int attempt) {
+    public boolean handleFailed(Throwable exception, int attempt) {
       try {
         current = Thread.currentThread();
         return delegate.handleFailed(exception, attempt);
@@ -32,16 +34,11 @@ public interface MessageListener<M> {
       }
     }
 
-    @SuppressWarnings("unchecked")
-    public <E extends Throwable> Void interruptTimedOutAndRethrow(Throwable error) throws E {
+    public  Void interruptTimedOutAndRethrow(Throwable error) {
       if (error instanceof TimeoutException && current != null) {
         current.interrupt();
       }
-      if (error != null) {
-        throw (E) error;
-      } else {
-        return null;
-      }
+      return ExceptionSupport.sneakyThrow(null, error);
     }
 
     @Override
@@ -55,7 +52,7 @@ public interface MessageListener<M> {
     }
 
     @Override
-    public void onMessage(M message) {
+    public void onMessage(M message) throws Throwable {
       try {
         current = Thread.currentThread();
         delegate.onMessage(message);
@@ -65,13 +62,13 @@ public interface MessageListener<M> {
     }
 
     public CompletionStage<Void> onMessage(M message, Executor executor, Duration timeout) {
-      return CompletableFuture.runAsync(() -> onMessage(message), executor)
+      return CompletableFuture.runAsync((ExceptionSupport.Runnable)() -> onMessage(message), executor)
           .orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
           .exceptionally(this::interruptTimedOutAndRethrow);
     }
   }
 
-  default boolean handleFailed(Exception exception, int attempt) {
+  default boolean handleFailed(Throwable exception, int attempt) {
     logger().log(Level.WARNING, "Beetle message processing failed due to: {0}", exception);
     return true;
   }
@@ -88,5 +85,5 @@ public interface MessageListener<M> {
     logger().log(Level.WARNING, "Beetle dropped already acknowledged message: {0}", message);
   }
 
-  void onMessage(M message);
+  void onMessage(M message) throws Throwable;
 }

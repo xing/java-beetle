@@ -46,7 +46,7 @@ public class MessageHandlingState<K> {
         try {
           attempts++;
           listener.onMessage(message);
-        } catch (Exception e) {
+        } catch (Throwable e) {
           exceptions++;
           if (listener.handleFailed(e, attempts)) {
             adapter.acknowledge(message);

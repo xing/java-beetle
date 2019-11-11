@@ -49,7 +49,7 @@ public class MultiPlexingConnection implements ConnectionDecorator.Single {
 
         @Override
         public void abort(int closeCode, String closeMessage) throws IOException {
-            List<Exception> exceptions = new ArrayList<>();
+            List<Throwable> exceptions = new ArrayList<>();
             ExceptionSupport.Consumer<Channel> aborting = c -> c.abort(closeCode, closeMessage);
             aborting.executeAndCatch(publisher).ifPresent(exceptions::add);
             aborting.mapAndCatch(consumerTags.values().stream()).forEach(exceptions::add);
@@ -128,7 +128,7 @@ public class MultiPlexingConnection implements ConnectionDecorator.Single {
 
         @Override
         public void close(int closeCode, String closeMessage) throws IOException, TimeoutException {
-            List<Exception> exceptions = new ArrayList<>();
+            List<Throwable> exceptions = new ArrayList<>();
             ExceptionSupport.Consumer<Channel> closing = c -> c.close(closeCode, closeMessage);
             closing.executeAndCatch(publisher).ifPresent(exceptions::add);
             closing.mapAndCatch(consumerTags.values().stream()).forEach(exceptions::add);

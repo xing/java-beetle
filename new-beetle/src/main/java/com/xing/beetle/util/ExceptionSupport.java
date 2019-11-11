@@ -11,12 +11,12 @@ public class ExceptionSupport {
         default void accept(T t, U u) {
             try {
                 acceptChecked(t, u);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 sneakyThrow(e);
             }
         }
 
-        void acceptChecked(T t, U u) throws Exception;
+        void acceptChecked(T t, U u) throws Throwable;
     }
 
     @FunctionalInterface
@@ -26,23 +26,23 @@ public class ExceptionSupport {
         default void accept(T element) {
             try {
                 acceptChecked(element);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 sneakyThrow(e);
             }
         }
 
-        void acceptChecked(T element) throws Exception;
+        void acceptChecked(T element) throws Throwable;
 
-        default Optional<Exception> executeAndCatch(T element) {
+        default Optional<Throwable> executeAndCatch(T element) {
             try {
                 acceptChecked(element);
                 return Optional.empty();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 return Optional.of(e);
             }
         }
 
-        default Stream<Exception> mapAndCatch(Stream<? extends T> elements) {
+        default Stream<Throwable> mapAndCatch(Stream<? extends T> elements) {
             return elements.map(this::executeAndCatch).filter(Optional::isPresent).map(Optional::get);
         }
 
@@ -61,12 +61,12 @@ public class ExceptionSupport {
         default R apply(T t) {
             try {
                 return applyChecked(t);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 return ExceptionSupport.sneakyThrow(e);
             }
         }
 
-        R applyChecked(T t) throws Exception;
+        R applyChecked(T t) throws Throwable;
     }
 
     @FunctionalInterface
@@ -88,12 +88,26 @@ public class ExceptionSupport {
         default T get() {
             try {
                 return getChecked();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 return ExceptionSupport.sneakyThrow(e);
             }
         }
 
-        T getChecked() throws Exception;
+        T getChecked() throws Throwable;
+    }
+
+    public interface Runnable extends java.lang.Runnable {
+
+        @Override
+        default void run() {
+            try {
+                runChecked();
+            } catch (Throwable e) {
+                ExceptionSupport.sneakyThrow(e);
+            }
+        }
+
+        void runChecked() throws Throwable;
     }
 
     @SuppressWarnings("unchecked")
@@ -104,6 +118,14 @@ public class ExceptionSupport {
     public static <E extends Throwable, R> R sneakyThrow(Throwable exception) throws E {
         E casted = sneakyCast(exception);
         throw casted;
+    }
+
+    public static <E extends Throwable, R> R sneakyThrow(R result, Throwable exception) throws E {
+        if (exception != null) {
+            throw ExceptionSupport.<E>sneakyCast(exception);
+        } else {
+            return result;
+        }
     }
 
     private ExceptionSupport() {
