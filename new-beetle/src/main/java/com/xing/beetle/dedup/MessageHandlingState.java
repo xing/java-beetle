@@ -1,77 +1,64 @@
 package com.xing.beetle.dedup;
 
-import java.util.concurrent.TimeoutException;
+import static java.util.Objects.requireNonNull;
+import java.util.concurrent.Executor;
+import com.xing.beetle.dedup.api.MessageListener;
+import com.xing.beetle.dedup.spi.DedupStore;
 import com.xing.beetle.dedup.spi.MessageAdapter;
 
 public class MessageHandlingState<K> {
+
+  public interface Outcome<K, M> {
+
+    void apply(MessageAdapter<M, K> adapter, DedupStore<K> store, Executor executor);
+  }
 
   public enum Status {
     INCOMPLETE, FAILED, COMPLETE;
   }
 
   public static <K> MessageHandlingState<K> initialTry(K key) {
-    return null;
+    return new MessageHandlingState<>(key);
   }
 
-  private K messageKey;
-  private Status status;
-  private long timeout;
+  private final K messageKey;
+  private final long expires;
+  private final Status status;
   private int attempts;
   private int exceptions;
 
-  public boolean acknowledgeMessage() {
-    return isComplete() || shouldNotRetry();
+  public MessageHandlingState(K messageKey) {
+    this.messageKey = requireNonNull(messageKey);
+    this.expires = Integer.MAX_VALUE;
+    this.status = Status.INCOMPLETE;
+    this.attempts = 0;
+    this.exceptions = 0;
   }
 
-  public MessageHandlingState<K> checkCompletion(Object ignored, Throwable exception) {
-    attempts++;
-    if (exception instanceof TimeoutException) {
+  public <M> Outcome<K, M> handle(M message, MessageListener<M> listener) {
+    return (adapter, store, executor) -> {
+      if (expires < System.currentTimeMillis()) {
+        adapter.acknowledge(message);
+        listener.onDropped(message);
+      } else if (store.tryInsert(this)) {
 
-    }
-    // TODO Auto-generated method stub
-    return this;
-  }
-
-  public <M> MessageHandlingState<K> handleListener(M message,
-      MessageListener<? super M> listener) {
-    if (processListener()) {
-      listener.onMessage(message);
-    }
-    // TODO Auto-generated method stub
-    return this;
-  }
-
-
-  public <M> MessageHandlingState<K> handleMessage(M message, MessageAdapter<M, K> adapter) {
-    if (acknowledgeMessage()) {
-      adapter.acknowledge(message);
-    } else if (processLater()) {
-      adapter.requeue(message);
-    }
-    // TODO Auto-generated method stub
-    return this;
-  }
-
-  private boolean isComplete() {
-    return status == Status.COMPLETE;
+      } else {
+        try {
+          attempts++;
+          listener.onMessage(message);
+        } catch (Exception e) {
+          exceptions++;
+          if (listener.handleFailed(e, attempts)) {
+            adapter.acknowledge(message);
+          } else {
+            store.deleteMutex(null);
+          }
+        }
+      }
+    };
   }
 
   public K key() {
     return messageKey;
-  }
-
-  private boolean processLater() {
-    // TODO Auto-generated method stub
-    return false;
-  }
-
-  private boolean processListener() {
-    // TODO Auto-generated method stub
-    return false;
-  }
-
-  private boolean shouldNotRetry() {
-    // TODO Auto-generated method stub
-    return false;
   }
 }

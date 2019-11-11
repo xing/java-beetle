@@ -1,4 +1,4 @@
-package com.xing.beetle.dedup;
+package com.xing.beetle.dedup.api;
 
 import static java.util.Objects.requireNonNull;
 import java.lang.System.Logger;
@@ -20,6 +20,16 @@ public interface MessageListener<M> {
 
     public Interruptable(MessageListener<M> delegate) {
       this.delegate = requireNonNull(delegate);
+    }
+
+    @Override
+    public boolean handleFailed(Exception exception, int attempt) {
+      try {
+        current = Thread.currentThread();
+        return delegate.handleFailed(exception, attempt);
+      } finally {
+        current = null;
+      }
     }
 
     @SuppressWarnings("unchecked")
@@ -45,16 +55,6 @@ public interface MessageListener<M> {
     }
 
     @Override
-    public void onFailed(M message) {
-      try {
-        current = Thread.currentThread();
-        delegate.onFailed(message);
-      } finally {
-        current = null;
-      }
-    }
-
-    @Override
     public void onMessage(M message) {
       try {
         current = Thread.currentThread();
@@ -71,6 +71,11 @@ public interface MessageListener<M> {
     }
   }
 
+  default boolean handleFailed(Exception exception, int attempt) {
+    logger().log(Level.WARNING, "Beetle message processing failed due to: {0}", exception);
+    return true;
+  }
+
   default Logger logger() {
     String canonical = getClass().getCanonicalName();
     int offset = canonical.indexOf("$$Lambda$");
@@ -78,12 +83,9 @@ public interface MessageListener<M> {
     return System.getLogger(loggerName);
   }
 
+
   default void onDropped(M message) {
     logger().log(Level.WARNING, "Beetle dropped already acknowledged message: {0}", message);
-  }
-
-  default void onFailed(M message) {
-    logger().log(Level.WARNING, "Beetle message processing failed for: {0}", message);
   }
 
   void onMessage(M message);
