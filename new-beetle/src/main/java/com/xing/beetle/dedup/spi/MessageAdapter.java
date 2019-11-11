@@ -1,48 +1,49 @@
 package com.xing.beetle.dedup.spi;
 
-import static java.util.Objects.requireNonNull;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public interface MessageAdapter<M, K> {
+import static java.util.Objects.requireNonNull;
 
-  class Functional<M, K> implements MessageAdapter<M, K> {
+public interface MessageAdapter<M> {
 
-    private Function<? super M, K> keyAccessor;
-    private Consumer<? super M> acknowledger;
-    private Consumer<? super M> delayer;
+    class Functional<M> implements MessageAdapter<M> {
 
-    public Functional(Function<? super M, K> keyAccessor, Consumer<? super M> acknowledger,
-        Consumer<? super M> delayer) {
-      this.keyAccessor = requireNonNull(keyAccessor);
-      this.acknowledger = requireNonNull(acknowledger);
-      this.delayer = requireNonNull(delayer);
+        private Function<? super M, String> keyAccessor;
+        private Consumer<? super M> acknowledger;
+        private Consumer<? super M> delayer;
+
+        Functional(Function<? super M, String> keyAccessor, Consumer<? super M> acknowledger,
+                   Consumer<? super M> delayer) {
+            this.keyAccessor = requireNonNull(keyAccessor);
+            this.acknowledger = requireNonNull(acknowledger);
+            this.delayer = requireNonNull(delayer);
+        }
+
+        @Override
+        public void acknowledge(M message) {
+            acknowledger.accept(message);
+        }
+
+        @Override
+        public String keyOf(M message) {
+            return keyAccessor.apply(message);
+        }
+
+        @Override
+        public void requeue(M message) {
+            delayer.accept(message);
+        }
     }
 
-    @Override
-    public void acknowledge(M message) {
-      acknowledger.accept(message);
+    static <M> MessageAdapter<M> of(Function<? super M, String> keyAccessor,
+                                    Consumer<? super M> acceptor, Consumer<? super M> rejector) {
+        return new Functional<>(keyAccessor, acceptor, rejector);
     }
 
-    @Override
-    public K keyOf(M message) {
-      return keyAccessor.apply(message);
-    }
+    void acknowledge(M message);
 
-    @Override
-    public void requeue(M message) {
-      delayer.accept(message);
-    }
-  }
+    String keyOf(M message);
 
-  static <M, K> MessageAdapter<M, K> of(Function<? super M, K> keyAccessor,
-      Consumer<? super M> acceptor, Consumer<? super M> rejector) {
-    return new Functional<>(keyAccessor, acceptor, rejector);
-  }
-
-  void acknowledge(M message);
-
-  K keyOf(M message);
-
-  void requeue(M message);
+    void requeue(M message);
 }

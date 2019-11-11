@@ -60,7 +60,7 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
     if (props != null && props.getHeaders() != null) {
       redundancy =
           (int) props.getHeaders().getOrDefault(BeetleHeader.PUBLISH_REDUNDANCY, redundancy);
-      // TODO put official beetle redundancy header
+        // TODO put official beetle redundancy header
     }
     long sent = delegates.streamAll()
         .filter(c -> send(c, exchange, routingKey, mandatory, immediate, props, body))

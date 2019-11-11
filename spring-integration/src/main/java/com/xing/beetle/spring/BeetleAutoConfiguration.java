@@ -1,10 +1,10 @@
 package com.xing.beetle.spring;
 
 import com.rabbitmq.client.Channel;
+import com.xing.beetle.dedup.MessageHandlingState;
 import com.xing.beetle.dedup.api.MessageListener;
-import com.xing.beetle.dedup.spi.DedupStore;
+import com.xing.beetle.dedup.spi.KeyValueStore;
 import com.xing.beetle.dedup.spi.MessageAdapter;
-import com.xing.beetle.util.ExceptionSupport;
 import org.aopalliance.aop.Advice;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
@@ -19,7 +19,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -66,7 +65,7 @@ public class BeetleAutoConfiguration {
 
     static class RabbitListenerInterceptor implements MethodInterceptor {
 
-        private DedupStore<String> store = new DedupStore.InMemoryStore<>();
+        private KeyValueStore<String> store = new KeyValueStore.InMemoryStore();
         private SpringMessageAdaptor adaptor = new SpringMessageAdaptor();
 
         @SuppressWarnings("unchecked")
@@ -81,23 +80,20 @@ public class BeetleAutoConfiguration {
                 invocation.getArguments()[1] = multiple ? Collections.singletonList(msg) : msg;
                 invocation.proceed();
             };
-            messages.forEach(msg -> store.find(msg.getMessageProperties().getMessageId()).handle(msg, listener)
+            KeyValueStore<MessageHandlingState.Status> statusStore = store.suffixed("status", MessageHandlingState.Status::valueOf, MessageHandlingState.Status::toString);
+            messages.forEach(msg -> statusStore.get(msg.getMessageProperties().getMessageId()).orElse(MessageHandlingState.Status.INCOMPLETE).handle(msg, listener)
                     .apply(adaptor, store, null));
             return null;
         }
     }
 
-    static class SpringMessageAdaptor implements MessageAdapter<Message, String> {
+    static class SpringMessageAdaptor implements MessageAdapter<Message> {
 
         private Channel channel;
 
         @Override
         public void acknowledge(Message message) {
-            try {
-                this.channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
-            } catch (IOException e) {
-                ExceptionSupport.sneakyThrow(e);
-            }
+            // done by spring auto ack
         }
 
         @Override
@@ -107,12 +103,7 @@ public class BeetleAutoConfiguration {
 
         @Override
         public void requeue(Message message) {
-            try {
-                this.channel.basicReject(message.getMessageProperties().getDeliveryTag(), true);
-            } catch (IOException e) {
-                ExceptionSupport.sneakyThrow(e);
-            }
-
+            // done by spring auto ack
         }
 
         public void setChannel(Channel channel) {

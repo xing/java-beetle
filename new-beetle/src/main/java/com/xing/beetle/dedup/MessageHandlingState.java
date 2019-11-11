@@ -1,64 +1,50 @@
 package com.xing.beetle.dedup;
 
 import static java.util.Objects.requireNonNull;
+
 import java.util.concurrent.Executor;
+
 import com.xing.beetle.dedup.api.MessageListener;
-import com.xing.beetle.dedup.spi.DedupStore;
+import com.xing.beetle.dedup.spi.KeyValueStore;
 import com.xing.beetle.dedup.spi.MessageAdapter;
 
-public class MessageHandlingState<K> {
+public class MessageHandlingState {
 
-  public interface Outcome<K, M> {
+    public interface Outcome<M> {
 
-    void apply(MessageAdapter<M, K> adapter, DedupStore<K> store, Executor executor);
-  }
+        void apply(MessageAdapter<M> adapter, KeyValueStore<String> store, Executor executor);
+    }
 
-  public enum Status {
-    INCOMPLETE, FAILED, COMPLETE;
-  }
+    public enum Status {
+        INCOMPLETE {
+            @Override
+            public <M> Outcome<M> handle(M message, MessageListener<M> listener) {
+                return (adapter, store, executor) -> {
+                    String key = adapter.keyOf(message);
+                    KeyValueStore<Long> mutex = store.suffixed("mutex", Long::valueOf, v -> v.toString());
+                    if (mutex.putIfAbsent(key, System.currentTimeMillis())) {
+                        try {
+                            listener.onMessage(message);
+                            store.suffixed("status", Status::valueOf, Status::toString).put(key, Status.COMPLETE);
+                        } catch (Throwable throwable) {
+                            throwable.printStackTrace();
+                        } finally {
+                            mutex.remove(key);
+                        }
+                    } else {
+                        adapter.acknowledge(message);
+                    }
+                };
+            }
+        }, COMPLETE {
+            @Override
+            public <M> Outcome<M> handle(M message, MessageListener<M> listener) {
+                return (adapter, store, executor) -> {
+                    adapter.acknowledge(message);
+                };
+            }
+        };
 
-  public static <K> MessageHandlingState<K> initialTry(K key) {
-    return new MessageHandlingState<>(key);
-  }
-
-  private final K messageKey;
-  private final long expires;
-  private final Status status;
-  private int attempts;
-  private int exceptions;
-
-  public MessageHandlingState(K messageKey) {
-    this.messageKey = requireNonNull(messageKey);
-    this.expires = Integer.MAX_VALUE;
-    this.status = Status.INCOMPLETE;
-    this.attempts = 0;
-    this.exceptions = 0;
-  }
-
-  public <M> Outcome<K, M> handle(M message, MessageListener<M> listener) {
-    return (adapter, store, executor) -> {
-      if (expires < System.currentTimeMillis()) {
-        adapter.acknowledge(message);
-        listener.onDropped(message);
-      } else if (store.tryInsert(this)) {
-
-      } else {
-        try {
-          attempts++;
-          listener.onMessage(message);
-        } catch (Throwable e) {
-          exceptions++;
-          if (listener.handleFailed(e, attempts)) {
-            adapter.acknowledge(message);
-          } else {
-            store.deleteMutex(null);
-          }
-        }
-      }
-    };
-  }
-
-  public K key() {
-    return messageKey;
-  }
+        public abstract <M> Outcome<M> handle(M message, MessageListener<M> listener);
+    }
 }
