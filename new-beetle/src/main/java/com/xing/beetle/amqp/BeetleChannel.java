@@ -8,6 +8,7 @@ import com.xing.beetle.util.RingStream;
 import java.io.IOException;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -16,6 +17,7 @@ import java.util.stream.Stream;
 public class BeetleChannel implements ChannelDecorator.Multiple {
 
   private static final Logger LOGGER = System.getLogger(BeetleChannel.class.getName());
+  private static final int FLAG_REDUNDANT = 1;
 
   private final RingStream<Channel> delegates;
   private final MsgDeliveryTagMapping tagMapping;
@@ -83,12 +85,17 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
     if (props != null && props.getHeaders() != null) {
       redundancy =
           (int) props.getHeaders().getOrDefault(BeetleHeader.PUBLISH_REDUNDANCY, redundancy);
-      // TODO put official beetle redundancy header
+      if (redundancy > 1 && props.getMessageId() == null) {
+        props = props.builder().messageId(UUID.randomUUID().toString()).build();
+      }
     }
+    Map<String, Object> headers = new HashMap<>(props.getHeaders());
+    headers.put("flags", redundancy > 1 ? FLAG_REDUNDANT : 0);
+    BasicProperties properties = props.builder().headers(headers).build();
     long sent =
         delegates
             .streamAll()
-            .filter(c -> send(c, exchange, routingKey, mandatory, immediate, props, body))
+            .filter(c -> send(c, exchange, routingKey, mandatory, immediate, properties, body))
             .limit(redundancy)
             .count();
     if (sent == 0) {

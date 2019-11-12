@@ -9,6 +9,14 @@ public interface KeyValueStore<V> {
 
   Optional<V> get(String key);
 
+  default Optional<V> getNullable(String key, V whenNull) {
+    if (key != null) {
+      return get(key);
+    } else {
+      return Optional.ofNullable(whenNull);
+    }
+  }
+
   boolean putIfAbsent(String key, V value);
 
   void put(String key, V value);

@@ -19,17 +19,17 @@ class RequeueAtEndConnectionIT {
   private static final String QUEUE = "test-queue";
   private static final int NUMBER_OF_MESSAGES = 10;
 
-  @Container private RabbitMQContainer container = new RabbitMQContainer();
+  @Container private final RabbitMQContainer container = new RabbitMQContainer();
 
   @ParameterizedTest
   @CsvSource({
     "-1,false,1,1.0",
     "-1,true,2,0.5",
-    "0,true,2,0.5",
-    "0,false,2,1.0",
-    "99999999,false,1,1.0"
+    "0,true,2,1.0",
+    "0,false,1,1.0",
+    "99999999,true,1,1.0"
   })
-  void test(long ttl, boolean requeue, int expectedMessageFactor, BigDecimal expectedValueDiff)
+  void test(long delay, boolean requeue, int expectedMessageFactor, BigDecimal expectedBodyeDiff)
       throws Exception {
     int processMessageCount = 0;
     ConnectionFactory factory = new ConnectionFactory();
@@ -37,7 +37,8 @@ class RequeueAtEndConnectionIT {
     factory.setPort(container.getAmqpPort());
     Channel channel = new RequeueAtEndConnection(factory.newConnection()).createChannel();
 
-    channel.queueDeclare(QUEUE, false, false, true, Map.of(BeetleHeader.REQUEUE_AT_END_DELAY, ttl));
+    channel.queueDeclare(
+        QUEUE, false, false, true, Map.of(BeetleHeader.REQUEUE_AT_END_DELAY, delay));
     for (byte i = 0; i < NUMBER_OF_MESSAGES; i++) {
       channel.basicPublish("", QUEUE, null, new byte[] {i});
     }
@@ -48,7 +49,7 @@ class RequeueAtEndConnectionIT {
       byte body = msg.getBody()[0];
       Assertions.assertEquals(lastValue.byteValue(), body);
       lastValue =
-          lastValue.add(expectedValueDiff).remainder(BigDecimal.valueOf(NUMBER_OF_MESSAGES));
+          lastValue.add(expectedBodyeDiff).remainder(BigDecimal.valueOf(NUMBER_OF_MESSAGES));
 
       if (msg.getEnvelope().isRedeliver()
           || msg.getProps().getHeaders() != null

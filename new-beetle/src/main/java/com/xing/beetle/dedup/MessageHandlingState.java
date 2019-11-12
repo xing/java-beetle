@@ -3,6 +3,7 @@ package com.xing.beetle.dedup;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.dedup.spi.KeyValueStore;
 import com.xing.beetle.dedup.spi.MessageAdapter;
+import com.xing.beetle.util.ExceptionSupport;
 import java.util.concurrent.Executor;
 
 public class MessageHandlingState {
@@ -13,6 +14,19 @@ public class MessageHandlingState {
   }
 
   public enum Status {
+    NONREDUNDANT {
+
+      @Override
+      public <M> Outcome<M> handle(M message, MessageListener<M> listener) {
+        return (adapter, store, executor) -> {
+          try {
+            listener.onMessage(message);
+          } catch (Throwable e) {
+            ExceptionSupport.sneakyThrow(e);
+          }
+        };
+      }
+    },
     INCOMPLETE {
       @Override
       public <M> Outcome<M> handle(M message, MessageListener<M> listener) {

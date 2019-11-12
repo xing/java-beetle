@@ -4,7 +4,10 @@ import java.util.UUID;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
-import org.springframework.amqp.rabbit.annotation.*;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -20,6 +23,10 @@ public class Application {
     Message message = new Message(new byte[0], props);
     for (int i = 0; i < 4; i++) {
       template.send("myQueue", message);
+    }
+
+    for (int i = 0; i < 4; i++) {
+      template.convertAndSend("myQueue", "hello world");
     }
     Thread.sleep(1000);
     context.close();
