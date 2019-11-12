@@ -67,6 +67,7 @@
 		<module>examples</module>
 		<module>new-beetle</module>
 		<module>spring-integration</module>
+		<module>spring-test</module>
 	</modules>
 
 	<build>
