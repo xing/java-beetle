@@ -1,8 +1,8 @@
 package com.xing.beetle.dedup.api;
 
-import com.xing.beetle.util.ExceptionSupport;
-
 import static java.util.Objects.requireNonNull;
+
+import com.xing.beetle.util.ExceptionSupport;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.time.Duration;
@@ -34,7 +34,7 @@ public interface MessageListener<M> {
       }
     }
 
-    public  Void interruptTimedOutAndRethrow(Throwable error) {
+    public Void interruptTimedOutAndRethrow(Throwable error) {
       if (error instanceof TimeoutException && current != null) {
         current.interrupt();
       }
@@ -62,7 +62,8 @@ public interface MessageListener<M> {
     }
 
     public CompletionStage<Void> onMessage(M message, Executor executor, Duration timeout) {
-      return CompletableFuture.runAsync((ExceptionSupport.Runnable)() -> onMessage(message), executor)
+      return CompletableFuture.runAsync(
+              (ExceptionSupport.Runnable) () -> onMessage(message), executor)
           .orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
           .exceptionally(this::interruptTimedOutAndRethrow);
     }
@@ -79,7 +80,6 @@ public interface MessageListener<M> {
     String loggerName = offset > 0 ? canonical.substring(0, offset) : canonical;
     return System.getLogger(loggerName);
   }
-
 
   default void onDropped(M message) {
     logger().log(Level.WARNING, "Beetle dropped already acknowledged message: {0}", message);

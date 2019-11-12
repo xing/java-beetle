@@ -3,9 +3,7 @@ package com.xing.beetle;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-/**
- * A Beetle AMQP queue configuration.
- */
+/** A Beetle AMQP queue configuration. */
 public class Message {
 
   public static class Builder {
@@ -66,8 +64,8 @@ public class Message {
     /**
      * The logical name of the queue you are declaring. Use something that makes sense in your
      * application.
-     * <p>
-     * Also sets {@link #exchange(String)} and {@link #key(String)} by default. You can override
+     *
+     * <p>Also sets {@link #exchange(String)} and {@link #key(String)} by default. You can override
      * those properties by just calling the setters.
      *
      * @param name logical queue name
@@ -86,8 +84,8 @@ public class Message {
 
     /**
      * Whether to publish this queue in a redundant fashion to at least two brokers.
-     * <p>
-     * Publishing non-redundantly with failover to a secondary broker is the default.
+     *
+     * <p>Publishing non-redundantly with failover to a secondary broker is the default.
      *
      * @param redundant true means redundant, false means publish with failover
      * @return the builder instance
@@ -99,8 +97,8 @@ public class Message {
 
     /**
      * Sets the TTL for published messages on the broker(s).
-     * <p>
-     * Defaults to 1 day.
+     *
+     * <p>Defaults to 1 day.
      *
      * @param duration time duration, default 1
      * @param timeUnit time unit, default day.
@@ -126,7 +124,12 @@ public class Message {
 
   private final TimeUnit timeUnit;
 
-  private Message(String name, String key, Exchange exchange, boolean redundant, long duration,
+  private Message(
+      String name,
+      String key,
+      Exchange exchange,
+      boolean redundant,
+      long duration,
       TimeUnit timeUnit) {
     this.name = name;
     this.key = key;
@@ -145,7 +148,8 @@ public class Message {
       return false;
     }
     final Message other = (Message) obj;
-    return Objects.equals(this.name, other.name) && Objects.equals(this.key, other.key)
+    return Objects.equals(this.name, other.name)
+        && Objects.equals(this.key, other.key)
         && Objects.equals(this.exchange, other.exchange)
         && Objects.equals(this.redundant, other.redundant)
         && Objects.equals(this.duration, other.duration)
@@ -183,7 +187,21 @@ public class Message {
 
   @Override
   public String toString() {
-    return "Message{" + "name='" + name + '\'' + ", key='" + key + '\'' + ", exchange=" + exchange
-        + ", redundant=" + redundant + ", duration=" + duration + ", timeUnit=" + timeUnit + '}';
+    return "Message{"
+        + "name='"
+        + name
+        + '\''
+        + ", key='"
+        + key
+        + '\''
+        + ", exchange="
+        + exchange
+        + ", redundant="
+        + redundant
+        + ", duration="
+        + duration
+        + ", timeUnit="
+        + timeUnit
+        + '}';
   }
 }

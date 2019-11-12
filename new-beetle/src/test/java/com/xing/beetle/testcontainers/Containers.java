@@ -14,7 +14,6 @@ import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
 import org.junit.jupiter.params.converter.ArgumentConverter;
@@ -78,8 +77,7 @@ public @interface Containers {
     public Object convert(Object source, ParameterContext context)
         throws ArgumentConversionException {
       Class<?> paramType = context.getParameter().getType();
-      String image =
-          context.findAnnotation(Containers.class).map(Containers::image).orElse(null);
+      String image = context.findAnnotation(Containers.class).map(Containers::image).orElse(null);
       if (paramType.isArray()) {
         Class<? extends GenericContainer> type =
             paramType.getComponentType().asSubclass(GenericContainer.class);

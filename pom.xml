@@ -97,6 +97,11 @@
 					<artifactId>cobertura-maven-plugin</artifactId>
 					<version>2.5.2</version>
 				</plugin>
+				<plugin>
+					<groupId>com.coveo</groupId>
+					<artifactId>fmt-maven-plugin</artifactId>
+					<version>2.9</version>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 		<plugins>
@@ -118,6 +123,17 @@
 					<execution>
 						<goals>
 							<goal>clean</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.coveo</groupId>
+				<artifactId>fmt-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
 						</goals>
 					</execution>
 				</executions>

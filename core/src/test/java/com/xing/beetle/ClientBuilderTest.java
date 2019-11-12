@@ -3,7 +3,6 @@ package com.xing.beetle;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.net.URI;
-
 import org.junit.jupiter.api.Test;
 
 public class ClientBuilderTest {

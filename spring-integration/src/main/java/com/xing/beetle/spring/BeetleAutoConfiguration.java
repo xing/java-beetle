@@ -1,5 +1,12 @@
 package com.xing.beetle.spring;
 
+import com.rabbitmq.client.Channel;
+import com.xing.beetle.amqp.BeetleConnectionFactory;
+import com.xing.beetle.dedup.MessageHandlingState;
+import com.xing.beetle.dedup.api.MessageListener;
+import com.xing.beetle.dedup.spi.KeyValueStore;
+import com.xing.beetle.dedup.spi.MessageAdapter;
+import com.xing.beetle.spring.BeetleAutoConfiguration.BeetleConnectionFactoryCreator;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,13 +32,6 @@ import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import com.rabbitmq.client.Channel;
-import com.xing.beetle.amqp.BeetleConnectionFactory;
-import com.xing.beetle.dedup.MessageHandlingState;
-import com.xing.beetle.dedup.api.MessageListener;
-import com.xing.beetle.dedup.spi.KeyValueStore;
-import com.xing.beetle.dedup.spi.MessageAdapter;
-import com.xing.beetle.spring.BeetleAutoConfiguration.BeetleConnectionFactoryCreator;
 
 @Configuration
 @Import(BeetleConnectionFactoryCreator.class)
@@ -55,7 +55,9 @@ public class BeetleAutoConfiguration {
       map.from(properties::determineUsername).whenNonNull().to(factory::setUsername);
       map.from(properties::determinePassword).whenNonNull().to(factory::setPassword);
       map.from(properties::determineVirtualHost).whenNonNull().to(factory::setVirtualHost);
-      map.from(properties::getRequestedHeartbeat).whenNonNull().asInt(Duration::getSeconds)
+      map.from(properties::getRequestedHeartbeat)
+          .whenNonNull()
+          .asInt(Duration::getSeconds)
           .to(factory::setRequestedHeartbeat);
       RabbitProperties.Ssl ssl = properties.getSsl();
       if (ssl.isEnabled()) {
@@ -71,30 +73,37 @@ public class BeetleAutoConfiguration {
             .to((validate) -> factory.setSkipServerCertificateValidation(!validate));
         map.from(ssl::getVerifyHostname).to(factory::setEnableHostnameVerification);
       }
-      map.from(properties::getConnectionTimeout).whenNonNull().asInt(Duration::toMillis)
+      map.from(properties::getConnectionTimeout)
+          .whenNonNull()
+          .asInt(Duration::toMillis)
           .to(factory::setConnectionTimeout);
       factory.afterPropertiesSet();
       return factory;
     }
 
     @Bean
-    ConnectionFactory rabbitConnectionFactory(RabbitProperties properties,
-        ObjectProvider<ConnectionNameStrategy> connectionNameStrategy) throws Exception {
+    ConnectionFactory rabbitConnectionFactory(
+        RabbitProperties properties, ObjectProvider<ConnectionNameStrategy> connectionNameStrategy)
+        throws Exception {
       PropertyMapper map = PropertyMapper.get();
       CachingConnectionFactory factory =
           new CachingConnectionFactory(getRabbitConnectionFactoryBean(properties).getObject());
       map.from(properties::determineAddresses).to(factory::setAddresses);
       map.from(properties::isPublisherReturns).to(factory::setPublisherReturns);
-      map.from(properties::getPublisherConfirmType).whenNonNull()
+      map.from(properties::getPublisherConfirmType)
+          .whenNonNull()
           .to(factory::setPublisherConfirmType);
       RabbitProperties.Cache.Channel channel = properties.getCache().getChannel();
       map.from(channel::getSize).whenNonNull().to(factory::setChannelCacheSize);
-      map.from(channel::getCheckoutTimeout).whenNonNull().as(Duration::toMillis)
+      map.from(channel::getCheckoutTimeout)
+          .whenNonNull()
+          .as(Duration::toMillis)
           .to(factory::setChannelCheckoutTimeout);
       RabbitProperties.Cache.Connection connection = properties.getCache().getConnection();
       map.from(connection::getMode).whenNonNull().to(factory::setCacheMode);
       map.from(connection::getSize).whenNonNull().to(factory::setConnectionCacheSize);
-      map.from(connectionNameStrategy::getIfUnique).whenNonNull()
+      map.from(connectionNameStrategy::getIfUnique)
+          .whenNonNull()
           .to(factory::setConnectionNameStrategy);
       return factory;
     }
@@ -112,17 +121,27 @@ public class BeetleAutoConfiguration {
       adaptor.setChannel(channel);
       Object data = invocation.getArguments()[1];
       boolean multiple = data instanceof List;
-      List<Message> messages = multiple ? (List<Message>) data
-          : new ArrayList<>(Collections.singletonList((Message) data));
-      MessageListener<Message> listener = msg -> {
-        invocation.getArguments()[1] = multiple ? Collections.singletonList(msg) : msg;
-        invocation.proceed();
-      };
-      KeyValueStore<MessageHandlingState.Status> statusStore = store.suffixed("status",
-          MessageHandlingState.Status::valueOf, MessageHandlingState.Status::toString);
-      messages.forEach(msg -> statusStore.get(msg.getMessageProperties().getMessageId())
-          .orElse(MessageHandlingState.Status.INCOMPLETE).handle(msg, listener)
-          .apply(adaptor, store, null));
+      List<Message> messages =
+          multiple
+              ? (List<Message>) data
+              : new ArrayList<>(Collections.singletonList((Message) data));
+      MessageListener<Message> listener =
+          msg -> {
+            invocation.getArguments()[1] = multiple ? Collections.singletonList(msg) : msg;
+            invocation.proceed();
+          };
+      KeyValueStore<MessageHandlingState.Status> statusStore =
+          store.suffixed(
+              "status",
+              MessageHandlingState.Status::valueOf,
+              MessageHandlingState.Status::toString);
+      messages.forEach(
+          msg ->
+              statusStore
+                  .get(msg.getMessageProperties().getMessageId())
+                  .orElse(MessageHandlingState.Status.INCOMPLETE)
+                  .handle(msg, listener)
+                  .apply(adaptor, store, null));
       return null;
     }
   }
@@ -178,7 +197,10 @@ public class BeetleAutoConfiguration {
   }
 
   @Bean(name = "rabbitListenerContainerFactory")
-  @ConditionalOnProperty(prefix = "spring.rabbitmq.listener", name = "type", havingValue = "simple",
+  @ConditionalOnProperty(
+      prefix = "spring.rabbitmq.listener",
+      name = "type",
+      havingValue = "simple",
       matchIfMissing = true)
   SimpleRabbitListenerContainerFactory simpleRabbitListenerContainerFactory(
       SimpleRabbitListenerContainerFactoryConfigurer configurer,

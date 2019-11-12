@@ -2,9 +2,6 @@ package com.xing.beetle.amqp;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.IOException;
-import java.util.concurrent.CompletionStage;
-
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -12,6 +9,8 @@ import com.rabbitmq.client.Recoverable;
 import com.rabbitmq.client.RecoverableConnection;
 import com.rabbitmq.client.RecoveryListener;
 import com.xing.beetle.util.OrderedPromise;
+import java.io.IOException;
+import java.util.concurrent.CompletionStage;
 
 public class RetryableConnection implements ConnectionDecorator.Async, RecoveryListener {
 

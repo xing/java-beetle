@@ -1,19 +1,18 @@
 package com.xing.beetle;
 
 import static com.xing.beetle.Util.currentTimeSeconds;
+
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.DefaultConsumer;
+import com.rabbitmq.client.Envelope;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.RejectedExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.DefaultConsumer;
-import com.rabbitmq.client.Envelope;
 
-/**
- *
- */
+/** */
 public class BeetleConsumer extends DefaultConsumer {
 
   private final Logger log = LoggerFactory.getLogger(this.getClass());
@@ -43,8 +42,9 @@ public class BeetleConsumer extends DefaultConsumer {
   }
 
   @Override
-  public void handleDelivery(String consumerTag, final Envelope envelope,
-      AMQP.BasicProperties properties, byte[] body) throws IOException {
+  public void handleDelivery(
+      String consumerTag, final Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+      throws IOException {
     final long deliveryTag = envelope.getDeliveryTag();
 
     final String messageId = properties.getMessageId();
@@ -68,40 +68,45 @@ public class BeetleConsumer extends DefaultConsumer {
         config.getHandler().process(envelope, properties, body);
 
     try {
-      final Runnable handlerTask = new Runnable() {
-        @Override
-        public void run() {
-          try {
-            HandlerResponse response = handlerProcessor.call();
-            if (response.isSuccess()) {
-              client.markMessageAsCompleted(messageId);
-              acknowledgeMessage(deliveryTag);
-            } else if (response.isNoOp()) {
-              // completely ignore this response, happens when pause was called after a handler
-              // started already.
-              log.debug(
-                  "Ignoring message processing result because this consumer was already canceled. The message will be redelivered later (or to a different subscriber).");
-            } else {
-              // cannot happen right now. delete?
-              processMessageAgainLater(deliveryTag);
+      final Runnable handlerTask =
+          new Runnable() {
+            @Override
+            public void run() {
+              try {
+                HandlerResponse response = handlerProcessor.call();
+                if (response.isSuccess()) {
+                  client.markMessageAsCompleted(messageId);
+                  acknowledgeMessage(deliveryTag);
+                } else if (response.isNoOp()) {
+                  // completely ignore this response, happens when pause was called after a handler
+                  // started already.
+                  log.debug(
+                      "Ignoring message processing result because this consumer was already canceled. The message will be redelivered later (or to a different subscriber).");
+                } else {
+                  // cannot happen right now. delete?
+                  processMessageAgainLater(deliveryTag);
+                }
+              } catch (Exception e) {
+                log.debug("Message {}: handler threw an exception", messageId);
+                final long exceptions = client.incrementExceptions(messageId);
+                final long attempts = client.getAttemptsCount(messageId);
+                if (exceptions >= config.getExceptions() || attempts >= config.getAttempts()) {
+                  // exceeded configured exception count
+                  log.warn(
+                      "NACK message {} attempt or exception count exceeded. {} of {} attempts, {} of {} exceptions",
+                      messageId,
+                      attempts,
+                      config.getAttempts(),
+                      exceptions,
+                      config.getExceptions());
+                  discardMessage(deliveryTag);
+                } else {
+                  client.removeMessageHandlerLock(messageId, config);
+                  processMessageAgainLater(deliveryTag);
+                }
+              }
             }
-          } catch (Exception e) {
-            log.debug("Message {}: handler threw an exception", messageId);
-            final long exceptions = client.incrementExceptions(messageId);
-            final long attempts = client.getAttemptsCount(messageId);
-            if (exceptions >= config.getExceptions() || attempts >= config.getAttempts()) {
-              // exceeded configured exception count
-              log.warn(
-                  "NACK message {} attempt or exception count exceeded. {} of {} attempts, {} of {} exceptions",
-                  messageId, attempts, config.getAttempts(), exceptions, config.getExceptions());
-              discardMessage(deliveryTag);
-            } else {
-              client.removeMessageHandlerLock(messageId, config);
-              processMessageAgainLater(deliveryTag);
-            }
-          }
-        }
-      };
+          };
 
       client.submit(handlerTask);
 

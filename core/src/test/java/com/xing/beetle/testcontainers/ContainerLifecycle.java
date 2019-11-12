@@ -4,7 +4,6 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.stream.Stream;
-
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.InvocationInterceptor;
 import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
@@ -13,9 +12,7 @@ import org.testcontainers.lifecycle.Startable;
 public class ContainerLifecycle implements InvocationInterceptor {
 
   private static Stream<Startable> containers(ReflectiveInvocationContext<?> context) {
-    return context
-        .getArguments()
-        .stream()
+    return context.getArguments().stream()
         .flatMap(ContainerLifecycle::flatten)
         .filter(Startable.class::isInstance)
         .map(Startable.class::cast);

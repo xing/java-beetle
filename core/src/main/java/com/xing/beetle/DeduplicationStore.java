@@ -1,6 +1,7 @@
 package com.xing.beetle;
 
 import static com.xing.beetle.Util.currentTimeSeconds;
+
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -11,9 +12,7 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
-/**
- * TODO refactor with exception handling/failover
- */
+/** TODO refactor with exception handling/failover */
 public class DeduplicationStore {
 
   private static final Logger log = LoggerFactory.getLogger(DeduplicationStore.class);
@@ -38,16 +37,17 @@ public class DeduplicationStore {
   }
 
   /**
-   *
-   *
    * @param messageId the uuid of the message
    * @param config
    * @return boolean whether to handle the message (true) or not (false)
    */
   public boolean acquireSharedHandlerMutex(String messageId, ConsumerConfiguration config) {
     try (Jedis jedis = safelyGetConnection()) {
-      final String timeout = Long.toString(currentTimeSeconds()
-          + TimeUnit.SECONDS.convert(config.getHandlerTimeout(), config.getHandlerTimeoutUnit()));
+      final String timeout =
+          Long.toString(
+              currentTimeSeconds()
+                  + TimeUnit.SECONDS.convert(
+                      config.getHandlerTimeout(), config.getHandlerTimeoutUnit()));
       log.debug("Message {}: setting handler timeout to {}", messageId, timeout);
       jedis.set(key(messageId, TIMEOUT), timeout);
       if (jedis.setnx(key(messageId, MUTEX), Long.toString(currentTimeSeconds())) == 0) {
@@ -81,11 +81,19 @@ public class DeduplicationStore {
 
   public HandlerStatus getHandlerStatus(String messageId) {
     try (Jedis jedis = safelyGetConnection()) {
-      List<String> statusValues = jedis.mget(key(messageId, STATUS), key(messageId, TIMEOUT),
-          key(messageId, ATTEMPTS), key(messageId, EXCEPTIONS), key(messageId, DELAY));
-      return new HandlerStatus(statusValues.get(0), statusValues.get(1), statusValues.get(2),
-          statusValues.get(3), statusValues.get(4));
-
+      List<String> statusValues =
+          jedis.mget(
+              key(messageId, STATUS),
+              key(messageId, TIMEOUT),
+              key(messageId, ATTEMPTS),
+              key(messageId, EXCEPTIONS),
+              key(messageId, DELAY));
+      return new HandlerStatus(
+          statusValues.get(0),
+          statusValues.get(1),
+          statusValues.get(2),
+          statusValues.get(3),
+          statusValues.get(4));
     }
   }
 
@@ -106,11 +114,21 @@ public class DeduplicationStore {
 
   public boolean isMessageNew(String messageId, ConsumerConfiguration config) {
     try (Jedis jedis = safelyGetConnection()) {
-      if (jedis.msetnx(key(messageId, STATUS), "incomplete", key(messageId, TIMEOUT),
-          Long.toString(currentTimeSeconds() + TimeUnit.SECONDS.convert(config.getHandlerTimeout(),
-              config.getHandlerTimeoutUnit())),
-          key(messageId, ATTEMPTS), "0", key(messageId, EXCEPTIONS), "0") == 1) {
-        log.debug("Message {}: Initialized message status, timeout, attempt and exception counts",
+      if (jedis.msetnx(
+              key(messageId, STATUS),
+              "incomplete",
+              key(messageId, TIMEOUT),
+              Long.toString(
+                  currentTimeSeconds()
+                      + TimeUnit.SECONDS.convert(
+                          config.getHandlerTimeout(), config.getHandlerTimeoutUnit())),
+              key(messageId, ATTEMPTS),
+              "0",
+              key(messageId, EXCEPTIONS),
+              "0")
+          == 1) {
+        log.debug(
+            "Message {}: Initialized message status, timeout, attempt and exception counts",
             messageId);
         return true;
       }
@@ -141,8 +159,11 @@ public class DeduplicationStore {
     try (Jedis jedis = safelyGetConnection()) {
       jedis.del(key(messageId, MUTEX));
       jedis.set(key(messageId, TIMEOUT), "0");
-      jedis.set(key(messageId, DELAY), Long.toString(currentTimeSeconds()
-          + TimeUnit.SECONDS.convert(config.getRetryDelay(), config.getRetryDelayUnit())));
+      jedis.set(
+          key(messageId, DELAY),
+          Long.toString(
+              currentTimeSeconds()
+                  + TimeUnit.SECONDS.convert(config.getRetryDelay(), config.getRetryDelayUnit())));
     }
   }
 

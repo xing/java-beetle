@@ -1,6 +1,7 @@
 package com.xing.beetle.testcontainers;
 
 import static java.util.concurrent.CompletableFuture.runAsync;
+
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
@@ -14,12 +15,15 @@ import org.testcontainers.lifecycle.Startable;
 
 public class ContainerLifecycle implements InvocationInterceptor {
 
-  private static void doWithContainers(ReflectiveInvocationContext<?> context,
-      Consumer<Startable> action) {
+  private static void doWithContainers(
+      ReflectiveInvocationContext<?> context, Consumer<Startable> action) {
     CompletableFuture<?>[] futures =
-        context.getArguments().stream().flatMap(ContainerLifecycle::flatten)
-            .filter(Startable.class::isInstance).map(Startable.class::cast)
-            .map(s -> runAsync(() -> action.accept(s))).toArray(CompletableFuture<?>[]::new);
+        context.getArguments().stream()
+            .flatMap(ContainerLifecycle::flatten)
+            .filter(Startable.class::isInstance)
+            .map(Startable.class::cast)
+            .map(s -> runAsync(() -> action.accept(s)))
+            .toArray(CompletableFuture<?>[]::new);
     CompletableFuture.allOf(futures).join();
   }
 
@@ -46,15 +50,19 @@ public class ContainerLifecycle implements InvocationInterceptor {
   }
 
   @Override
-  public void interceptTestMethod(Invocation<Void> invocation,
-      ReflectiveInvocationContext<Method> invocationContext, ExtensionContext extensionContext)
+  public void interceptTestMethod(
+      Invocation<Void> invocation,
+      ReflectiveInvocationContext<Method> invocationContext,
+      ExtensionContext extensionContext)
       throws Throwable {
     lifecycled(invocation, invocationContext);
   }
 
   @Override
-  public void interceptTestTemplateMethod(Invocation<Void> invocation,
-      ReflectiveInvocationContext<Method> invocationContext, ExtensionContext extensionContext)
+  public void interceptTestTemplateMethod(
+      Invocation<Void> invocation,
+      ReflectiveInvocationContext<Method> invocationContext,
+      ExtensionContext extensionContext)
       throws Throwable {
     lifecycled(invocation, invocationContext);
   }

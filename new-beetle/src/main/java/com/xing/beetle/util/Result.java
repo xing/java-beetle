@@ -1,6 +1,7 @@
 package com.xing.beetle.util;
 
 import static java.util.Objects.requireNonNull;
+
 import java.util.Optional;
 
 @FunctionalInterface
@@ -15,8 +16,8 @@ public interface Result<T> {
     }
 
     @Override
-    public <R> R apply(Function<? super T, ? extends R> success,
-        Function<Exception, ? extends R> failure) {
+    public <R> R apply(
+        Function<? super T, ? extends R> success, Function<Exception, ? extends R> failure) {
       return failure.apply(exception);
     }
   }
@@ -66,8 +67,8 @@ public interface Result<T> {
     }
 
     @Override
-    public <R> R apply(Function<? super T, ? extends R> success,
-        Function<Exception, ? extends R> failure) {
+    public <R> R apply(
+        Function<? super T, ? extends R> success, Function<Exception, ? extends R> failure) {
       return success.apply(value);
     }
   }
@@ -94,8 +95,8 @@ public interface Result<T> {
     return flatMap(success, Result::failed);
   }
 
-  default <R> Result<R> flatMap(Function<? super T, Result<R>> success,
-      Function<Exception, Result<R>> failure) {
+  default <R> Result<R> flatMap(
+      Function<? super T, Result<R>> success, Function<Exception, Result<R>> failure) {
     return apply(success, failure);
   }
 

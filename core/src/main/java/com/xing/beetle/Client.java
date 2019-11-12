@@ -1,6 +1,14 @@
 package com.xing.beetle;
 
 import static com.xing.beetle.Util.currentTimeSeconds;
+
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.AlreadyClosedException;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.ShutdownListener;
+import com.rabbitmq.client.ShutdownSignalException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
@@ -21,13 +29,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.AlreadyClosedException;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.ShutdownListener;
-import com.rabbitmq.client.ShutdownSignalException;
 
 public class Client implements ShutdownListener, AutoCloseable {
 
@@ -67,7 +68,10 @@ public class Client implements ShutdownListener, AutoCloseable {
 
   private final ExecutorService handlerExecutor;
 
-  protected Client(List<URI> uris, RedisConfiguration dedupConfig, String redisFailOverMasterFile,
+  protected Client(
+      List<URI> uris,
+      RedisConfiguration dedupConfig,
+      String redisFailOverMasterFile,
       ExecutorService executorService) {
     this.uris = uris;
     connections = new ConcurrentHashMap<>(uris.size());
@@ -102,7 +106,8 @@ public class Client implements ShutdownListener, AutoCloseable {
     if (userPass.length != 2) {
       log.warn(
           "Dubious user/password information in the broker URI {}, userInfo {}. Falling back to RabbitMQ defaults.",
-          uri, uri.getUserInfo());
+          uri,
+          uri.getUserInfo());
     } else {
       factory.setUsername(userPass[0]);
       factory.setPassword(userPass[1]);
@@ -135,15 +140,19 @@ public class Client implements ShutdownListener, AutoCloseable {
   private void declareBindings(Channel channel) throws IOException {
     for (Queue queue : queues) {
       channel.queueBind(queue.getQueueNameOnBroker(), queue.getExchangeName(), queue.getKey());
-      log.debug("Bound queue {}/{} to exchange {} using routing key {}", queue.getName(),
-          queue.getQueueNameOnBroker(), queue.getExchange(), queue.getKey());
+      log.debug(
+          "Bound queue {}/{} to exchange {} using routing key {}",
+          queue.getName(),
+          queue.getQueueNameOnBroker(),
+          queue.getExchange(),
+          queue.getKey());
     }
   }
 
   private void declareExchanges(Channel channel) throws IOException {
     for (Exchange exchange : exchanges) {
-      channel.exchangeDeclare(exchange.getName(), exchange.isTopic() ? "topic" : "direct",
-          exchange.isDurable());
+      channel.exchangeDeclare(
+          exchange.getName(), exchange.isTopic() ? "topic" : "direct", exchange.isDurable());
       log.debug("Declared exchange {}", exchange);
     }
   }
@@ -177,14 +186,18 @@ public class Client implements ShutdownListener, AutoCloseable {
         final AMQP.BasicProperties properties =
             new AMQP.BasicProperties.Builder().messageId(messageId).headers(headers).build();
 
-        channel.basicPublish(message.getExchange().getName(), message.getKey(), properties,
-            payload);
-        log.debug("Published message id {} to broker {}", messageId,
+        channel.basicPublish(
+            message.getExchange().getName(), message.getKey(), properties, payload);
+        log.debug(
+            "Published message id {} to broker {}",
+            messageId,
             channel.getConnection().getAddress());
 
         successfulSends++;
       } catch (IOException e) {
-        log.warn("Unable to publish {} to broker {}. Trying next broker.", message,
+        log.warn(
+            "Unable to publish {} to broker {}. Trying next broker.",
+            message,
             connections.get(connection));
       }
     }
@@ -193,7 +206,10 @@ public class Client implements ShutdownListener, AutoCloseable {
 
   private void ensureExchange(Exchange exchange) {
     // register all exchanges that haven't been registered manually yet.
-    if (!exchanges.stream().map(Exchange::getName).filter(exchange.getName()::equals).findAny()
+    if (!exchanges.stream()
+        .map(Exchange::getName)
+        .filter(exchange.getName()::equals)
+        .findAny()
         .isPresent()) {
       log.info(
           "Auto-registering exchange {} because it wasn't registered manually. Check that you didn't want to register it manually.",
@@ -245,18 +261,18 @@ public class Client implements ShutdownListener, AutoCloseable {
 
   /**
    * Publish a message with the given payload.
-   * <p/>
-   * Depending on the message configuration it will be sent redundantly to two brokers, or use the
-   * failover handling to send it to one connected broker.
-   * <p/>
-   * If the message could not be sent to at least one broker, an unchecked
-   * {@link NoMessagePublishedException} is thrown.
+   *
+   * <p>Depending on the message configuration it will be sent redundantly to two brokers, or use
+   * the failover handling to send it to one connected broker.
+   *
+   * <p>If the message could not be sent to at least one broker, an unchecked {@link
+   * NoMessagePublishedException} is thrown.
    *
    * @param message a configured {@link Message Beetle message} to publish the payload under
    * @param payload an arbitrary string value to publish (assumed to be encoded in UTF-8)
    * @return this Client object, to allow method chaining
    * @throws IllegalStateException if the Client object is not started or {@link #stop()} has
-   *         already been called.
+   *     already been called.
    */
   public Client publish(Message message, String payload) {
     if (!state.isRunning()) {
@@ -352,8 +368,8 @@ public class Client implements ShutdownListener, AutoCloseable {
     return registerQueue(builder.build());
   }
 
-  private void rejectMessage(Channel channel, long deliveryTag, String messageId, boolean requeue,
-      long delay) {
+  private void rejectMessage(
+      Channel channel, long deliveryTag, String messageId, boolean requeue, long delay) {
     try {
       if (delay > 0) {
         try {
@@ -383,12 +399,15 @@ public class Client implements ShutdownListener, AutoCloseable {
   }
 
   protected void scheduleReconnect(final URI uri) {
-    reconnector.schedule(new Runnable() {
-      @Override
-      public void run() {
-        connect(uri);
-      }
-    }, 10, TimeUnit.SECONDS); // TODO make configurable via strategy
+    reconnector.schedule(
+        new Runnable() {
+          @Override
+          public void run() {
+            connect(uri);
+          }
+        },
+        10,
+        TimeUnit.SECONDS); // TODO make configurable via strategy
   }
 
   // default visibility used for injecting a mock in the tests
@@ -396,8 +415,8 @@ public class Client implements ShutdownListener, AutoCloseable {
     connectionFactory = factory;
   }
 
-  public boolean shouldProcessMessage(Channel channel, long deliveryTag, String messageId,
-      ConsumerConfiguration config) {
+  public boolean shouldProcessMessage(
+      Channel channel, long deliveryTag, String messageId, ConsumerConfiguration config) {
     if (!state.isRunning()) {
       return false;
     }
@@ -448,14 +467,15 @@ public class Client implements ShutdownListener, AutoCloseable {
       if (!acquireSharedHandlerMutex(messageId, config)) {
         // we could not acquire the mutex, so we need to requeue the message and check for execution
         // later.
-        log.debug("Could not acquire mutex for message {}, requeueing to process again later.",
+        log.debug(
+            "Could not acquire mutex for message {}, requeueing to process again later.",
             messageId);
         rejectMessage(channel, deliveryTag, messageId, true, 0);
         return false;
       }
     } catch (IllegalStateException ise) {
-      log.warn("Could not process message, no redis available. Requeueing message " + messageId,
-          ise);
+      log.warn(
+          "Could not process message, no redis available. Requeueing message " + messageId, ise);
       return false;
     } catch (AlreadyClosedException ace) {
       return false;
@@ -471,8 +491,11 @@ public class Client implements ShutdownListener, AutoCloseable {
       Connection connection = (Connection) cause.getReference();
       if (!cause.isInitiatedByApplication()) {
         // this presumably is a error with the broker, let's reconnect
-        log.warn("Connection to the broker at {}:{} lost, reconnecting in 10 seconds. Reason: {}",
-            connection.getAddress(), connection.getPort(), cause.getReason());
+        log.warn(
+            "Connection to the broker at {}:{} lost, reconnecting in 10 seconds. Reason: {}",
+            connection.getAddress(),
+            connection.getPort(),
+            cause.getReason());
         final URI uri = connections.remove(connection);
         if (uri != null) {
           scheduleReconnect(uri);
@@ -487,15 +510,15 @@ public class Client implements ShutdownListener, AutoCloseable {
       Channel channel = (Channel) cause.getReference();
       // TODO presumably this does not mean we have an error, so we don't do anything.
       // is this supposed to be a normal application shutdown?
-      log.info("AQMP channel shutdown {} because of {}. Doing nothing about it.", channel,
+      log.info(
+          "AQMP channel shutdown {} because of {}. Doing nothing about it.",
+          channel,
           cause.getReason());
       channels.get(channel.getConnection()).removeChannel(channel);
     }
   }
 
-  /**
-   * Starts listening for the configured handlers.
-   */
+  /** Starts listening for the configured handlers. */
   public Client start() {
     if (state == LifecycleState.STOPPED) {
       throw new IllegalStateException(
@@ -568,8 +591,9 @@ public class Client implements ShutdownListener, AutoCloseable {
     log.debug("Subscribing {} to queue {}", handler, queue);
     try {
       final Channel subscriberChannel = beetleChannels.createSubscriberChannel();
-      final String consumerTag = subscriberChannel.basicConsume(queue.getQueueNameOnBroker(),
-          new BeetleConsumer(this, subscriberChannel, config));
+      final String consumerTag =
+          subscriberChannel.basicConsume(
+              queue.getQueueNameOnBroker(), new BeetleConsumer(this, subscriberChannel, config));
       // potential race condition between setting the consumer tag and pausing the subscriber.
       // Highly unlikely, though.
       handler.addChannel(subscriberChannel, consumerTag);

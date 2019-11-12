@@ -3,71 +3,72 @@ package com.xing.beetle;
 import java.util.concurrent.TimeUnit;
 
 public class ConsumerConfiguration {
-	
-    private final Queue queue;
-    private final MessageHandler handler;
 
-    private int attempts = 1;
+  private final Queue queue;
+  private final MessageHandler handler;
 
-    private int exceptions = 0;
+  private int attempts = 1;
 
-    private int retryDelay = 10;
-    private TimeUnit retryDelayUnit = TimeUnit.SECONDS;
+  private int exceptions = 0;
 
-    // TODO make configurable? Nothing cancels the handler execution anyway, it's questionable if we want this...
-    private int handlerTimeout = 600;
-    private TimeUnit handlerTimeoutUnit = TimeUnit.SECONDS;
+  private int retryDelay = 10;
+  private TimeUnit retryDelayUnit = TimeUnit.SECONDS;
 
-    public ConsumerConfiguration(Queue queue, MessageHandler handler) {
-        this.queue = queue;
-        this.handler = handler;
-    }
+  // TODO make configurable? Nothing cancels the handler execution anyway, it's questionable if we
+  // want this...
+  private int handlerTimeout = 600;
+  private TimeUnit handlerTimeoutUnit = TimeUnit.SECONDS;
 
-	public Queue getQueue() {
-		return queue;
-	}
+  public ConsumerConfiguration(Queue queue, MessageHandler handler) {
+    this.queue = queue;
+    this.handler = handler;
+  }
 
-	public MessageHandler getHandler() {
-		return handler;
-	}
+  public Queue getQueue() {
+    return queue;
+  }
 
-    public ConsumerConfiguration attempts(int attempts) {
-        this.attempts = attempts;
-        return this;
-    }
+  public MessageHandler getHandler() {
+    return handler;
+  }
 
-    public ConsumerConfiguration exceptions(int exceptions) {
-        this.exceptions = exceptions;
-        return this;
-    }
+  public ConsumerConfiguration attempts(int attempts) {
+    this.attempts = attempts;
+    return this;
+  }
 
-    public ConsumerConfiguration handlerRetryDelay(int retryDelay, TimeUnit retryDelayUnit) {
-        this.retryDelay = retryDelay;
-        this.retryDelayUnit = retryDelayUnit;
-        return this;
-    }
+  public ConsumerConfiguration exceptions(int exceptions) {
+    this.exceptions = exceptions;
+    return this;
+  }
 
-    public int getAttempts() {
-        return attempts;
-    }
+  public ConsumerConfiguration handlerRetryDelay(int retryDelay, TimeUnit retryDelayUnit) {
+    this.retryDelay = retryDelay;
+    this.retryDelayUnit = retryDelayUnit;
+    return this;
+  }
 
-    public int getExceptions() {
-        return exceptions;
-    }
+  public int getAttempts() {
+    return attempts;
+  }
 
-    public int getRetryDelay() {
-        return retryDelay;
-    }
+  public int getExceptions() {
+    return exceptions;
+  }
 
-    public TimeUnit getRetryDelayUnit() {
-        return retryDelayUnit;
-    }
+  public int getRetryDelay() {
+    return retryDelay;
+  }
 
-    public int getHandlerTimeout() {
-        return handlerTimeout;
-    }
+  public TimeUnit getRetryDelayUnit() {
+    return retryDelayUnit;
+  }
 
-    public TimeUnit getHandlerTimeoutUnit() {
-        return handlerTimeoutUnit;
-    }
+  public int getHandlerTimeout() {
+    return handlerTimeout;
+  }
+
+  public TimeUnit getHandlerTimeoutUnit() {
+    return handlerTimeoutUnit;
+  }
 }

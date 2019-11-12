@@ -1,6 +1,9 @@
 package com.xing.beetle.util;
 
 import static java.util.Objects.requireNonNull;
+
+import com.xing.beetle.util.ExceptionSupport.Consumer;
+import com.xing.beetle.util.ExceptionSupport.Function;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -9,8 +12,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
-import com.xing.beetle.util.ExceptionSupport.Consumer;
-import com.xing.beetle.util.ExceptionSupport.Function;
 
 public class OrderedPromise<T> {
 

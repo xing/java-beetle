@@ -1,11 +1,7 @@
 package com.xing.beetle.amqp;
 
 import static java.util.Objects.requireNonNull;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Stream;
+
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.BlockedCallback;
 import com.rabbitmq.client.BlockedListener;
@@ -16,6 +12,11 @@ import com.rabbitmq.client.ShutdownListener;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.UnblockedCallback;
 import com.xing.beetle.util.ExceptionSupport.Consumer;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Stream;
 
 public interface ConnectionDecorator extends Connection {
 
@@ -174,7 +175,10 @@ public interface ConnectionDecorator extends Connection {
 
     @Override
     default ShutdownSignalException getCloseReason() {
-      return delegates().map(Connection::getCloseReason).filter(Objects::nonNull).findAny()
+      return delegates()
+          .map(Connection::getCloseReason)
+          .filter(Objects::nonNull)
+          .findAny()
           .orElse(null);
     }
 
@@ -360,22 +364,23 @@ public interface ConnectionDecorator extends Connection {
   }
 
   @Override
-  default BlockedListener addBlockedListener(BlockedCallback blockedCallback,
-      UnblockedCallback unblockedCallback) {
+  default BlockedListener addBlockedListener(
+      BlockedCallback blockedCallback, UnblockedCallback unblockedCallback) {
     requireNonNull(blockedCallback);
     requireNonNull(unblockedCallback);
-    BlockedListener listener = new BlockedListener() {
+    BlockedListener listener =
+        new BlockedListener() {
 
-      @Override
-      public void handleBlocked(String reason) throws IOException {
-        blockedCallback.handle(reason);
-      }
+          @Override
+          public void handleBlocked(String reason) throws IOException {
+            blockedCallback.handle(reason);
+          }
 
-      @Override
-      public void handleUnblocked() throws IOException {
-        unblockedCallback.handle();
-      }
-    };
+          @Override
+          public void handleUnblocked() throws IOException {
+            unblockedCallback.handle();
+          }
+        };
     addBlockedListener(listener);
     return listener;
   }

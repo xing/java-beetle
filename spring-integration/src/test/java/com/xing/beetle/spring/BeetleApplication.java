@@ -30,11 +30,17 @@ public class BeetleApplication {
     context.close();
   }
 
-  @RabbitListener(bindings = @QueueBinding(
-      value = @Queue(value = "myQueue", autoDelete = "true", durable = "true"),
-      exchange = @Exchange(value = "auto.exch", autoDelete = "true",
-          ignoreDeclarationExceptions = "true"),
-      key = "orderRoutingKey"), ackMode = "MANUAL")
+  @RabbitListener(
+      bindings =
+          @QueueBinding(
+              value = @Queue(value = "myQueue", autoDelete = "true", durable = "true"),
+              exchange =
+                  @Exchange(
+                      value = "auto.exch",
+                      autoDelete = "true",
+                      ignoreDeclarationExceptions = "true"),
+              key = "orderRoutingKey"),
+      ackMode = "MANUAL")
   public void processOrder(Message message) {
     System.out.println(message);
   }

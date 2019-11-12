@@ -1,5 +1,10 @@
 package com.xing.beetle.amqp;
 
+import com.rabbitmq.client.AMQP.BasicProperties;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Consumer;
+import com.xing.beetle.BeetleHeader;
+import com.xing.beetle.util.RingStream;
 import java.io.IOException;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
@@ -7,11 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
-import com.rabbitmq.client.AMQP.BasicProperties;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Consumer;
-import com.xing.beetle.BeetleHeader;
-import com.xing.beetle.util.RingStream;
 
 public class BeetleChannel implements ChannelDecorator.Multiple {
 
@@ -36,12 +36,29 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
   }
 
   @Override
-  public String basicConsume(String queue, boolean autoAck, String consumerTag, boolean noLocal,
-      boolean exclusive, Map<String, Object> arguments, Consumer callback) throws IOException {
+  public String basicConsume(
+      String queue,
+      boolean autoAck,
+      String consumerTag,
+      boolean noLocal,
+      boolean exclusive,
+      Map<String, Object> arguments,
+      Consumer callback)
+      throws IOException {
     String tag =
         consumerTag == null || consumerTag.isEmpty() ? UUID.randomUUID().toString() : consumerTag;
-    boolean all = delegateMap(c -> c.basicConsume(queue, autoAck, tag, noLocal, exclusive,
-        arguments, tagMapping.createConsumerDecorator(callback, c))).allMatch(tag::equals);
+    boolean all =
+        delegateMap(
+                c ->
+                    c.basicConsume(
+                        queue,
+                        autoAck,
+                        tag,
+                        noLocal,
+                        exclusive,
+                        arguments,
+                        tagMapping.createConsumerDecorator(callback, c)))
+            .allMatch(tag::equals);
     if (!all) {
       throw new AssertionError("Returned consumer tags dont match");
     }
@@ -54,23 +71,38 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
   }
 
   @Override
-  public void basicPublish(String exchange, String routingKey, boolean mandatory, boolean immediate,
-      BasicProperties props, byte[] body) throws IOException {
+  public void basicPublish(
+      String exchange,
+      String routingKey,
+      boolean mandatory,
+      boolean immediate,
+      BasicProperties props,
+      byte[] body)
+      throws IOException {
     int redundancy = 1;
     if (props != null && props.getHeaders() != null) {
       redundancy =
           (int) props.getHeaders().getOrDefault(BeetleHeader.PUBLISH_REDUNDANCY, redundancy);
-        // TODO put official beetle redundancy header
+      // TODO put official beetle redundancy header
     }
-    long sent = delegates.streamAll()
-        .filter(c -> send(c, exchange, routingKey, mandatory, immediate, props, body))
-        .limit(redundancy).count();
+    long sent =
+        delegates
+            .streamAll()
+            .filter(c -> send(c, exchange, routingKey, mandatory, immediate, props, body))
+            .limit(redundancy)
+            .count();
     if (sent == 0) {
       throw new IOException("Unable to sent the message to any broker. Message Header: " + props);
     }
     if (sent != redundancy) {
-      LOGGER.log(Level.WARNING, "Message was sent " + sent + " times. Expected was a redundancy of "
-          + redundancy + ". Message Header:" + props);
+      LOGGER.log(
+          Level.WARNING,
+          "Message was sent "
+              + sent
+              + " times. Expected was a redundancy of "
+              + redundancy
+              + ". Message Header:"
+              + props);
     }
   }
 
@@ -99,14 +131,24 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
     return delegateMap(c -> c.messageCount(queue)).mapToLong(Long::longValue).sum();
   }
 
-  private boolean send(Channel channel, String exchange, String routingKey, boolean mandatory,
-      boolean immediate, BasicProperties props, byte[] body) {
+  private boolean send(
+      Channel channel,
+      String exchange,
+      String routingKey,
+      boolean mandatory,
+      boolean immediate,
+      BasicProperties props,
+      byte[] body) {
     try {
       channel.basicPublish(exchange, routingKey, mandatory, immediate, props, body);
       return true;
     } catch (Exception e) {
-      LOGGER.log(Level.WARNING, String.format("Failed to send message with headers %s to %s", props,
-          channel.getConnection().getAddress()), e);
+      LOGGER.log(
+          Level.WARNING,
+          String.format(
+              "Failed to send message with headers %s to %s",
+              props, channel.getConnection().getAddress()),
+          e);
       return false;
     }
   }

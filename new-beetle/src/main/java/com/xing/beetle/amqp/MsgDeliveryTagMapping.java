@@ -1,6 +1,14 @@
 package com.xing.beetle.amqp;
 
 import static java.util.Objects.requireNonNull;
+
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Consumer;
+import com.rabbitmq.client.Envelope;
+import com.rabbitmq.client.GetResponse;
+import com.rabbitmq.client.ShutdownSignalException;
+import com.xing.beetle.util.ExceptionSupport;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
@@ -9,13 +17,6 @@ import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Consumer;
-import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.GetResponse;
-import com.rabbitmq.client.ShutdownSignalException;
-import com.xing.beetle.util.ExceptionSupport;
 
 public class MsgDeliveryTagMapping {
 
@@ -51,8 +52,9 @@ public class MsgDeliveryTagMapping {
     }
 
     @Override
-    public void handleDelivery(String consumerTag, Envelope envelope,
-        AMQP.BasicProperties properties, byte[] body) throws IOException {
+    public void handleDelivery(
+        String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
+        throws IOException {
       envelope = mapEnvelope(channel, envelope);
       delegate.handleDelivery(consumerTag, envelope, properties, body);
     }
@@ -108,7 +110,8 @@ public class MsgDeliveryTagMapping {
 
   public void basicAck(long deliveryTag, boolean multiple) throws IOException {
     Map<Long, Acknowledgement> acks =
-        multiple ? deliveryTags.headMap(deliveryTag, true).descendingMap()
+        multiple
+            ? deliveryTags.headMap(deliveryTag, true).descendingMap()
             : deliveryTags.subMap(deliveryTag, deliveryTag + 1);
     doWithEachChannelOnlyOnce(acks, Mode.ACK, multiple, false);
     acks.clear();
@@ -116,7 +119,8 @@ public class MsgDeliveryTagMapping {
 
   public void basicNack(long deliveryTag, boolean multiple, boolean requeue) throws IOException {
     Map<Long, Acknowledgement> acks =
-        multiple ? deliveryTags.headMap(deliveryTag, true).descendingMap()
+        multiple
+            ? deliveryTags.headMap(deliveryTag, true).descendingMap()
             : deliveryTags.subMap(deliveryTag, deliveryTag + 1);
     doWithEachChannelOnlyOnce(acks, Mode.NACK, multiple, requeue);
     acks.clear();
@@ -132,35 +136,40 @@ public class MsgDeliveryTagMapping {
     return new MappingConsumer(delegate, channel);
   }
 
-  private void doWithEachChannelOnlyOnce(Map<Long, Acknowledgement> acks, Mode mode,
-      boolean multiple, boolean requeue) throws IOException {
+  private void doWithEachChannelOnlyOnce(
+      Map<Long, Acknowledgement> acks, Mode mode, boolean multiple, boolean requeue)
+      throws IOException {
     if (acks.isEmpty()) {
       throw new IOException("Unknown delivery tag");
     }
     Set<Channel> alreadyUsed = new HashSet<>();
-    acks.forEach((ExceptionSupport.BiConsumer<Long, Acknowledgement>) (tag, ack) -> {
-      ack.perform(mode, multiple, requeue, alreadyUsed::add);
-    });
+    acks.forEach(
+        (ExceptionSupport.BiConsumer<Long, Acknowledgement>)
+            (tag, ack) -> {
+              ack.perform(mode, multiple, requeue, alreadyUsed::add);
+            });
   }
 
   public long mapDelivery(Channel channel, long deliveryTag) {
     long tag = deliveryTagGenerator.incrementAndGet();
-    deliveryTags.put(tag, (mode, multiple, requeue,
-        when) -> when.test(channel) ? mode.invoke(channel, deliveryTag, multiple, requeue) : null);
+    deliveryTags.put(
+        tag,
+        (mode, multiple, requeue, when) ->
+            when.test(channel) ? mode.invoke(channel, deliveryTag, multiple, requeue) : null);
     return tag;
   }
 
   public Envelope mapEnvelope(Channel channel, Envelope envelope) {
     long tag = mapDelivery(channel, envelope.getDeliveryTag());
-    return new Envelope(tag, envelope.isRedeliver(), envelope.getExchange(),
-        envelope.getRoutingKey());
+    return new Envelope(
+        tag, envelope.isRedeliver(), envelope.getExchange(), envelope.getRoutingKey());
   }
 
   public GetResponse mapResponse(Channel channel, GetResponse response) {
     if (response != null) {
       Envelope envelope = mapEnvelope(channel, response.getEnvelope());
-      return new GetResponse(envelope, response.getProps(), response.getBody(),
-          response.getMessageCount());
+      return new GetResponse(
+          envelope, response.getProps(), response.getBody(), response.getMessageCount());
     } else {
       return null;
     }

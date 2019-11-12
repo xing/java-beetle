@@ -2,6 +2,8 @@ package com.xing.beetle.util;
 
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.ThreadLocalRandom.current;
+
+import com.xing.beetle.util.ExceptionSupport.Supplier;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.util.concurrent.CompletableFuture;
@@ -10,7 +12,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
-import com.xing.beetle.util.ExceptionSupport.Supplier;
 
 public class RetryExecutor {
 
@@ -46,8 +47,8 @@ public class RetryExecutor {
     }
 
     default Backoff withProportionalJitter(double factor) {
-      return (att,
-          err) -> (long) (delayInMillis(att, err) * current().nextDouble(1d - factor, 1d + factor));
+      return (att, err) ->
+          (long) (delayInMillis(att, err) * current().nextDouble(1d - factor, 1d + factor));
     }
 
     default Backoff withRetryOn(Class<? extends Throwable> errorType) {
@@ -63,8 +64,8 @@ public class RetryExecutor {
     }
 
     default Backoff withUniformJitter(long millis) {
-      return (att, err) -> Math.max(0,
-          delayInMillis(att, err) + current().nextLong(-millis, millis));
+      return (att, err) ->
+          Math.max(0, delayInMillis(att, err) + current().nextLong(-millis, millis));
     }
   }
 
@@ -131,8 +132,9 @@ public class RetryExecutor {
 
   public static RetryExecutor ASYNC_EXPONENTIAL =
       new RetryExecutor(ForkJoinPool.commonPool(), Scheduler.DEFAULT, Backoff.DEFAULT, Level.DEBUG);
-  public static RetryExecutor ASYNC_IMMEDIATELY = new RetryExecutor(ForkJoinPool.commonPool(),
-      Scheduler.IMMEDIATELY, Backoff.DEFAULT, Level.DEBUG);
+  public static RetryExecutor ASYNC_IMMEDIATELY =
+      new RetryExecutor(
+          ForkJoinPool.commonPool(), Scheduler.IMMEDIATELY, Backoff.DEFAULT, Level.DEBUG);
   public static RetryExecutor SYNCHRONOUS =
       new RetryExecutor(Runnable::run, Scheduler.SYNCHRONOUS, Backoff.DEFAULT, Level.DEBUG);
 
