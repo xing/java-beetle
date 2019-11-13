@@ -21,7 +21,8 @@ public class Application {
     MessageProperties props = new MessageProperties();
     props.setMessageId(UUID.randomUUID().toString());
     Message message = new Message(new byte[0], props);
-    for (int i = 0; i < 4; i++) {
+
+    for (int i = 0; i < 40; i++) {
       template.send("myQueue", message);
     }
 

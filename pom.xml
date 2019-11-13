@@ -68,6 +68,7 @@
 		<module>new-beetle</module>
 		<module>spring-integration</module>
 		<module>spring-test</module>
+		<module>redis-dedup-store</module>
 	</modules>
 
 	<build>
