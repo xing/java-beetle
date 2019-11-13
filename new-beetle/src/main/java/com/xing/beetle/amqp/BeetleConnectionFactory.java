@@ -14,6 +14,7 @@ public class BeetleConnectionFactory extends ConnectionFactory {
 
   private RetryExecutor connectionEstablishingExecutor = RetryExecutor.SYNCHRONOUS;
   private long requeueAtEndDelayInMillis = -1;
+  private boolean invertRequeueParameter = false;
 
   private Supplier<RecoverableConnection> connection(
       ExecutorService executor, AddressResolver resolver, String clientProvidedName) {
@@ -46,7 +47,10 @@ public class BeetleConnectionFactory extends ConnectionFactory {
             .map(res -> connection(executor, res, clientProvidedName))
             .map(retryExecutor::supply)
             .map(RetryableConnection::new)
-            .map(c -> new RequeueAtEndConnection(c, requeueAtEndDelayInMillis))
+            .map(
+                c ->
+                    new RequeueAtEndConnection(
+                        c, requeueAtEndDelayInMillis, invertRequeueParameter))
             .map(MultiPlexingConnection::new)
             .collect(Collectors.toList());
     return new BeetleConnection(connections);
@@ -62,5 +66,13 @@ public class BeetleConnectionFactory extends ConnectionFactory {
 
   public void setRequeueAtEndDelayInMillis(long requeueAtEndDelayInMillis) {
     this.requeueAtEndDelayInMillis = requeueAtEndDelayInMillis;
+  }
+
+  public boolean isInvertRequeueParameter() {
+    return invertRequeueParameter;
+  }
+
+  public void setInvertRequeueParameter(boolean invertRequeueParameter) {
+    this.invertRequeueParameter = invertRequeueParameter;
   }
 }

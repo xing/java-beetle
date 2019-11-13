@@ -12,6 +12,7 @@ import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.xing.beetle.BeetleHeader;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -33,22 +34,6 @@ public class RequeueAtEndConnection implements ConnectionDecorator.Single {
       this.delegate = requireNonNull(delegate);
       this.deadLetterQueues = new HashSet<>();
       this.deadLetterDeliveryTags = new ConcurrentSkipListSet<>();
-    }
-
-    private void deadLetterCheck(String queue, Envelope envelope) {
-      if (deadLetterQueues.contains(queue)) {
-        deadLetterDeliveryTags.add(envelope.getDeliveryTag());
-      }
-    }
-
-    private boolean deadLettered(long deliveryTag, boolean multiple) {
-      boolean deadLettered = deadLetterDeliveryTags.contains(deliveryTag);
-      if (multiple) {
-        deadLetterDeliveryTags.headSet(deliveryTag + 1).clear();
-      } else {
-        deadLetterDeliveryTags.remove(deliveryTag);
-      }
-      return deadLettered;
     }
 
     @Override
@@ -153,11 +138,27 @@ public class RequeueAtEndConnection implements ConnectionDecorator.Single {
     }
 
     private Map<String, Object> configureOriginal(Map<String, Object> arguments, String queue) {
-      arguments = new HashMap<>(arguments);
+      arguments = new HashMap<>(arguments != null ? arguments : Collections.emptyMap());
       arguments.remove(BeetleHeader.REQUEUE_AT_END_DELAY);
       arguments.put("x-dead-letter-exchange", "");
       arguments.put("x-dead-letter-routing-key", queue + DEAD_LETTER_SUFFIX);
       return arguments;
+    }
+
+    private void deadLetterCheck(String queue, Envelope envelope) {
+      if (deadLetterQueues.contains(queue)) {
+        deadLetterDeliveryTags.add(envelope.getDeliveryTag());
+      }
+    }
+
+    private boolean deadLettered(long deliveryTag, boolean multiple) {
+      boolean deadLettered = deadLetterDeliveryTags.contains(deliveryTag);
+      if (multiple) {
+        deadLetterDeliveryTags.headSet(deliveryTag + 1).clear();
+      } else {
+        deadLetterDeliveryTags.remove(deliveryTag);
+      }
+      return deadLettered;
     }
 
     @Override
@@ -186,7 +187,9 @@ public class RequeueAtEndConnection implements ConnectionDecorator.Single {
         if (ok.getQueue() == null || ok.getQueue().isEmpty()) {
           return ok;
         }
-        deadLetterQueues.add(queue);
+        if (invertRequeueParameter) {
+          deadLetterQueues.add(queue);
+        }
       }
       return delegate.queueDeclare(queue, durable, exclusive, autoDelete, arguments);
     }
@@ -194,14 +197,17 @@ public class RequeueAtEndConnection implements ConnectionDecorator.Single {
 
   private final Connection delegate;
   private final long requeueAtEndDelayInMillis;
+  private final boolean invertRequeueParameter;
 
   public RequeueAtEndConnection(Connection delegate) {
-    this(delegate, -1);
+    this(delegate, -1, false);
   }
 
-  public RequeueAtEndConnection(Connection delegate, long requeueAtEndDelayInMillis) {
+  public RequeueAtEndConnection(
+      Connection delegate, long requeueAtEndDelayInMillis, boolean invertRequeueParameter) {
     this.delegate = requireNonNull(delegate);
     this.requeueAtEndDelayInMillis = requeueAtEndDelayInMillis;
+    this.invertRequeueParameter = invertRequeueParameter;
   }
 
   @Override
