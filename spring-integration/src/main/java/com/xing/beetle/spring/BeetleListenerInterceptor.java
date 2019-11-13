@@ -21,6 +21,8 @@ import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.listener.AbstractMessageListenerContainer;
 import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 
 public class BeetleListenerInterceptor implements MethodInterceptor {
 
@@ -63,12 +65,18 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
   }
 
   private final KeyValueStore<String> store;
-  private final Map<String, AcknowledgeMode> acknowledgeModes;
+  private final RabbitListenerEndpointRegistry registry;
+  private Map<String, AcknowledgeMode> acknowledgeModes;
 
   public BeetleListenerInterceptor(
       KeyValueStore<String> store, RabbitListenerEndpointRegistry registry) {
     this.store = requireNonNull(store);
-    this.acknowledgeModes =
+    this.registry = requireNonNull(registry);
+  }
+
+  @EventListener
+  void onApplicationStarted(ContextRefreshedEvent event) {
+    acknowledgeModes =
         registry.getListenerContainers().stream()
             .filter(AbstractMessageListenerContainer.class::isInstance)
             .map(AbstractMessageListenerContainer.class::cast)
