@@ -2,7 +2,6 @@ package com.xing.beetle.spring;
 
 import com.xing.beetle.amqp.BeetleConnectionFactory;
 import com.xing.beetle.dedup.spi.KeyValueStore;
-import com.xing.beetle.redis.RedisDedupStore;
 import com.xing.beetle.spring.BeetleAutoConfiguration.BeetleConnectionFactoryCreator;
 import java.time.Duration;
 import java.util.Arrays;
@@ -19,7 +18,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.amqp.DirectRabbitListenerContainerFactoryConfigurer;
 import org.springframework.boot.autoconfigure.amqp.RabbitProperties;
 import org.springframework.boot.autoconfigure.amqp.SimpleRabbitListenerContainerFactoryConfigurer;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.context.annotation.Bean;
@@ -28,12 +27,13 @@ import org.springframework.context.annotation.Import;
 
 @Configuration
 @Import(BeetleConnectionFactoryCreator.class)
-public class BeetleAutoConfiguration {
+class BeetleAutoConfiguration {
 
   @Configuration
   static class BeetleConnectionFactoryCreator {
 
     @Bean
+    @ConditionalOnMissingBean
     BeetleConnectionFactory beetleConnectionFactory() {
       return new BeetleConnectionFactory();
     }
@@ -143,14 +143,9 @@ public class BeetleAutoConfiguration {
   }
 
   @Bean
+  @ConditionalOnMissingBean
   BeetleListenerInterceptor beetleListenerInterceptor(
       RabbitListenerEndpointRegistry registry, KeyValueStore<String> dedupStore) {
     return new BeetleListenerInterceptor(dedupStore, registry);
-  }
-
-  @Bean
-  @ConditionalOnClass(RedisDedupStore.class)
-  KeyValueStore<String> beetleDedupStore(BeetleRedisConfiguration beetleRedisConfiguration) {
-    return new RedisDedupStore(beetleRedisConfiguration);
   }
 }

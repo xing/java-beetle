@@ -1,12 +1,9 @@
-package com.xing.beetle.spring;
+package com.xing.beetle.redis;
 
-import com.xing.beetle.redis.RedisConfiguration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
 @ConfigurationProperties(prefix = "beetle.redis")
-public class BeetleRedisConfiguration implements RedisConfiguration {
+public class BeetleRedisProperties {
 
   private String redisServer;
   private String redisServers;
@@ -20,7 +17,6 @@ public class BeetleRedisConfiguration implements RedisConfiguration {
   private String redisConfigurationClientTimeout;
   private String redisConfigurationClientIds;
 
-  @Override
   public String getRedisServer() {
     return redisServer;
   }
@@ -29,7 +25,6 @@ public class BeetleRedisConfiguration implements RedisConfiguration {
     this.redisServer = redisServer;
   }
 
-  @Override
   public String getRedisServers() {
     return redisServers;
   }
@@ -38,7 +33,6 @@ public class BeetleRedisConfiguration implements RedisConfiguration {
     this.redisServers = redisServers;
   }
 
-  @Override
   public String getRedisDb() {
     return redisDb;
   }
@@ -47,7 +41,6 @@ public class BeetleRedisConfiguration implements RedisConfiguration {
     this.redisDb = redisDb;
   }
 
-  @Override
   public String getRedisFailoverTimeout() {
     return redisFailoverTimeout;
   }
@@ -56,7 +49,6 @@ public class BeetleRedisConfiguration implements RedisConfiguration {
     this.redisFailoverTimeout = redisFailoverTimeout;
   }
 
-  @Override
   public String getRedisStatusKeyExpiryInterval() {
     return redisStatusKeyExpiryInterval;
   }
@@ -65,7 +57,6 @@ public class BeetleRedisConfiguration implements RedisConfiguration {
     this.redisStatusKeyExpiryInterval = redisStatusKeyExpiryInterval;
   }
 
-  @Override
   public String getRedisFailoverClientHeartbeatInterval() {
     return redisFailoverClientHeartbeatInterval;
   }
@@ -74,7 +65,6 @@ public class BeetleRedisConfiguration implements RedisConfiguration {
     this.redisFailoverClientHeartbeatInterval = redisFailoverClientHeartbeatInterval;
   }
 
-  @Override
   public String getRedisFailoverClientDeadInterval() {
     return redisFailoverClientDeadInterval;
   }
@@ -83,7 +73,6 @@ public class BeetleRedisConfiguration implements RedisConfiguration {
     this.redisFailoverClientDeadInterval = redisFailoverClientDeadInterval;
   }
 
-  @Override
   public String getRedisConfigurationMasterRetries() {
     return redisConfigurationMasterRetries;
   }
@@ -92,7 +81,6 @@ public class BeetleRedisConfiguration implements RedisConfiguration {
     this.redisConfigurationMasterRetries = redisConfigurationMasterRetries;
   }
 
-  @Override
   public String getRedisConfigurationMasterRetryInterval() {
     return redisConfigurationMasterRetryInterval;
   }
@@ -102,7 +90,6 @@ public class BeetleRedisConfiguration implements RedisConfiguration {
     this.redisConfigurationMasterRetryInterval = redisConfigurationMasterRetryInterval;
   }
 
-  @Override
   public String getRedisConfigurationClientTimeout() {
     return redisConfigurationClientTimeout;
   }
@@ -111,7 +98,6 @@ public class BeetleRedisConfiguration implements RedisConfiguration {
     this.redisConfigurationClientTimeout = redisConfigurationClientTimeout;
   }
 
-  @Override
   public String getRedisConfigurationClientIds() {
     return redisConfigurationClientIds;
   }

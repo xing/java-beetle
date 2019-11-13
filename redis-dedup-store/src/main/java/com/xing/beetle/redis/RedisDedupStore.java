@@ -6,10 +6,10 @@ import redis.clients.jedis.Jedis;
 
 public class RedisDedupStore implements KeyValueStore<String> {
 
-  private Jedis jedis;
+  private final Jedis jedis;
 
-  public RedisDedupStore(RedisConfiguration redisConfiguration) {
-    this.jedis = new Jedis(redisConfiguration.getRedisServer());
+  public RedisDedupStore(BeetleRedisProperties properties) {
+    this.jedis = new Jedis(properties.getRedisServer());
   }
 
   @Override

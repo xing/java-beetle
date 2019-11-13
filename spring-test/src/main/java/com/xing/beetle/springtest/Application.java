@@ -36,12 +36,8 @@ public class Application {
   @RabbitListener(
       bindings =
           @QueueBinding(
-              value = @Queue(value = "myQueue", autoDelete = "true", durable = "true"),
-              exchange =
-                  @Exchange(
-                      value = "auto.exch",
-                      autoDelete = "true",
-                      ignoreDeclarationExceptions = "true"),
+              value = @Queue(value = "myQueue", durable = "false"),
+              exchange = @Exchange(value = "auto.exch", ignoreDeclarationExceptions = "true"),
               key = "orderRoutingKey"),
       ackMode = "MANUAL")
   public void processOrder(Message message) {
