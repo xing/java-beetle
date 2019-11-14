@@ -4,9 +4,7 @@ import static java.util.Objects.requireNonNull;
 
 import com.xing.beetle.util.ExceptionSupport.Consumer;
 import com.xing.beetle.util.ExceptionSupport.Function;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import com.xing.beetle.util.ExceptionSupport.Runnable;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -15,44 +13,47 @@ import java.util.concurrent.CompletionStage;
 
 public class OrderedPromise<T> {
 
-  private final CompletableFuture<T> parent;
-  private final List<CompletableFuture<?>> children;
-
-  public OrderedPromise(CompletionStage<T> parent) {
-    this.parent = requireNonNull(parent).toCompletableFuture();
-    this.children = Collections.synchronizedList(new ArrayList<>());
+  public static <T> OrderedPromise<T> of(CompletionStage<T> delegate) {
+    return new OrderedPromise<>(delegate, CompletableFuture.completedStage(null));
   }
 
-  private <X> OrderedPromise<X> chain(CompletableFuture<X> future) {
-    children.add(future);
-    return new OrderedPromise<>(future);
+  private final CompletionStage<T> delegate;
+  private final CompletionStage<?> dependent;
+
+  private OrderedPromise(CompletionStage<T> delegate, CompletionStage<?> dependent) {
+    this.delegate = requireNonNull(delegate);
+    this.dependent = requireNonNull(dependent);
   }
 
-  private CompletionStage<Void> childs() {
-    return CompletableFuture.allOf(children.toArray(new CompletableFuture[children.size()]));
+  private <X> OrderedPromise<X> chain(CompletionStage<X> stage) {
+    return new OrderedPromise<>(stage, delegate);
   }
 
-  public Optional<T> get() throws CancellationException {
+  public Optional<T> getNow() throws CancellationException {
     try {
-      return Optional.ofNullable(parent.getNow(null));
+      return Optional.ofNullable(delegate.toCompletableFuture().getNow(null));
     } catch (CompletionException e) {
       return ExceptionSupport.sneakyThrow(e.getCause());
     }
   }
 
-  public OrderedPromise<Void> thenAccept(Consumer<? super T> action) {
-    return chain(parent.thenAcceptBoth(childs(), (t, v) -> action.accept(t)));
+  public T join() {
+    return delegate.toCompletableFuture().join();
   }
 
-  public <X> OrderedPromise<X> thenApply(Function<? super T, ? extends X> fn) {
-    return chain(parent.thenCombine(childs(), (t, v) -> fn.apply(t)));
+  public OrderedPromise<Void> thenAccept(Consumer<? super T> action) {
+    return chain(delegate.thenAcceptBoth(dependent, (t, x) -> action.accept(t)));
+  }
+
+  public <U> OrderedPromise<U> thenApply(Function<? super T, ? extends U> fn) {
+    return chain(delegate.thenCombine(dependent, (t, x) -> fn.apply(t)));
   }
 
   public OrderedPromise<Void> thenRun(Runnable action) {
-    return chain(parent.runAfterBoth(childs(), action));
+    return chain(delegate.runAfterBoth(dependent, action));
   }
 
   public CompletionStage<T> toStage() {
-    return parent;
+    return delegate;
   }
 }

@@ -11,7 +11,9 @@ import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.GetResponse;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.xing.beetle.BeetleHeader;
+import com.xing.beetle.util.ExceptionSupport;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -20,9 +22,9 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 
-public class RequeueAtEndConnection implements ConnectionDecorator.Single {
+public class RequeueAtEndConnection implements DefaultConnection.Decorator {
 
-  private class RequeueAtEndChannel implements ChannelDecorator.Single {
+  private class RequeueAtEndChannel implements DefaultChannel.Decorator {
 
     private static final String DEAD_LETTER_SUFFIX = "_dead_letter";
 
@@ -162,8 +164,8 @@ public class RequeueAtEndConnection implements ConnectionDecorator.Single {
     }
 
     @Override
-    public Channel delegate() {
-      return delegate;
+    public <R> R delegateMap(Type type, ExceptionSupport.Function<Channel, ? extends R> ch) {
+      return ch.apply(delegate);
     }
 
     @Override
@@ -174,10 +176,7 @@ public class RequeueAtEndConnection implements ConnectionDecorator.Single {
         boolean autoDelete,
         Map<String, Object> arguments)
         throws IOException {
-      long ttlInMillis = requeueAtEndDelayInMillis;
-      if (arguments != null) {
-        ttlInMillis = (long) arguments.getOrDefault(BeetleHeader.REQUEUE_AT_END_DELAY, ttlInMillis);
-      }
+      long ttlInMillis = ttlInMillis(arguments);
       if (ttlInMillis >= 0) {
         arguments = configureOriginal(arguments, queue);
         Map<String, Object> deadLetterArgs = configureDeadLetter(queue, ttlInMillis);
@@ -192,6 +191,20 @@ public class RequeueAtEndConnection implements ConnectionDecorator.Single {
         }
       }
       return delegate.queueDeclare(queue, durable, exclusive, autoDelete, arguments);
+    }
+
+    private long ttlInMillis(Map<String, Object> arguments) {
+      Object paramValue =
+          arguments != null ? arguments.get(BeetleHeader.REQUEUE_AT_END_DELAY) : null;
+      if (paramValue instanceof String) {
+        return Duration.parse((String) paramValue).toMillis();
+      } else if (paramValue instanceof Number) {
+        return ((Number) paramValue).longValue();
+      } else if (paramValue == null) {
+        return requeueAtEndDelayInMillis;
+      } else {
+        throw new IllegalArgumentException("Unknown value type " + paramValue);
+      }
     }
   }
 
@@ -218,7 +231,7 @@ public class RequeueAtEndConnection implements ConnectionDecorator.Single {
   }
 
   @Override
-  public Connection delegate() {
-    return delegate;
+  public <R> R delegateMap(ExceptionSupport.Function<Connection, ? extends R> con) {
+    return con.apply(delegate);
   }
 }

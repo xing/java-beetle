@@ -6,16 +6,16 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ShutdownListener;
 import com.rabbitmq.client.ShutdownSignalException;
+import com.xing.beetle.util.ExceptionSupport.Function;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BeetleConnection implements ConnectionDecorator.Multiple, ShutdownListener {
+public class BeetleConnection implements DefaultConnection.Decorator, ShutdownListener {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BeetleConnection.class);
 
@@ -46,8 +46,8 @@ public class BeetleConnection implements ConnectionDecorator.Multiple, ShutdownL
   }
 
   @Override
-  public Stream<? extends Connection> delegates() {
-    return delegates.stream();
+  public <R> R delegateMap(Function<Connection, ? extends R> fn) {
+    return delegates.stream().map(fn).reduce(null, (r1, r2) -> r1 != null ? r1 : r2);
   }
 
   @Override

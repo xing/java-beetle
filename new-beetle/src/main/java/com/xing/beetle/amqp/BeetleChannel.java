@@ -3,7 +3,10 @@ package com.xing.beetle.amqp;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Consumer;
+import com.rabbitmq.client.GetResponse;
 import com.xing.beetle.BeetleHeader;
+import com.xing.beetle.util.ExceptionSupport;
+import com.xing.beetle.util.ExceptionSupport.Function;
 import com.xing.beetle.util.RingStream;
 import java.io.IOException;
 import java.lang.System.Logger;
@@ -11,10 +14,10 @@ import java.lang.System.Logger.Level;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Stream;
 
-public class BeetleChannel implements ChannelDecorator.Multiple {
+public class BeetleChannel implements DefaultChannel.Decorator {
 
   private static final Logger LOGGER = System.getLogger(BeetleChannel.class.getName());
   private static final int FLAG_REDUNDANT = 1;
@@ -33,11 +36,6 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
   }
 
   @Override
-  public void basicCancel(String consumerTag) throws IOException {
-    delegateForEach(c -> c.basicCancel(consumerTag));
-  }
-
-  @Override
   public String basicConsume(
       String queue,
       boolean autoAck,
@@ -50,21 +48,36 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
     String tag =
         consumerTag == null || consumerTag.isEmpty() ? UUID.randomUUID().toString() : consumerTag;
     boolean all =
-        delegateMap(
-                c ->
-                    c.basicConsume(
-                        queue,
-                        autoAck,
-                        tag,
-                        noLocal,
-                        exclusive,
-                        arguments,
-                        tagMapping.createConsumerDecorator(callback, c)))
+        delegates
+            .streamAll()
+            .map(
+                (ExceptionSupport.Function<Channel, String>)
+                    ch ->
+                        ch.basicConsume(
+                            queue,
+                            autoAck,
+                            tag,
+                            noLocal,
+                            exclusive,
+                            arguments,
+                            tagMapping.createConsumerDecorator(callback, ch)))
             .allMatch(tag::equals);
     if (!all) {
       throw new AssertionError("Returned consumer tags dont match");
     }
     return tag;
+  }
+
+  @Override
+  public GetResponse basicGet(String queue, boolean autoAck) throws IOException {
+    return delegates
+        .streamAll()
+        .map(
+            (ExceptionSupport.Function<Channel, GetResponse>)
+                ch -> tagMapping.mapResponse(ch, ch.basicGet(queue, autoAck)))
+        .filter(Objects::nonNull)
+        .findAny()
+        .orElse(null);
   }
 
   @Override
@@ -119,13 +132,8 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
   }
 
   @Override
-  public Stream<? extends Channel> delegates() {
-    return delegates.streamAll();
-  }
-
-  @Override
-  public MsgDeliveryTagMapping deliveryTagMapping() {
-    return tagMapping;
+  public <R> R delegateMap(Type type, Function<Channel, ? extends R> ch) {
+    return delegates.streamAll().map(ch).reduce(null, (r1, r2) -> r1 != null ? r1 : r2);
   }
 
   @Override
@@ -135,7 +143,11 @@ public class BeetleChannel implements ChannelDecorator.Multiple {
 
   @Override
   public long messageCount(String queue) throws IOException {
-    return delegateMap(c -> c.messageCount(queue)).mapToLong(Long::longValue).sum();
+    return delegates
+        .streamAll()
+        .map((ExceptionSupport.Function<Channel, Long>) ch -> ch.messageCount(queue))
+        .mapToLong(Long::longValue)
+        .sum();
   }
 
   private boolean send(

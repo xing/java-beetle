@@ -7,8 +7,8 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConfirmListener;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.GetResponse;
-import com.rabbitmq.client.ShutdownSignalException;
 import com.xing.beetle.util.ExceptionSupport;
+import com.xing.beetle.util.ExceptionSupport.Function;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,9 +20,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
-public class MultiPlexingConnection implements ConnectionDecorator.Single {
+public class MultiPlexingConnection implements DefaultConnection.Decorator {
 
-  public static class MultiPlexingChannel implements ChannelDecorator.Single {
+  public static class MultiPlexingChannel implements DefaultChannel.Decorator {
 
     private final Connection connection;
     private final Map<String, Channel> consumerTags;
@@ -64,27 +64,8 @@ public class MultiPlexingConnection implements ConnectionDecorator.Single {
     }
 
     @Override
-    public GetResponse basicGet(String queue, boolean autoAck) throws IOException {
-      if (autoAck) {
-        return publisher.basicGet(queue, true);
-      } else {
-        return tagMapping.mapResponse(publisher, publisher.basicGet(queue, false));
-      }
-    }
-
-    @Override
     public void basicAck(long deliveryTag, boolean multiple) throws IOException {
       tagMapping.basicAck(deliveryTag, multiple);
-    }
-
-    @Override
-    public void basicNack(long deliveryTag, boolean multiple, boolean requeue) throws IOException {
-      tagMapping.basicNack(deliveryTag, multiple, requeue);
-    }
-
-    @Override
-    public void basicReject(long deliveryTag, boolean requeue) throws IOException {
-      tagMapping.basicReject(deliveryTag, requeue);
     }
 
     @Override
@@ -121,8 +102,31 @@ public class MultiPlexingConnection implements ConnectionDecorator.Single {
     }
 
     @Override
-    public void clearConfirmListeners() {
-      consumerTags.values().forEach(Channel::clearConfirmListeners);
+    public GetResponse basicGet(String queue, boolean autoAck) throws IOException {
+      if (autoAck) {
+        return publisher.basicGet(queue, true);
+      } else {
+        return tagMapping.mapResponse(publisher, publisher.basicGet(queue, false));
+      }
+    }
+
+    @Override
+    public void basicNack(long deliveryTag, boolean multiple, boolean requeue) throws IOException {
+      tagMapping.basicNack(deliveryTag, multiple, requeue);
+    }
+
+    @Override
+    public void basicQos(int prefetchSize, int prefetchCount, boolean global) throws IOException {
+      consumerTags
+          .values()
+          .forEach(
+              (ExceptionSupport.Consumer<Channel>)
+                  ch -> ch.basicQos(prefetchSize, prefetchCount, global));
+    }
+
+    @Override
+    public void basicReject(long deliveryTag, boolean requeue) throws IOException {
+      tagMapping.basicReject(deliveryTag, requeue);
     }
 
     @Override
@@ -137,19 +141,21 @@ public class MultiPlexingConnection implements ConnectionDecorator.Single {
     }
 
     @Override
-    public Channel delegate() {
-      return publisher;
+    public <R> R delegateMap(Type type, Function<Channel, ? extends R> fn) {
+      switch (type) {
+        case CONSUME:
+          return consumerTags.values().stream()
+              .map(fn)
+              .reduce(null, (r1, r2) -> r1 != null ? r1 : r2);
+        default:
+          return fn.apply(publisher);
+      }
     }
 
     private void ensureOpen() {
       if (!publisher.isOpen()) {
         throw new AlreadyClosedException(publisher.getCloseReason());
       }
-    }
-
-    @Override
-    public ShutdownSignalException getCloseReason() {
-      return publisher.getCloseReason();
     }
 
     @Override
@@ -197,12 +203,12 @@ public class MultiPlexingConnection implements ConnectionDecorator.Single {
   }
 
   @Override
-  public Connection delegate() {
-    return delegate;
+  public Channel createChannel(int channelNumber) throws IOException {
+    return new MultiPlexingChannel(delegate, channelNumber);
   }
 
   @Override
-  public Channel createChannel(int channelNumber) throws IOException {
-    return new MultiPlexingChannel(delegate, channelNumber);
+  public <R> R delegateMap(Function<Connection, ? extends R> con) {
+    return con.apply(delegate);
   }
 }

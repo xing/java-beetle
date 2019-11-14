@@ -8,13 +8,14 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.Recoverable;
 import com.rabbitmq.client.RecoverableConnection;
 import com.rabbitmq.client.RecoveryListener;
+import com.xing.beetle.util.ExceptionSupport.Function;
 import com.xing.beetle.util.OrderedPromise;
 import java.io.IOException;
 import java.util.concurrent.CompletionStage;
 
-public class RetryableConnection implements ConnectionDecorator.Async, RecoveryListener {
+public class RetryableConnection implements DefaultConnection.Decorator, RecoveryListener {
 
-  private class RetryableChannel implements ChannelDecorator.Async {
+  private class RetryableChannel implements DefaultChannel.Decorator {
 
     private final OrderedPromise<Channel> channel;
 
@@ -32,13 +33,13 @@ public class RetryableConnection implements ConnectionDecorator.Async, RecoveryL
         byte[] body)
         throws IOException {
       Channel c =
-          channel.get().orElseThrow(() -> new IOException("Connection not yet established"));
+          channel.getNow().orElseThrow(() -> new IOException("Connection not yet established"));
       c.basicPublish(exchange, routingKey, mandatory, immediate, props, body);
     }
 
     @Override
-    public <R> CompletionStage<R> execute(Action<? super Channel, ? extends R> action) {
-      return channel.<R>thenApply(action::doExecute).toStage();
+    public <R> R delegateMap(Type type, Function<Channel, ? extends R> fn) {
+      return channel.thenApply(fn).join();
     }
 
     @Override
@@ -52,7 +53,7 @@ public class RetryableConnection implements ConnectionDecorator.Async, RecoveryL
   private volatile boolean active;
 
   public RetryableConnection(CompletionStage<RecoverableConnection> connection) {
-    this.connection = new OrderedPromise<>(connection);
+    this.connection = OrderedPromise.of(connection);
     connection.thenAccept(c -> c.addRecoveryListener(this));
     connection.thenAccept(c -> active = c.isOpen());
   }
@@ -61,12 +62,12 @@ public class RetryableConnection implements ConnectionDecorator.Async, RecoveryL
   public Channel createChannel(int channelNumber) {
     return new RetryableChannel(
         connection.thenApply(
-            c -> channelNumber >= 0 ? c.createChannel(channelNumber) : c.createChannel()));
+            con -> channelNumber >= 0 ? con.createChannel(channelNumber) : con.createChannel()));
   }
 
   @Override
-  public <R> CompletionStage<R> execute(Action<? super Connection, ? extends R> action) {
-    return connection.<R>thenApply(action::doExecute).toStage();
+  public <R> R delegateMap(Function<Connection, ? extends R> con) {
+    return connection.thenApply(con).join();
   }
 
   @Override
