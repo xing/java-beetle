@@ -29,7 +29,8 @@ public class Application {
     for (int i = 0; i < 4; i++) {
       template.convertAndSend("myQueue", "hello world");
     }
-    Thread.sleep(1000);
+
+    Thread.sleep(2000);
     context.close();
   }
 
@@ -39,7 +40,7 @@ public class Application {
               value = @Queue(value = "myQueue", durable = "false"),
               exchange = @Exchange(value = "auto.exch", ignoreDeclarationExceptions = "true"),
               key = "orderRoutingKey"),
-      ackMode = "MANUAL")
+      ackMode = "AUTO")
   public void processOrder(Message message) {
     System.out.println(message);
   }

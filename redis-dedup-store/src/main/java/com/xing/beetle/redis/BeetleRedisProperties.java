@@ -5,16 +5,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "beetle.redis")
 public class BeetleRedisProperties {
 
+  private String systemName;
   private String redisServer;
   private String redisServers;
   private String redisDb;
-  private String redisFailoverTimeout;
-  private String redisStatusKeyExpiryInterval;
-  private String redisFailoverClientHeartbeatInterval;
-  private String redisFailoverClientDeadInterval;
-  private String redisConfigurationMasterRetries;
-  private String redisConfigurationMasterRetryInterval;
-  private String redisConfigurationClientTimeout;
+  private int redisFailoverTimeout;
+  private int redisStatusKeyExpiryInterval;
+  private int redisFailoverClientHeartbeatInterval;
+  private int redisFailoverClientDeadInterval;
+  private int redisConfigurationMasterRetries;
+  private int redisConfigurationMasterRetryInterval;
+  private int redisConfigurationClientTimeout;
   private String redisConfigurationClientIds;
 
   public String getRedisServer() {
@@ -41,60 +42,59 @@ public class BeetleRedisProperties {
     this.redisDb = redisDb;
   }
 
-  public String getRedisFailoverTimeout() {
+  public int getRedisFailoverTimeout() {
     return redisFailoverTimeout;
   }
 
-  public void setRedisFailoverTimeout(String redisFailoverTimeout) {
+  public void setRedisFailoverTimeout(int redisFailoverTimeout) {
     this.redisFailoverTimeout = redisFailoverTimeout;
   }
 
-  public String getRedisStatusKeyExpiryInterval() {
+  public int getRedisStatusKeyExpiryInterval() {
     return redisStatusKeyExpiryInterval;
   }
 
-  public void setRedisStatusKeyExpiryInterval(String redisStatusKeyExpiryInterval) {
+  public void setRedisStatusKeyExpiryInterval(int redisStatusKeyExpiryInterval) {
     this.redisStatusKeyExpiryInterval = redisStatusKeyExpiryInterval;
   }
 
-  public String getRedisFailoverClientHeartbeatInterval() {
+  public int getRedisFailoverClientHeartbeatInterval() {
     return redisFailoverClientHeartbeatInterval;
   }
 
-  public void setRedisFailoverClientHeartbeatInterval(String redisFailoverClientHeartbeatInterval) {
+  public void setRedisFailoverClientHeartbeatInterval(int redisFailoverClientHeartbeatInterval) {
     this.redisFailoverClientHeartbeatInterval = redisFailoverClientHeartbeatInterval;
   }
 
-  public String getRedisFailoverClientDeadInterval() {
+  public int getRedisFailoverClientDeadInterval() {
     return redisFailoverClientDeadInterval;
   }
 
-  public void setRedisFailoverClientDeadInterval(String redisFailoverClientDeadInterval) {
+  public void setRedisFailoverClientDeadInterval(int redisFailoverClientDeadInterval) {
     this.redisFailoverClientDeadInterval = redisFailoverClientDeadInterval;
   }
 
-  public String getRedisConfigurationMasterRetries() {
+  public int getRedisConfigurationMasterRetries() {
     return redisConfigurationMasterRetries;
   }
 
-  public void setRedisConfigurationMasterRetries(String redisConfigurationMasterRetries) {
+  public void setRedisConfigurationMasterRetries(int redisConfigurationMasterRetries) {
     this.redisConfigurationMasterRetries = redisConfigurationMasterRetries;
   }
 
-  public String getRedisConfigurationMasterRetryInterval() {
+  public int getRedisConfigurationMasterRetryInterval() {
     return redisConfigurationMasterRetryInterval;
   }
 
-  public void setRedisConfigurationMasterRetryInterval(
-      String redisConfigurationMasterRetryInterval) {
+  public void setRedisConfigurationMasterRetryInterval(int redisConfigurationMasterRetryInterval) {
     this.redisConfigurationMasterRetryInterval = redisConfigurationMasterRetryInterval;
   }
 
-  public String getRedisConfigurationClientTimeout() {
+  public int getRedisConfigurationClientTimeout() {
     return redisConfigurationClientTimeout;
   }
 
-  public void setRedisConfigurationClientTimeout(String redisConfigurationClientTimeout) {
+  public void setRedisConfigurationClientTimeout(int redisConfigurationClientTimeout) {
     this.redisConfigurationClientTimeout = redisConfigurationClientTimeout;
   }
 
@@ -104,5 +104,13 @@ public class BeetleRedisProperties {
 
   public void setRedisConfigurationClientIds(String redisConfigurationClientIds) {
     this.redisConfigurationClientIds = redisConfigurationClientIds;
+  }
+
+  public String getSystemName() {
+    return systemName;
+  }
+
+  public void setSystemName(String systemName) {
+    this.systemName = systemName;
   }
 }
