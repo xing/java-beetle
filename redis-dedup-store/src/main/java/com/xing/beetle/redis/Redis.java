@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
@@ -15,7 +17,8 @@ public class Redis {
   private String activeMaster = "";
   private Jedis client;
   private long lastMasterChanged;
-  //  private ReentrantLock connected = new ReentrantLock();
+  private ReentrantLock lock = new ReentrantLock();
+  private Condition connected = lock.newCondition();
   //  private ReentrantLock mutex = new ReentrantLock();
 
   public Redis(BeetleRedisProperties config) {
@@ -36,7 +39,18 @@ public class Redis {
   }
 
   public Jedis getClient() {
-    return client;
+    lock.lock();
+    try {
+      while (client == null) {
+        connected.await();
+      }
+      connected.signalAll();
+      return client;
+    } catch (InterruptedException e) {
+      throw new DeduplicationException("Client is not connected!", e);
+    } finally {
+      lock.unlock();
+    }
   }
 
   public long getLastMasterChanged() {
