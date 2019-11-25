@@ -1,10 +1,9 @@
 package com.xing.beetle.spring;
 
 import com.xing.beetle.amqp.BeetleConnectionFactory;
+import com.xing.beetle.dedup.spi.DedupStore;
 import com.xing.beetle.dedup.spi.KeyValueStore;
 import com.xing.beetle.spring.BeetleAutoConfiguration.BeetleConnectionFactoryCreator;
-import java.time.Duration;
-import java.util.Arrays;
 import org.aopalliance.aop.Advice;
 import org.springframework.amqp.rabbit.config.AbstractRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.config.DirectRabbitListenerContainerFactory;
@@ -24,6 +23,9 @@ import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+
+import java.time.Duration;
+import java.util.Arrays;
 
 @Configuration
 @Import(BeetleConnectionFactoryCreator.class)
@@ -144,8 +146,14 @@ class BeetleAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
+  DedupStore dedupStore(KeyValueStore store) {
+    return new DedupStore.KeyValueStoreBasedDedupStore(store);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
   BeetleListenerInterceptor beetleListenerInterceptor(
-      RabbitListenerEndpointRegistry registry, KeyValueStore<String> dedupStore) {
+      RabbitListenerEndpointRegistry registry, DedupStore dedupStore) {
     return new BeetleListenerInterceptor(dedupStore, registry);
   }
 }

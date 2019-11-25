@@ -1,16 +1,52 @@
 package com.xing.beetle.dedup.spi;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-public interface KeyValueStore<V> {
+import static java.util.Objects.requireNonNull;
 
-  Optional<V> get(String key);
+public interface KeyValueStore {
 
-  default Optional<V> getNullable(String key, V whenNull) {
+  class Value {
+
+    public Value(long number) {
+      this(String.valueOf(number));
+    }
+
+    public Value(String text) {
+      this.text = requireNonNull(text);
+    }
+
+    private String text;
+
+    public Value(Enum<?> value) {
+      this(value.name());
+    }
+
+    public Value plus(long n) {
+      return new Value(getAsNumber() + n);
+    }
+
+    public long getAsNumber() {
+      return Long.parseLong(text);
+    }
+
+    public String getAsString() {
+      return text;
+    }
+
+    public <E extends Enum<E>> E getAsEnum(Class<E> type) {
+      return Enum.valueOf(type, text);
+    }
+  }
+
+  Optional<Value> get(String key);
+
+  default Optional<Value> getNullable(String key, Value whenNull) {
     if (key != null) {
       return get(key);
     } else {
@@ -18,114 +54,40 @@ public interface KeyValueStore<V> {
     }
   }
 
-  boolean putIfAbsent(String key, V value);
+  Value putIfAbsent(String key, Value value);
 
-  void put(String key, V value);
+  void put(String key, Value value);
 
   void remove(String... keys);
 
-  void putAll(Map<String, V> keyValues);
+  void putAll(Map<String, Value> keyValues);
 
-  boolean putAllIfAbsent(Map<String, V> keyValues);
+  boolean putAllIfAbsent(Map<String, Value> keyValues);
 
   boolean exists(String key);
 
-  List<V> getAll(List<String> keys);
+  List<Value> getAll(List<String> keys);
 
-  V increase(String key);
+  long increase(String key);
 
-  V decrease(String key);
+  long decrease(String key);
 
-  default <X> KeyValueStore<X> suffixed(
-      String suffix, Function<? super V, ? extends X> map1, Function<? super X, ? extends V> map2) {
-    return new KeyValueStore<X>() {
-      @Override
-      public Optional<X> get(String key) {
-        return KeyValueStore.this.get(key + suffix).map(map1);
-      }
+  class InMemoryStore implements KeyValueStore {
 
-      @Override
-      public boolean putIfAbsent(String key, X value) {
-        return KeyValueStore.this.putIfAbsent(key + suffix, map2.apply(value));
-      }
-
-      @Override
-      public void put(String key, X value) {
-        KeyValueStore.this.put(key + suffix, map2.apply(value));
-      }
-
-      @Override
-      public void remove(String... keys) {
-        List<String> mappedKeys =
-            Stream.of(keys).map(key -> key + suffix).collect(Collectors.toList());
-        KeyValueStore.this.remove(mappedKeys.stream().toArray(String[]::new));
-      }
-
-      @Override
-      public void putAll(Map<String, X> keyValues) {
-        Map<String, V> map = new HashMap<>();
-        keyValues.forEach(
-            (key, value) -> {
-              map.put(key + suffix, map2.apply(value));
-            });
-        KeyValueStore.this.putAll(map);
-      }
-
-      @Override
-      public boolean putAllIfAbsent(Map<String, X> keyValues) {
-        Map<String, V> map = new HashMap<>();
-        keyValues.forEach(
-            (key, value) -> {
-              map.put(key + suffix, map2.apply(value));
-            });
-        return KeyValueStore.this.putAllIfAbsent(map);
-      }
-
-      @Override
-      public boolean exists(String key) {
-        return KeyValueStore.this.exists(key + suffix);
-      }
-
-      @Override
-      public List<X> getAll(List<String> keys) {
-        List<String> mappedKeys = keys.stream().map(s -> s + suffix).collect(Collectors.toList());
-        return KeyValueStore.this.getAll(mappedKeys).stream()
-            .map(map1)
-            .collect(Collectors.toList());
-      }
-
-      @Override
-      public X increase(String key) {
-        return Optional.of(KeyValueStore.this.increase(key + suffix)).map(map1).get();
-      }
-
-      @Override
-      public X decrease(String key) {
-        return Optional.of(KeyValueStore.this.decrease(key + suffix)).map(map1).get();
-      }
-    };
-  }
-
-  default KeyValueStore<V> suffixed(String suffix) {
-    return suffixed(suffix, Function.identity(), Function.identity());
-  }
-
-  class InMemoryStore implements KeyValueStore<String> {
-
-    private Map<String, String> values = new ConcurrentHashMap<>();
+    private Map<String, Value> values = new ConcurrentHashMap<>();
 
     @Override
-    public synchronized Optional<String> get(String key) {
+    public synchronized Optional<Value> get(String key) {
       return Optional.ofNullable(values.get(key));
     }
 
     @Override
-    public synchronized boolean putIfAbsent(String key, String value) {
-      return values.putIfAbsent(key, value) == null;
+    public synchronized Value putIfAbsent(String key, Value value) {
+      return values.computeIfAbsent(key, s -> value);
     }
 
     @Override
-    public synchronized void put(String key, String value) {
+    public synchronized void put(String key, Value value) {
       values.put(key, value);
     }
 
@@ -135,12 +97,12 @@ public interface KeyValueStore<V> {
     }
 
     @Override
-    public synchronized void putAll(Map<String, String> keyValues) {
+    public synchronized void putAll(Map<String, Value> keyValues) {
       values.putAll(keyValues);
     }
 
     @Override
-    public synchronized boolean putAllIfAbsent(Map<String, String> keyValues) {
+    public synchronized boolean putAllIfAbsent(Map<String, Value> keyValues) {
       if (values.keySet().stream().noneMatch(keyValues::containsKey)) {
         values.putAll(keyValues);
         return true;
@@ -154,22 +116,18 @@ public interface KeyValueStore<V> {
     }
 
     @Override
-    public synchronized List<String> getAll(List<String> keys) {
+    public synchronized List<Value> getAll(List<String> keys) {
       return keys.stream().map(s -> values.get(s)).collect(Collectors.toList());
     }
 
     @Override
-    public synchronized String increase(String key) {
-      long incremented = Long.parseLong(values.get(key)) + 1;
-      values.put(key, String.valueOf(incremented));
-      return String.valueOf(incremented);
+    public synchronized long increase(String key) {
+      return values.compute(key, (k, v) -> v != null ? v.plus(1) : new Value(1)).getAsNumber();
     }
 
     @Override
-    public synchronized String decrease(String key) {
-      long decremented = Long.parseLong(values.get(key)) - 1;
-      values.put(key, String.valueOf(decremented));
-      return String.valueOf(decremented);
+    public synchronized long decrease(String key) {
+      return values.compute(key, (k, v) -> v != null ? v.plus(-1) : new Value(-1)).getAsNumber();
     }
   }
 }

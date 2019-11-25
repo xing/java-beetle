@@ -1,13 +1,11 @@
 package com.xing.beetle.redis;
 
 import com.xing.beetle.dedup.spi.KeyValueStore;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import redis.clients.jedis.Jedis;
 
-public class RedisDedupStore implements KeyValueStore<String> {
+import java.util.*;
+import java.util.stream.Collectors;
+
+public class RedisDedupStore implements KeyValueStore {
 
   private final Redis redis;
   private final BeetleRedisProperties properties;
@@ -22,18 +20,19 @@ public class RedisDedupStore implements KeyValueStore<String> {
   }
 
   @Override
-  public Optional<String> get(String key) {
-    return Optional.ofNullable(redis.getClient().get(key));
+  public Optional<Value> get(String key) {
+    return this.failover.execute(() -> redis.getClient().get(key)).map(Value::new);
   }
 
   @Override
-  public boolean putIfAbsent(String key, String value) {
-    return 1 == this.failover.execute(() -> redis.getClient().setnx(key, value)).orElse(0L);
+  public Value putIfAbsent(String key, Value value) {
+    this.failover.execute(() -> redis.getClient().setnx(key, value.getAsString()));
+    return get(key).get();
   }
 
   @Override
-  public void put(String key, String value) {
-    this.failover.execute(() -> redis.getClient().set(key, value));
+  public void put(String key, Value value) {
+    this.failover.execute(() -> redis.getClient().set(key, value.getAsString()));
   }
 
   @Override
@@ -42,32 +41,33 @@ public class RedisDedupStore implements KeyValueStore<String> {
   }
 
   @Override
-  public void putAll(Map<String, String> keyValues) {
+  public void putAll(Map<String, Value> keyValues) {
     String[] arguments = createKeyValueArgs(keyValues);
     this.failover.execute(() -> redis.getClient().mset(arguments));
   }
 
   @Override
-  public boolean putAllIfAbsent(Map<String, String> keyValues) {
+  public boolean putAllIfAbsent(Map<String, Value> keyValues) {
     String[] arguments = createKeyValueArgs(keyValues);
     return 1 == this.failover.execute(() -> redis.getClient().msetnx(arguments)).orElse(0L);
   }
 
   @Override
-  public List<String> getAll(List<String> keys) {
-    return this.failover
-        .execute(() -> redis.getClient().mget(keys.stream().toArray(String[]::new)))
-        .orElse(List.of());
+  public List<Value> getAll(List<String> keys) {
+    return this.failover.execute(() -> redis.getClient().mget(keys.stream().toArray(String[]::new)))
+        .orElse(Collections.emptyList()).stream()
+        .map(Value::new)
+        .collect(Collectors.toList());
   }
 
   @Override
-  public String increase(String key) {
-    return this.failover.execute(() -> String.valueOf(redis.getClient().incr(key))).orElse("");
+  public long increase(String key) {
+    return this.failover.execute(() -> redis.getClient().incr(key)).orElse(1L);
   }
 
   @Override
-  public String decrease(String key) {
-    return this.failover.execute(() -> String.valueOf(redis.getClient().decr(key))).orElse("");
+  public long decrease(String key) {
+    return this.failover.execute(() -> redis.getClient().decr(key)).orElse(-1L);
   }
 
   @Override
@@ -75,21 +75,10 @@ public class RedisDedupStore implements KeyValueStore<String> {
     return this.failover.execute(() -> redis.getClient().exists(key)).orElse(false);
   }
 
-  private String[] createKeyValueArgs(Map<String, String> keyValues) {
+  private String[] createKeyValueArgs(Map<String, Value> keyValues) {
     return keyValues.entrySet().stream()
-        .map(e -> List.of(e.getKey(), e.getValue()))
+        .map(e -> List.of(e.getKey(), e.getValue().getAsString()))
         .flatMap(Collection::stream)
         .toArray(String[]::new);
-  }
-
-  public static void main(String[] args) {
-    Jedis jedis = new Jedis();
-    String mset = jedis.mset("key1", "value1", "key2", "value2");
-    System.out.println(mset);
-    System.out.println(jedis.get("key1"));
-    System.out.println(jedis.get("key2"));
-    String rr = jedis.mset("key1", "value2", "key3", "value2");
-    System.out.println(jedis.get("key1"));
-    System.out.println("ok");
   }
 }

@@ -1,20 +1,10 @@
 package com.xing.beetle.spring;
 
-import static java.util.Objects.requireNonNull;
-
 import com.rabbitmq.client.Channel;
-import com.xing.beetle.dedup.MessageHandlingState;
 import com.xing.beetle.dedup.api.MessageListener;
-import com.xing.beetle.dedup.spi.KeyValueStore;
+import com.xing.beetle.dedup.spi.DedupStore;
 import com.xing.beetle.dedup.spi.MessageAdapter;
 import com.xing.beetle.util.ExceptionSupport;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.amqp.core.AcknowledgeMode;
@@ -23,6 +13,16 @@ import org.springframework.amqp.rabbit.listener.AbstractMessageListenerContainer
 import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static java.util.Objects.requireNonNull;
 
 public class BeetleListenerInterceptor implements MethodInterceptor {
 
@@ -53,6 +53,21 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
     }
 
     @Override
+    public long expiresAt(Message message) {
+      Object expiresAt = message.getMessageProperties().getHeader("expires_at");
+      if (expiresAt == null) {
+        return Long.MAX_VALUE;
+      } else if (expiresAt instanceof Number) {
+        return ((Number) expiresAt).longValue();
+      } else if (expiresAt instanceof String) {
+        return Long.parseLong((String) expiresAt);
+      } else {
+        throw new IllegalArgumentException(
+            "Unexpected expires_at header value " + expiresAt.getClass());
+      }
+    }
+
+    @Override
     public void requeue(Message message) {
       if (needToAck) {
         try {
@@ -64,12 +79,11 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
     }
   }
 
-  private final KeyValueStore<String> store;
+  private final DedupStore store;
   private final RabbitListenerEndpointRegistry registry;
   private Map<String, AcknowledgeMode> acknowledgeModes;
 
-  public BeetleListenerInterceptor(
-      KeyValueStore<String> store, RabbitListenerEndpointRegistry registry) {
+  public BeetleListenerInterceptor(DedupStore store, RabbitListenerEndpointRegistry registry) {
     this.store = requireNonNull(store);
     this.registry = requireNonNull(registry);
   }
@@ -105,18 +119,7 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
           invocation.getArguments()[1] = multiple ? Collections.singletonList(msg) : msg;
           invocation.proceed();
         };
-    KeyValueStore<MessageHandlingState.Status> statusStore =
-        store.suffixed(
-            "status", MessageHandlingState.Status::valueOf, MessageHandlingState.Status::toString);
-    messages.forEach(
-        msg ->
-            statusStore
-                .getNullable(
-                    msg.getMessageProperties().getMessageId(),
-                    MessageHandlingState.Status.NONREDUNDANT)
-                .orElse(MessageHandlingState.Status.INCOMPLETE)
-                .handle(msg, listener)
-                .apply(adapter(channel, msg), store, null));
+    messages.forEach(msg -> store.handle(msg, adapter(channel, msg), listener));
     return null;
   }
 }

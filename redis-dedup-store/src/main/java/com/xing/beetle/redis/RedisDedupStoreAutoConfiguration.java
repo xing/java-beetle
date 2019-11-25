@@ -12,7 +12,7 @@ class RedisDedupStoreAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  KeyValueStore<String> beetleDedupStore(BeetleRedisProperties properties) {
+  KeyValueStore beetleDedupStore(BeetleRedisProperties properties) {
     return new RedisDedupStore(properties);
   }
 }

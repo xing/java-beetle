@@ -85,5 +85,9 @@ public interface MessageListener<M> {
     logger().log(Level.WARNING, "Beetle dropped already acknowledged message: {0}", message);
   }
 
+  default void onFailure(M message) {
+    logger().log(Level.WARNING, "Beetle dropped failed message: {0}", message);
+  }
+
   void onMessage(M message) throws Throwable;
 }
