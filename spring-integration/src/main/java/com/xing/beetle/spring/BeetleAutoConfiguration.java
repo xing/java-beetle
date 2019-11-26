@@ -36,7 +36,9 @@ class BeetleAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     BeetleConnectionFactory beetleConnectionFactory() {
-      return new BeetleConnectionFactory();
+      BeetleConnectionFactory factory = new BeetleConnectionFactory();
+      factory.setInvertRequeueParameter(true);
+      return factory;
     }
 
     private RabbitConnectionFactoryBean getRabbitConnectionFactoryBean(RabbitProperties properties)

@@ -2,6 +2,7 @@ package com.xing.beetle.dedup.spi;
 
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.dedup.spi.KeyValueStore.Value;
+import com.xing.beetle.util.ExceptionSupport;
 import static java.util.Objects.requireNonNull;
 
 public interface DedupStore {
@@ -108,6 +109,7 @@ public interface DedupStore {
             } else {
               adapter.requeue(message);
             }
+            ExceptionSupport.sneakyThrow(throwable);
           } finally {
             releaseMutex(key);
           }
