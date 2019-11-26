@@ -56,6 +56,8 @@ public interface KeyValueStore {
 
   Value putIfAbsent(String key, Value value);
 
+  Value putIfAbsentTtl(String key, Value value, int secondsToExpire);
+
   void put(String key, Value value);
 
   void remove(String... keys);
@@ -84,6 +86,12 @@ public interface KeyValueStore {
     @Override
     public synchronized Value putIfAbsent(String key, Value value) {
       return values.computeIfAbsent(key, s -> value);
+    }
+
+    @Override
+    public Value putIfAbsentTtl(String key, Value value, int secondsToExpire) {
+      //not supporting expiration
+      return putIfAbsent(key, value);
     }
 
     @Override

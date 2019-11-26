@@ -3,6 +3,7 @@ package com.xing.beetle.dedup.spi;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.dedup.spi.KeyValueStore.Value;
 import com.xing.beetle.util.ExceptionSupport;
+
 import static java.util.Objects.requireNonNull;
 
 public interface DedupStore {
@@ -16,9 +17,9 @@ public interface DedupStore {
     }
 
     @Override
-    public Mutex tryAcquireMutex(String key) {
+    public Mutex tryAcquireMutex(String key, int secondsToExpire) {
       Value w = new Value(System.currentTimeMillis());
-      Value r = store.putIfAbsent(key + "_mutex", w);
+      Value r = store.putIfAbsentTtl(key + "_mutex", w, secondsToExpire);
       return new Mutex(r.getAsNumber() == w.getAsNumber(), r.getAsNumber());
     }
 
@@ -66,8 +67,9 @@ public interface DedupStore {
   long DELAY = 10;
   Long MAX_DELAY = 10L;
   long TIMEOUT = 10;
+  int MUTEX_EXPIRE = 10;
 
-  Mutex tryAcquireMutex(String key);
+  Mutex tryAcquireMutex(String key, int secondsToExpire);
 
   void releaseMutex(String key);
 
@@ -88,7 +90,7 @@ public interface DedupStore {
     } else if (completed(key)) {
       adapter.drop(message);
     } else {
-      Mutex mutex = tryAcquireMutex(key);
+      Mutex mutex = tryAcquireMutex(key, MUTEX_EXPIRE);
       if (mutex.acquired) {
         long attempt = incrementAttempts(key);
         if (attempt >= MAX_ATTEMPTS) {

@@ -1,6 +1,8 @@
 package com.xing.beetle.redis;
 
 import com.xing.beetle.dedup.spi.KeyValueStore;
+import redis.clients.jedis.params.SetParams;
+
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,6 +28,16 @@ public class RedisDedupStore implements KeyValueStore {
   @Override
   public Value putIfAbsent(String key, Value value) {
     this.failover.execute(() -> redis.getClient().setnx(key, value.getAsString()));
+    return get(key).get();
+  }
+
+  @Override
+  public Value putIfAbsentTtl(String key, Value value, int secondsToExpire) {
+    this.failover.execute(
+        () ->
+            redis
+                .getClient()
+                .set(key, value.getAsString(), SetParams.setParams().nx().ex(secondsToExpire)));
     return get(key).get();
   }
 
