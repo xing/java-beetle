@@ -1,7 +1,7 @@
 package com.xing.beetle.dedup.spi;
 
 import com.xing.beetle.dedup.api.MessageListener;
-
+import com.xing.beetle.dedup.spi.KeyValueStore.Value;
 import static java.util.Objects.requireNonNull;
 
 public interface DedupStore {
@@ -16,11 +16,15 @@ public interface DedupStore {
 
     @Override
     public Mutex tryAcquireMutex(String key) {
-      return null;
+      Value w = new Value(System.currentTimeMillis());
+      Value r = store.putIfAbsent(key + "_mutex", w);
+      return new Mutex(r.getAsNumber() == w.getAsNumber(), r.getAsNumber());
     }
 
     @Override
-    public void releaseMutex(String key) {}
+    public void releaseMutex(String key) {
+      store.remove(key + "_mutex");
+    }
 
     @Override
     public void complete(String key) {
@@ -36,12 +40,12 @@ public interface DedupStore {
 
     @Override
     public long incrementAttempts(String key) {
-      return 0;
+      return store.increase(key + "_attempts");
     }
 
     @Override
     public long incrementExceptions(String key) {
-      return 0;
+      return store.increase(key + "_exceptions");
     }
   }
 
