@@ -17,10 +17,9 @@ public interface DedupStore {
     }
 
     @Override
-    public Mutex tryAcquireMutex(String key, int secondsToExpire) {
-      Value w = new Value(System.currentTimeMillis());
-      Value r = store.putIfAbsentTtl(key + "_mutex", w, secondsToExpire);
-      return new Mutex(r.getAsNumber() == w.getAsNumber(), r.getAsNumber());
+    public boolean tryAcquireMutex(String key, int secondsToExpire) {
+      return store.putIfAbsentTtl(
+          key + "_mutex", new Value(System.currentTimeMillis()), secondsToExpire);
     }
 
     @Override
@@ -51,17 +50,6 @@ public interface DedupStore {
     }
   }
 
-  class Mutex {
-
-    public Mutex(boolean acquired, long expires) {
-      this.acquired = acquired;
-      this.expires = expires;
-    }
-
-    private final boolean acquired;
-    private final long expires;
-  }
-
   long MAX_EXCEPTIONS = 10;
   long MAX_ATTEMPTS = 10;
   long DELAY = 10;
@@ -69,7 +57,7 @@ public interface DedupStore {
   long TIMEOUT = 10;
   int MUTEX_EXPIRE = 10;
 
-  Mutex tryAcquireMutex(String key, int secondsToExpire);
+  boolean tryAcquireMutex(String key, int secondsToExpire);
 
   void releaseMutex(String key);
 
@@ -90,35 +78,35 @@ public interface DedupStore {
     } else if (completed(key)) {
       adapter.drop(message);
     } else {
-      Mutex mutex = tryAcquireMutex(key, MUTEX_EXPIRE);
-      if (mutex.acquired) {
-        long attempt = incrementAttempts(key);
-        if (attempt >= MAX_ATTEMPTS) {
-          complete(key);
+      if (tryAcquireMutex(key, MUTEX_EXPIRE)) {
+        if (completed(key)) {
           adapter.drop(message);
-          listener.onFailure(message);
         } else {
-          try {
-            listener.onMessage(message);
+          long attempt = incrementAttempts(key);
+          if (attempt >= MAX_ATTEMPTS) {
             complete(key);
-          } catch (Throwable throwable) {
-            long exceptions = incrementExceptions(key);
-            if (exceptions >= MAX_EXCEPTIONS) {
+            adapter.drop(message);
+            listener.onFailure(message);
+          } else {
+            try {
+              listener.onMessage(message);
               complete(key);
-              adapter.drop(message);
-              listener.onFailure(message);
-            } else {
-              adapter.requeue(message);
+            } catch (Throwable throwable) {
+              long exceptions = incrementExceptions(key);
+              if (exceptions >= MAX_EXCEPTIONS) {
+                complete(key);
+                adapter.drop(message);
+                listener.onFailure(message);
+              } else {
+                adapter.requeue(message);
+              }
+              ExceptionSupport.sneakyThrow(throwable);
+            } finally {
+              releaseMutex(key);
             }
-            ExceptionSupport.sneakyThrow(throwable);
-          } finally {
-            releaseMutex(key);
           }
         }
       } else {
-        if (mutex.expires < System.currentTimeMillis()) {
-          releaseMutex(key);
-        }
         adapter.requeue(message);
       }
     }

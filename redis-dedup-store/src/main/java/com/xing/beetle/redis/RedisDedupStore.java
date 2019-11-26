@@ -1,12 +1,13 @@
 package com.xing.beetle.redis;
 
 import com.xing.beetle.dedup.spi.KeyValueStore;
-import redis.clients.jedis.params.SetParams;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class RedisDedupStore implements KeyValueStore {
+
+  private static final Long MUTEX_ACQUIRED = 1L;
 
   private final Redis redis;
   private final BeetleRedisProperties properties;
@@ -32,13 +33,16 @@ public class RedisDedupStore implements KeyValueStore {
   }
 
   @Override
-  public Value putIfAbsentTtl(String key, Value value, int secondsToExpire) {
-    this.failover.execute(
-        () ->
-            redis
-                .getClient()
-                .set(key, value.getAsString(), SetParams.setParams().nx().ex(secondsToExpire)));
-    return get(key).get();
+  public boolean putIfAbsentTtl(String key, Value value, int secondsToExpire) {
+    boolean acquired =
+        this.failover
+            .execute(() -> redis.getClient().setnx(key, value.getAsString()))
+            .filter(MUTEX_ACQUIRED::equals)
+            .isPresent();
+    if (acquired) {
+      failover.execute(() -> redis.getClient().expire(key, secondsToExpire));
+    }
+    return acquired;
   }
 
   @Override

@@ -56,7 +56,7 @@ public interface KeyValueStore {
 
   Value putIfAbsent(String key, Value value);
 
-  Value putIfAbsentTtl(String key, Value value, int secondsToExpire);
+  boolean putIfAbsentTtl(String key, Value value, int secondsToExpire);
 
   void put(String key, Value value);
 
@@ -89,9 +89,9 @@ public interface KeyValueStore {
     }
 
     @Override
-    public Value putIfAbsentTtl(String key, Value value, int secondsToExpire) {
-      //not supporting expiration
-      return putIfAbsent(key, value);
+    public boolean putIfAbsentTtl(String key, Value value, int secondsToExpire) {
+      // not supporting expiration
+      return values.putIfAbsent(key, value) == null;
     }
 
     @Override
