@@ -70,7 +70,7 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
                 public void handleDelivery(
                     String consumerTag, Envelope envelope, BasicProperties properties, byte[] body)
                     throws IOException {
-                  deadLetterCheck(queue, envelope);
+                  envelope = deadLetterCheck(queue, envelope, properties.getHeaders());
                   callback.handleDelivery(consumerTag, envelope, properties, body);
                 }
 
@@ -92,7 +92,11 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
     public GetResponse basicGet(String queue, boolean autoAck) throws IOException {
       GetResponse response = delegate.basicGet(queue, autoAck);
       if (!autoAck && response != null) {
-        deadLetterCheck(queue, response.getEnvelope());
+        Envelope envelope =
+            deadLetterCheck(queue, response.getEnvelope(), response.getProps().getHeaders());
+        response =
+            new GetResponse(
+                envelope, response.getProps(), response.getBody(), response.getMessageCount());
       }
       return response;
     }
@@ -145,10 +149,19 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
       return arguments;
     }
 
-    private void deadLetterCheck(String queue, Envelope envelope) {
+    private Envelope deadLetterCheck(String queue, Envelope envelope, Map<String, Object> headers) {
       if (deadLetterQueues.contains(queue)) {
         deadLetterDeliveryTags.add(envelope.getDeliveryTag());
+        if (headers.containsKey("x-first-death-reason")) {
+          envelope =
+              new Envelope(
+                  envelope.getDeliveryTag(),
+                  true,
+                  envelope.getExchange(),
+                  envelope.getRoutingKey());
+        }
       }
+      return envelope;
     }
 
     private boolean deadLettered(long deliveryTag, boolean multiple) {

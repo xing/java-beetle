@@ -102,9 +102,14 @@ public class BeetleChannel implements DefaultChannel.Decorator {
         props = props.builder().messageId(UUID.randomUUID().toString()).build();
       }
     }
-    Map<String, Object> headers = new HashMap<>(props.getHeaders());
-    headers.put("flags", redundancy > 1 ? FLAG_REDUNDANT : 0);
-    BasicProperties properties = props.builder().headers(headers).build();
+    BasicProperties properties;
+    if (props != null) {
+      Map<String, Object> headers = new HashMap<>(props.getHeaders());
+      headers.put("flags", redundancy > 1 ? FLAG_REDUNDANT : 0);
+      properties = props.builder().headers(headers).build();
+    } else {
+      properties = null;
+    }
     long sent =
         delegates
             .streamAll()

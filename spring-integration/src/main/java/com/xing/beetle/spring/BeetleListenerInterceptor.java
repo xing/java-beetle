@@ -38,7 +38,7 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
     }
 
     @Override
-    public void acknowledge(Message message) {
+    public void drop(Message message) {
       if (needToAck) {
         try {
           channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);

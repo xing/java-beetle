@@ -83,28 +83,27 @@ public interface DedupStore {
     String key = adapter.keyOf(message);
     long expiresAt = adapter.expiresAt(message);
     if (expiresAt < System.currentTimeMillis()) {
-      adapter.acknowledge(message);
+      adapter.drop(message);
       listener.onDropped(message);
     } else if (completed(key)) {
-      adapter.acknowledge(message);
+      adapter.drop(message);
     } else {
       Mutex mutex = tryAcquireMutex(key);
       if (mutex.acquired) {
         long attempt = incrementAttempts(key);
         if (attempt >= MAX_ATTEMPTS) {
           complete(key);
-          adapter.acknowledge(message);
+          adapter.drop(message);
           listener.onFailure(message);
         } else {
           try {
             listener.onMessage(message);
             complete(key);
-            adapter.acknowledge(message);
           } catch (Throwable throwable) {
             long exceptions = incrementExceptions(key);
             if (exceptions >= MAX_EXCEPTIONS) {
               complete(key);
-              adapter.acknowledge(message);
+              adapter.drop(message);
               listener.onFailure(message);
             } else {
               adapter.requeue(message);

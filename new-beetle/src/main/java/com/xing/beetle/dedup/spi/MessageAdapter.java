@@ -2,7 +2,7 @@ package com.xing.beetle.dedup.spi;
 
 public interface MessageAdapter<M> {
 
-  void acknowledge(M message);
+  void drop(M message);
 
   String keyOf(M message);
 
