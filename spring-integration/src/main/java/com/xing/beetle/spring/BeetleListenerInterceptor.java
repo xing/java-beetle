@@ -1,10 +1,19 @@
 package com.xing.beetle.spring;
 
+import static java.util.Objects.requireNonNull;
+
 import com.rabbitmq.client.Channel;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.dedup.spi.DedupStore;
 import com.xing.beetle.dedup.spi.MessageAdapter;
 import com.xing.beetle.util.ExceptionSupport;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.amqp.core.AcknowledgeMode;
@@ -14,26 +23,18 @@ import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static java.util.Objects.requireNonNull;
-
 public class BeetleListenerInterceptor implements MethodInterceptor {
 
   private static class SpringMessageAdaptor implements MessageAdapter<Message> {
 
     private final Channel channel;
     private final boolean needToAck;
+    private final boolean rejectAndRequeue;
 
-    public SpringMessageAdaptor(Channel channel, boolean needToAck) {
+    public SpringMessageAdaptor(Channel channel, boolean needToAck, boolean rejectAndRequeue) {
       this.channel = requireNonNull(channel);
       this.needToAck = needToAck;
+      this.rejectAndRequeue = rejectAndRequeue;
     }
 
     @Override
@@ -71,7 +72,7 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
     public void requeue(Message message) {
       if (needToAck) {
         try {
-          channel.basicReject(message.getMessageProperties().getDeliveryTag(), true);
+          channel.basicReject(message.getMessageProperties().getDeliveryTag(), rejectAndRequeue);
         } catch (IOException e) {
           ExceptionSupport.sneakyThrow(e);
         }
@@ -81,11 +82,14 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
 
   private final DedupStore store;
   private final RabbitListenerEndpointRegistry registry;
+  private final boolean rejectAndRequeue;
   private Map<String, AcknowledgeMode> acknowledgeModes;
 
-  public BeetleListenerInterceptor(DedupStore store, RabbitListenerEndpointRegistry registry) {
+  public BeetleListenerInterceptor(
+      DedupStore store, RabbitListenerEndpointRegistry registry, boolean rejectAndRequeue) {
     this.store = requireNonNull(store);
     this.registry = requireNonNull(registry);
+    this.rejectAndRequeue = rejectAndRequeue;
   }
 
   @EventListener
@@ -101,7 +105,7 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
   private MessageAdapter<Message> adapter(Channel channel, Message message) {
     String queue = message.getMessageProperties().getConsumerQueue();
     AcknowledgeMode mode = acknowledgeModes.getOrDefault(queue, AcknowledgeMode.AUTO);
-    return new SpringMessageAdaptor(channel, mode == AcknowledgeMode.MANUAL);
+    return new SpringMessageAdaptor(channel, mode == AcknowledgeMode.MANUAL, rejectAndRequeue);
   }
 
   @Override

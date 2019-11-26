@@ -29,12 +29,10 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
     private static final String DEAD_LETTER_SUFFIX = "_dead_letter";
 
     private final Channel delegate;
-    private final Set<String> deadLetterQueues;
     private final SortedSet<Long> deadLetterDeliveryTags;
 
     public RequeueAtEndChannel(Channel delegate) {
       this.delegate = requireNonNull(delegate);
-      this.deadLetterQueues = new HashSet<>();
       this.deadLetterDeliveryTags = new ConcurrentSkipListSet<>();
     }
 
@@ -186,9 +184,7 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
         if (ok.getQueue() == null || ok.getQueue().isEmpty()) {
           return ok;
         }
-        if (invertRequeueParameter) {
-          deadLetterQueues.add(queue);
-        }
+        queueDeclared(queue);
       }
       return delegate.queueDeclare(queue, durable, exclusive, autoDelete, arguments);
     }
@@ -211,6 +207,7 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
   private final Connection delegate;
   private final long requeueAtEndDelayInMillis;
   private final boolean invertRequeueParameter;
+  private final Set<String> deadLetterQueues;
 
   public RequeueAtEndConnection(Connection delegate) {
     this(delegate, -1, false);
@@ -221,6 +218,13 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
     this.delegate = requireNonNull(delegate);
     this.requeueAtEndDelayInMillis = requeueAtEndDelayInMillis;
     this.invertRequeueParameter = invertRequeueParameter;
+    this.deadLetterQueues = new HashSet<>();
+  }
+
+  private void queueDeclared(String queue) {
+    if (invertRequeueParameter) {
+      deadLetterQueues.add(queue);
+    }
   }
 
   @Override

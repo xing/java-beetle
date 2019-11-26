@@ -4,6 +4,8 @@ import com.xing.beetle.amqp.BeetleConnectionFactory;
 import com.xing.beetle.dedup.spi.DedupStore;
 import com.xing.beetle.dedup.spi.KeyValueStore;
 import com.xing.beetle.spring.BeetleAutoConfiguration.BeetleConnectionFactoryCreator;
+import java.time.Duration;
+import java.util.Arrays;
 import org.aopalliance.aop.Advice;
 import org.springframework.amqp.rabbit.config.AbstractRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.config.DirectRabbitListenerContainerFactory;
@@ -23,9 +25,6 @@ import org.springframework.boot.context.properties.PropertyMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-
-import java.time.Duration;
-import java.util.Arrays;
 
 @Configuration
 @Import(BeetleConnectionFactoryCreator.class)
@@ -153,7 +152,9 @@ class BeetleAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   BeetleListenerInterceptor beetleListenerInterceptor(
-      RabbitListenerEndpointRegistry registry, DedupStore dedupStore) {
-    return new BeetleListenerInterceptor(dedupStore, registry);
+      RabbitListenerEndpointRegistry registry,
+      DedupStore dedupStore,
+      BeetleConnectionFactory factory) {
+    return new BeetleListenerInterceptor(dedupStore, registry, factory.isInvertRequeueParameter());
   }
 }
