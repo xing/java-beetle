@@ -72,6 +72,7 @@ public interface DedupStore {
   default <M> void handle(M message, MessageAdapter<M> adapter, MessageListener<M> listener) {
     String key = adapter.keyOf(message);
     long expiresAt = adapter.expiresAt(message);
+    // check if the message is ancient or not.
     if (expiresAt < System.currentTimeMillis()) {
       adapter.drop(message);
       listener.onDropped(message);
@@ -89,6 +90,7 @@ public interface DedupStore {
             listener.onFailure(message);
           } else {
             try {
+              // run handler
               listener.onMessage(message);
               complete(key);
             } catch (Throwable throwable) {

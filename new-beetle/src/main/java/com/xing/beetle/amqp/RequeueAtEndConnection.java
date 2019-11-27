@@ -152,7 +152,7 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
     private Envelope deadLetterCheck(String queue, Envelope envelope, Map<String, Object> headers) {
       if (deadLetterQueues.contains(queue)) {
         deadLetterDeliveryTags.add(envelope.getDeliveryTag());
-        if (headers.containsKey("x-first-death-reason")) {
+        if (headers != null && headers.containsKey("x-first-death-reason")) {
           envelope =
               new Envelope(
                   envelope.getDeliveryTag(),
