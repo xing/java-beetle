@@ -44,10 +44,10 @@ public class BeetleRedisApplication {
               name = QUEUE,
               durable = "false",
               autoDelete = "true",
-              arguments = @Argument(name = BeetleHeader.REQUEUE_AT_END_DELAY, value = "PT5S")))
+              arguments = @Argument(name = BeetleHeader.REQUEUE_AT_END_DELAY, value = "PT1S")))
   public void onMessage(Message message, Channel channel) throws Exception {
     if (!message.getMessageProperties().isRedelivered()) {
-      throw new IllegalStateException();
+      Thread.sleep(30000);
     }
     System.out.println(message);
   }

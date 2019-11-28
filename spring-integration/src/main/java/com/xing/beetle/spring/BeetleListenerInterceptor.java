@@ -4,7 +4,7 @@ import static java.util.Objects.requireNonNull;
 
 import com.rabbitmq.client.Channel;
 import com.xing.beetle.dedup.api.MessageListener;
-import com.xing.beetle.dedup.spi.DedupStore;
+import com.xing.beetle.dedup.spi.Deduplicator;
 import com.xing.beetle.dedup.spi.MessageAdapter;
 import com.xing.beetle.util.ExceptionSupport;
 import java.io.IOException;
@@ -80,13 +80,13 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
     }
   }
 
-  private final DedupStore store;
+  private final Deduplicator store;
   private final RabbitListenerEndpointRegistry registry;
   private final boolean rejectAndRequeue;
   private Map<String, AcknowledgeMode> acknowledgeModes;
 
   public BeetleListenerInterceptor(
-      DedupStore store, RabbitListenerEndpointRegistry registry, boolean rejectAndRequeue) {
+      Deduplicator store, RabbitListenerEndpointRegistry registry, boolean rejectAndRequeue) {
     this.store = requireNonNull(store);
     this.registry = requireNonNull(registry);
     this.rejectAndRequeue = rejectAndRequeue;

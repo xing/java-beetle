@@ -1,16 +1,9 @@
 package com.xing.beetle.dedup.api;
 
-import static java.util.Objects.requireNonNull;
-
-import com.xing.beetle.util.ExceptionSupport;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
-import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+
+import static java.util.Objects.requireNonNull;
 
 @FunctionalInterface
 public interface MessageListener<M> {
@@ -34,11 +27,10 @@ public interface MessageListener<M> {
       }
     }
 
-    public Void interruptTimedOutAndRethrow(Throwable error) {
-      if (error instanceof TimeoutException && current != null) {
+    public void interruptTimedOutAndRethrow() {
+      if (current != null) {
         current.interrupt();
       }
-      return ExceptionSupport.sneakyThrow(null, error);
     }
 
     @Override
@@ -59,13 +51,6 @@ public interface MessageListener<M> {
       } finally {
         current = null;
       }
-    }
-
-    public CompletionStage<Void> onMessage(M message, Executor executor, Duration timeout) {
-      return CompletableFuture.runAsync(
-              (ExceptionSupport.Runnable) () -> onMessage(message), executor)
-          .orTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS)
-          .exceptionally(this::interruptTimedOutAndRethrow);
     }
   }
 
