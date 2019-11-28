@@ -11,6 +11,8 @@ import static java.util.Objects.requireNonNull;
 
 public interface KeyValueStore {
 
+  void delete(String key);
+
   class Value {
 
     public Value(long number) {
@@ -77,6 +79,11 @@ public interface KeyValueStore {
   class InMemoryStore implements KeyValueStore {
 
     private Map<String, Value> values = new ConcurrentHashMap<>();
+
+    @Override
+    public synchronized void delete(String key) {
+      values.remove(key);
+    }
 
     @Override
     public synchronized Optional<Value> get(String key) {

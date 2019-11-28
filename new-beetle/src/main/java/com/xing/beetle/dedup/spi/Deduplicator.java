@@ -21,6 +21,9 @@ public interface Deduplicator {
   String EXCEPTIONS = "exceptions";
   String EXPIRES = "expires";
 
+  String[] keySuffixes =
+      new String[] {MUTEX, STATUS, ACK_COUNT, TIMEOUT, DELAY, ATTEMPTS, EXCEPTIONS, EXPIRES};
+
   class KeyValueStoreBasedDeduplicator implements Deduplicator {
 
     private KeyValueStore store;
@@ -88,6 +91,18 @@ public interface Deduplicator {
     }
 
     @Override
+    public long incrementAckCount(String key) {
+      return store.increase(key(key, ACK_COUNT));
+    }
+
+    @Override
+    public void deleteKeys(String key) {
+      for (String keySuffix : keySuffixes) {
+        store.delete(key(key, keySuffix));
+      }
+    }
+
+    @Override
     public DeduplicationConfiguration getConfiguration() {
       return this.configuration;
     }
@@ -109,6 +124,10 @@ public interface Deduplicator {
 
   long incrementExceptions(String key);
 
+  long incrementAckCount(String key);
+
+  void deleteKeys(String key);
+
   DeduplicationConfiguration getConfiguration();
 
   default <M> void runHandler(M message, MessageListener<M> listener, Duration timeout) {
@@ -126,14 +145,13 @@ public interface Deduplicator {
     String key = adapter.keyOf(message);
     // check if the message is ancient or not.
     if (isExpired(message, adapter)) {
-      adapter.drop(message);
-      listener.onDropped(message);
+      dropMessage(message, adapter, listener);
     } else if (completed(key)) {
-      adapter.drop(message);
+      dropMessage(message, adapter, listener);
     } else {
       if (tryAcquireMutex(key, getConfiguration().getMutexExpiration())) {
         if (completed(key)) {
-          adapter.drop(message);
+          dropMessage(message, adapter, listener);
         } else if (delayed(key)) {
           adapter.requeue(message);
         } else {
@@ -146,8 +164,9 @@ public interface Deduplicator {
               runHandler(
                   message, listener, Duration.ofSeconds(getConfiguration().getHandlerTimeout()));
               complete(key);
+              cleanUp(message, adapter);
             } catch (Throwable throwable) {
-              handleException(message, adapter, listener, key, throwable);
+              handleException(message, adapter, listener, key, attempt, throwable);
             } finally {
               releaseMutex(key);
             }
@@ -157,6 +176,12 @@ public interface Deduplicator {
         adapter.requeue(message);
       }
     }
+  }
+
+  private <M> void dropMessage(M message, MessageAdapter<M> adapter, MessageListener<M> listener) {
+    adapter.drop(message);
+    listener.onDropped(message);
+    cleanUp(message, adapter);
   }
 
   private <M> boolean isExpired(M message, MessageAdapter<M> adapter) {
@@ -169,13 +194,13 @@ public interface Deduplicator {
       MessageAdapter<M> adapter,
       MessageListener<M> listener,
       String key,
+      long attempt,
       Throwable throwable) {
     long exceptions = incrementExceptions(key);
     if (exceptions >= getConfiguration().getExceptionLimit()) {
       failureNotification(message, adapter, listener, key);
     } else {
-      setDelay(
-          key, System.currentTimeMillis() + getConfiguration().getHandlerExecutionAttemptsDelay());
+      setDelay(key, System.currentTimeMillis() + nextDelay(attempt));
       adapter.requeue(message);
       // let Spring know about the exception so that it rejects the message
       ExceptionSupport.sneakyThrow(throwable);
@@ -187,5 +212,21 @@ public interface Deduplicator {
     complete(key);
     adapter.drop(message);
     listener.onFailure(message);
+    cleanUp(message, adapter);
+  }
+
+  private <M> void cleanUp(M message, MessageAdapter<M> adapter) {
+    if (getConfiguration().getMaxHandlerExecutionAttempts() > 1 || adapter.isRedundant(message)) {
+      if (!adapter.isRedundant(message) || incrementAckCount(adapter.keyOf(message)) >= 2) {
+        deleteKeys(adapter.keyOf(message));
+      }
+    }
+  }
+
+  private int nextDelay(long attempt) {
+    return (int)
+        Math.min(
+            getConfiguration().getMaxhandlerExecutionAttemptsDelay(),
+            getConfiguration().getHandlerExecutionAttemptsDelay() * Math.pow(2, attempt));
   }
 }

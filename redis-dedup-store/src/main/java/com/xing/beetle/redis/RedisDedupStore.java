@@ -36,6 +36,11 @@ public class RedisDedupStore implements KeyValueStore {
   }
 
   @Override
+  public void delete(String key) {
+    this.failover.execute(() -> redis.getClient().del(key));
+  }
+
+  @Override
   public Value putIfAbsent(String key, Value value) {
     this.failover.execute(() -> redis.getClient().setnx(key, value.getAsString()));
     return get(key).get();

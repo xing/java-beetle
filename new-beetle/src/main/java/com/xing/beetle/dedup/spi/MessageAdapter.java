@@ -9,4 +9,6 @@ public interface MessageAdapter<M> {
   void requeue(M message);
 
   long expiresAt(M message);
+
+  boolean isRedundant(M message);
 }

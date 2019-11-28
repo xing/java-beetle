@@ -19,6 +19,9 @@ public class DeduplicationConfiguration {
   }
 
   public int getMaxHandlerExecutionAttempts() {
+    if (maxHandlerExecutionAttempts <= exceptionLimit) {
+      return exceptionLimit + 1;
+    }
     return maxHandlerExecutionAttempts;
   }
 
@@ -44,5 +47,9 @@ public class DeduplicationConfiguration {
 
   public int getMutexExpiration() {
     return 2 * handlerTimeout;
+  }
+
+  public int getMaxhandlerExecutionAttemptsDelay() {
+    return 2 * handlerExecutionAttemptsDelay;
   }
 }

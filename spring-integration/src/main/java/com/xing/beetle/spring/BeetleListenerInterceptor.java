@@ -1,19 +1,10 @@
 package com.xing.beetle.spring;
 
-import static java.util.Objects.requireNonNull;
-
 import com.rabbitmq.client.Channel;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.dedup.spi.Deduplicator;
 import com.xing.beetle.dedup.spi.MessageAdapter;
 import com.xing.beetle.util.ExceptionSupport;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.springframework.amqp.core.AcknowledgeMode;
@@ -23,6 +14,16 @@ import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistry;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static java.util.Objects.requireNonNull;
+
 public class BeetleListenerInterceptor implements MethodInterceptor {
 
   private static class SpringMessageAdaptor implements MessageAdapter<Message> {
@@ -30,6 +31,7 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
     private final Channel channel;
     private final boolean needToAck;
     private final boolean rejectAndRequeue;
+    private static final int FLAG_REDUNDANT = 1;
 
     public SpringMessageAdaptor(Channel channel, boolean needToAck, boolean rejectAndRequeue) {
       this.channel = requireNonNull(channel);
@@ -65,6 +67,20 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
       } else {
         throw new IllegalArgumentException(
             "Unexpected expires_at header value " + expiresAt.getClass());
+      }
+    }
+
+    @Override
+    public boolean isRedundant(Message message) {
+      Object flags = message.getMessageProperties().getHeader("flags");
+      if (flags == null) {
+        return false;
+      } else if (flags instanceof Number) {
+        return ((Number) flags).intValue() == FLAG_REDUNDANT;
+      } else if (flags instanceof String) {
+        return Integer.parseInt((String) flags) == FLAG_REDUNDANT;
+      } else {
+        throw new IllegalArgumentException("Unexpected flags header value " + flags.getClass());
       }
     }
 
