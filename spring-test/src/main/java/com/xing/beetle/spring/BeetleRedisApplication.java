@@ -18,7 +18,7 @@ import com.xing.beetle.BeetleHeader;
 @EnableRabbit
 public class BeetleRedisApplication {
 
-  public static final String QUEUE = "myQueue";
+  private static final String QUEUE = "myQueue";
 
   static MessagePostProcessor redundant(int redundancy) {
     return msg -> {

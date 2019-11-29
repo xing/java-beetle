@@ -1,5 +1,9 @@
 package com.xing.beetle.redis;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import redis.clients.jedis.Jedis;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -7,10 +11,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
 
+/** Encapsulates a Redis client (Jedis) which can switch connections when update() is called. */
 public class Redis {
   private static Logger logger = LoggerFactory.getLogger(Redis.class);
   private BeetleRedisProperties config;
@@ -19,9 +21,8 @@ public class Redis {
   private long lastMasterChanged;
   private ReentrantLock lock = new ReentrantLock();
   private Condition connected = lock.newCondition();
-  //  private ReentrantLock mutex = new ReentrantLock();
 
-  public Redis(BeetleRedisProperties config) {
+  Redis(BeetleRedisProperties config) {
     this.config = config;
     this.update();
   }
@@ -38,7 +39,7 @@ public class Redis {
     return activeMaster;
   }
 
-  public Jedis getClient() {
+  Jedis getClient() {
     lock.lock();
     try {
       while (client == null) {
@@ -57,7 +58,8 @@ public class Redis {
     return lastMasterChanged;
   }
 
-  public void update() {
+  /** Reads the Redis server configuration and updates the client connection accordingly. */
+  private void update() {
     String serverAddress;
     if (Files.exists(Paths.get(config.getRedisServer()))) {
       File file = new File(config.getRedisServer());
@@ -85,7 +87,7 @@ public class Redis {
       }
     }
   }
-
+  /** Reads the Redis server address from the configuration file. */
   private String extractRedisMaster(File file) {
     try {
       List<String> lines = Files.readAllLines(file.toPath());

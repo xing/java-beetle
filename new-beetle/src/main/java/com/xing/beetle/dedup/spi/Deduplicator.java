@@ -1,17 +1,21 @@
 package com.xing.beetle.dedup.spi;
 
+import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
-import com.xing.beetle.dedup.spi.KeyValueStore.Value;
 import com.xing.beetle.util.ExceptionSupport;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static java.util.Objects.requireNonNull;
-
+/**
+ * This interface provides an implementation for deduplication logic which also takes care of
+ * retries and delaying the handler execution. This implementation depends on a set of methods for
+ * storing the status of the messages which must be implemented by the implementing classes.
+ */
 public interface Deduplicator {
 
+  // key suffixes for tracking the message status
   String MUTEX = "mutex";
   String STATUS = "status";
   String ACK_COUNT = "ack_count";
@@ -23,90 +27,6 @@ public interface Deduplicator {
 
   String[] keySuffixes =
       new String[] {MUTEX, STATUS, ACK_COUNT, TIMEOUT, DELAY, ATTEMPTS, EXCEPTIONS, EXPIRES};
-
-  class KeyValueStoreBasedDeduplicator implements Deduplicator {
-
-    private KeyValueStore store;
-    private DeduplicationConfiguration configuration;
-
-    public KeyValueStoreBasedDeduplicator(KeyValueStore store) {
-      this.store = requireNonNull(store);
-      this.configuration = new DeduplicationConfiguration();
-    }
-
-    public KeyValueStoreBasedDeduplicator(
-        KeyValueStore store, DeduplicationConfiguration configuration) {
-      this.store = requireNonNull(store);
-      this.configuration = requireNonNull(configuration);
-    }
-
-    String key(String messageId, String keySuffix) {
-      return messageId + ":" + keySuffix;
-    }
-
-    @Override
-    public boolean tryAcquireMutex(String key, int secondsToExpire) {
-      return store.putIfAbsentTtl(
-          key(key, MUTEX), new Value(System.currentTimeMillis()), secondsToExpire);
-    }
-
-    @Override
-    public void releaseMutex(String key) {
-      store.remove(key(key, MUTEX));
-    }
-
-    @Override
-    public void complete(String key) {
-      store.put(key(key, STATUS), new KeyValueStore.Value("completed"));
-    }
-
-    @Override
-    public boolean completed(String key) {
-      KeyValueStore.Value status =
-          store.putIfAbsent(key(key, STATUS), new KeyValueStore.Value("incomplete"));
-      return status.getAsString().equals("completed");
-    }
-
-    @Override
-    public boolean delayed(String key) {
-      return store
-          .get(key(key, DELAY))
-          .map(delay -> delay.getAsNumber() > 0 && delay.getAsNumber() > System.currentTimeMillis())
-          .orElse(false);
-    }
-
-    @Override
-    public void setDelay(String key, long timestamp) {
-      store.put(key(key, DELAY), new Value(timestamp));
-    }
-
-    @Override
-    public long incrementAttempts(String key) {
-      return store.increase(key(key, ATTEMPTS));
-    }
-
-    @Override
-    public long incrementExceptions(String key) {
-      return store.increase(key(key, EXCEPTIONS));
-    }
-
-    @Override
-    public long incrementAckCount(String key) {
-      return store.increase(key(key, ACK_COUNT));
-    }
-
-    @Override
-    public void deleteKeys(String key) {
-      for (String keySuffix : keySuffixes) {
-        store.delete(key(key, keySuffix));
-      }
-    }
-
-    @Override
-    public DeduplicationConfiguration getConfiguration() {
-      return this.configuration;
-    }
-  }
 
   boolean tryAcquireMutex(String key, int secondsToExpire);
 
@@ -131,9 +51,11 @@ public interface Deduplicator {
   DeduplicationConfiguration getConfiguration();
 
   default <M> void runHandler(M message, MessageListener<M> listener, Duration timeout) {
-    MessageListener.Interruptable<M> interruptable = new MessageListener.Interruptable<>(listener);
+    Interruptable<M> interruptable = new Interruptable<>(listener);
+    // Schedule an interruption for the execution of the handler when the timeout is expired
     CompletableFuture.delayedExecutor(timeout.toMillis(), TimeUnit.MILLISECONDS)
         .execute(interruptable::interruptTimedOutAndRethrow);
+    // actually run the handler, i.e handle the message
     try {
       interruptable.onMessage(message);
     } catch (Throwable throwable) {
@@ -143,24 +65,42 @@ public interface Deduplicator {
 
   default <M> void handle(M message, MessageAdapter<M> adapter, MessageListener<M> listener) {
     String key = adapter.keyOf(message);
-    // check if the message is ancient or not.
+    // check if the message is ancient or it was already completed.
     if (isExpired(message, adapter)) {
-      dropMessage(message, adapter, listener);
+      dropMessage(
+          message,
+          adapter,
+          listener,
+          String.format("Beetle: ignored expired message %s", adapter.keyOf(message)));
     } else if (completed(key)) {
-      dropMessage(message, adapter, listener);
+      dropMessage(
+          message,
+          adapter,
+          listener,
+          String.format("Beetle: ignored completed message %s", adapter.keyOf(message)));
     } else {
       if (tryAcquireMutex(key, getConfiguration().getMutexExpiration())) {
         if (completed(key)) {
-          dropMessage(message, adapter, listener);
+          dropMessage(
+              message,
+              adapter,
+              listener,
+              String.format("Beetle: ignored completed message %s", adapter.keyOf(message)));
         } else if (delayed(key)) {
           adapter.requeue(message);
         } else {
           long attempt = incrementAttempts(key);
           if (attempt >= getConfiguration().getMaxHandlerExecutionAttempts()) {
-            failureNotification(message, adapter, listener, key);
+            failureNotification(
+                message,
+                adapter,
+                listener,
+                key,
+                String.format(
+                    "Beetle: reached the handler execution attempts limit: %d on %s",
+                    getConfiguration().getMaxHandlerExecutionAttempts(), adapter.keyOf(message)));
           } else {
             try {
-              // run handler
               runHandler(
                   message, listener, Duration.ofSeconds(getConfiguration().getHandlerTimeout()));
               complete(key);
@@ -178,9 +118,10 @@ public interface Deduplicator {
     }
   }
 
-  private <M> void dropMessage(M message, MessageAdapter<M> adapter, MessageListener<M> listener) {
+  private <M> void dropMessage(
+      M message, MessageAdapter<M> adapter, MessageListener<M> listener, String reason) {
     adapter.drop(message);
-    listener.onDropped(message);
+    listener.onDropped(message, reason);
     cleanUp(message, adapter);
   }
 
@@ -198,7 +139,14 @@ public interface Deduplicator {
       Throwable throwable) {
     long exceptions = incrementExceptions(key);
     if (exceptions >= getConfiguration().getExceptionLimit()) {
-      failureNotification(message, adapter, listener, key);
+      failureNotification(
+          message,
+          adapter,
+          listener,
+          key,
+          String.format(
+              "Beetle: reached the handler exceptions limit: %d on %s",
+              getConfiguration().getExceptionLimit(), adapter.keyOf(message)));
     } else {
       setDelay(key, System.currentTimeMillis() + nextDelay(attempt));
       adapter.requeue(message);
@@ -208,13 +156,21 @@ public interface Deduplicator {
   }
 
   private <M> void failureNotification(
-      M message, MessageAdapter<M> adapter, MessageListener<M> listener, String key) {
+      M message,
+      MessageAdapter<M> adapter,
+      MessageListener<M> listener,
+      String key,
+      String reason) {
     complete(key);
     adapter.drop(message);
-    listener.onFailure(message);
+    listener.onFailure(message, reason);
     cleanUp(message, adapter);
   }
 
+  /**
+   * deletes all keys associated with this message in the deduplication store if we are sure this is
+   * the last message with this message id.
+   */
   private <M> void cleanUp(M message, MessageAdapter<M> adapter) {
     if (getConfiguration().getMaxHandlerExecutionAttempts() > 1 || adapter.isRedundant(message)) {
       if (!adapter.isRedundant(message) || incrementAckCount(adapter.keyOf(message)) >= 2) {

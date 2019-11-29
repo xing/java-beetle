@@ -11,8 +11,6 @@ public class BeetleRedisProperties {
   private String redisDb;
   private int redisFailoverTimeout;
   private int redisStatusKeyExpiryInterval;
-  private int redisFailoverClientHeartbeatInterval;
-  private int redisFailoverClientDeadInterval;
   private int redisConfigurationMasterRetries;
   private int redisConfigurationMasterRetryInterval;
   private int redisConfigurationClientTimeout;
@@ -56,22 +54,6 @@ public class BeetleRedisProperties {
 
   public void setRedisStatusKeyExpiryInterval(int redisStatusKeyExpiryInterval) {
     this.redisStatusKeyExpiryInterval = redisStatusKeyExpiryInterval;
-  }
-
-  public int getRedisFailoverClientHeartbeatInterval() {
-    return redisFailoverClientHeartbeatInterval;
-  }
-
-  public void setRedisFailoverClientHeartbeatInterval(int redisFailoverClientHeartbeatInterval) {
-    this.redisFailoverClientHeartbeatInterval = redisFailoverClientHeartbeatInterval;
-  }
-
-  public int getRedisFailoverClientDeadInterval() {
-    return redisFailoverClientDeadInterval;
-  }
-
-  public void setRedisFailoverClientDeadInterval(int redisFailoverClientDeadInterval) {
-    this.redisFailoverClientDeadInterval = redisFailoverClientDeadInterval;
   }
 
   public int getRedisConfigurationMasterRetries() {

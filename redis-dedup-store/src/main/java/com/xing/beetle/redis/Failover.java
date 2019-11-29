@@ -10,6 +10,10 @@ import java.util.concurrent.TimeoutException;
 
 import static com.xing.beetle.util.RetryExecutor.Backoff.linear;
 
+/**
+ * Provides execution of any method with failover logic which uses retries and timeout. Retries are
+ * linear with 1 sec delay.
+ */
 class Failover {
 
   private static Logger logger = LoggerFactory.getLogger(Failover.class);

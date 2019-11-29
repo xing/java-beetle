@@ -4,6 +4,7 @@ import com.xing.beetle.amqp.BeetleConnectionFactory;
 import com.xing.beetle.dedup.spi.Deduplicator;
 import com.xing.beetle.dedup.spi.DeduplicationConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore;
+import com.xing.beetle.dedup.spi.KeyValueStoreBasedDeduplicator;
 import com.xing.beetle.spring.BeetleAutoConfiguration.BeetleConnectionFactoryCreator;
 import org.aopalliance.aop.Advice;
 import org.springframework.amqp.rabbit.config.AbstractRabbitListenerContainerFactory;
@@ -151,7 +152,7 @@ class BeetleAutoConfiguration {
   @ConditionalOnMissingBean
   Deduplicator deduplicator(
       KeyValueStore store, DeduplicationConfiguration deduplicationConfiguration) {
-    return new Deduplicator.KeyValueStoreBasedDeduplicator(store, deduplicationConfiguration);
+    return new KeyValueStoreBasedDeduplicator(store, deduplicationConfiguration);
   }
 
   @Bean
