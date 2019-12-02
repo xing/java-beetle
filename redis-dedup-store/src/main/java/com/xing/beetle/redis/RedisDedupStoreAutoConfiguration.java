@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @EnableConfigurationProperties(BeetleRedisProperties.class)
-class RedisDedupStoreAutoConfiguration {
+public class RedisDedupStoreAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean

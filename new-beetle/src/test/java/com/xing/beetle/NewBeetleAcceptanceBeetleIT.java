@@ -1,7 +1,5 @@
 package com.xing.beetle;
 
-import static org.junit.Assert.assertEquals;
-
 import com.github.dockerjava.api.model.PortBinding;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -10,9 +8,6 @@ import com.xing.beetle.amqp.BeetleConnectionFactory;
 import com.xing.beetle.testcontainers.ContainerLifecycle;
 import com.xing.beetle.testcontainers.Containers;
 import com.xing.beetle.util.RetryExecutor;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,6 +16,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
+import static org.junit.Assert.assertEquals;
 
 @Testcontainers
 class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
@@ -53,7 +54,8 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
   @ParameterizedTest(name = "Brokers={0}")
   @ValueSource(ints = {1, 2})
   @ExtendWith(ContainerLifecycle.class)
-  void checkWith(@Containers RabbitMQContainer[] containers) throws Exception {
+  void testRedundantPublishWithoutDeduplication(@Containers RabbitMQContainer[] containers)
+      throws Exception {
     BeetleConnectionFactory factory = new BeetleConnectionFactory();
     Connection connection = createConnection(factory, containers);
     Channel channel = connection.createChannel();
@@ -69,11 +71,4 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     Thread.sleep(500);
     assertEquals(Math.min(containers.length, 2), messages.size());
   }
-
-  //    @Test
-  //    void shouldNotSentMessagesAtStartup() throws Exception {
-  //        Channel channel = createChannel(new RabbitMQContainer[0], true, -1);
-  //        assertThrows(IOException.class,
-  //                () -> channel.basicPublish("", QUEUE, REDUNDANT.get(), "test1".getBytes()));
-  //    }
 }

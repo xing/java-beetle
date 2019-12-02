@@ -50,7 +50,8 @@ public interface Deduplicator {
 
   DeduplicationConfiguration getConfiguration();
 
-  default <M> void runHandler(M message, MessageListener<M> listener, Duration timeout) {
+  default <M> void runHandler(
+      M message, MessageListener<M> listener, MessageAdapter<M> adapter, Duration timeout) {
     Interruptable<M> interruptable = new Interruptable<>(listener);
     // Schedule an interruption for the execution of the handler when the timeout is expired
     CompletableFuture.delayedExecutor(timeout.toMillis(), TimeUnit.MILLISECONDS)
@@ -59,6 +60,11 @@ public interface Deduplicator {
     try {
       interruptable.onMessage(message);
     } catch (Throwable throwable) {
+      if (throwable.getCause() != null && throwable.getCause() instanceof InterruptedException) {
+        listener.onFailure(
+            message,
+            String.format("Beetle: message handling timed out for %s", adapter.keyOf(message)));
+      }
       ExceptionSupport.sneakyThrow(throwable);
     }
   }
@@ -102,7 +108,10 @@ public interface Deduplicator {
           } else {
             try {
               runHandler(
-                  message, listener, Duration.ofSeconds(getConfiguration().getHandlerTimeout()));
+                  message,
+                  listener,
+                  adapter,
+                  Duration.ofSeconds(getConfiguration().getHandlerTimeout()));
               complete(key);
               cleanUp(message, adapter);
             } catch (Throwable throwable) {
