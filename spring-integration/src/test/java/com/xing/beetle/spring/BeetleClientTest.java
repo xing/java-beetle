@@ -13,13 +13,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.testcontainers.containers.GenericContainer;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
 
@@ -27,112 +29,131 @@ import static org.junit.Assert.assertEquals;
  * Full blown beetle client test with spring integration (RabbitListener) and deduplication (with
  * Redis).
  */
-@RunWith(SpringRunner.class)
+@RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest
-@DirtiesContext
 public class BeetleClientTest {
 
   @Autowired private RabbitTemplate rabbitTemplate;
 
   @Autowired private MyService service;
 
-  @Test
-  public void send2RedundantMessagesShouldReceive1() throws InterruptedException {
-    result.clear();
+  static {
+    List<GenericContainer> rabbitBrokers =
+        IntStream.range(0, 2)
+            .mapToObj(i -> new GenericContainer("rabbitmq:3.5.3").withExposedPorts(5672))
+            .collect(Collectors.toList());
+    rabbitBrokers.forEach(GenericContainer::start);
+
+    List<String> addresses =
+        rabbitBrokers.stream()
+            .map(rabbit -> rabbit.getContainerIpAddress() + ":" + rabbit.getFirstMappedPort())
+            .collect(Collectors.toList());
+
+    System.setProperty("spring.rabbitmq.addresses", String.join(",", addresses));
+  }
+
+  private void sendRedundantMessages(String routingKey, int redundancy, String messageId) {
     MessageProperties props = new MessageProperties();
-    props.setHeader(BeetleHeader.PUBLISH_REDUNDANCY, 2);
-    props.setMessageId(UUID.randomUUID().toString());
+    props.setHeader(BeetleHeader.PUBLISH_REDUNDANCY, redundancy);
+    props.setMessageId(messageId);
     Message message = new Message("foo".getBytes(), props);
-    for (int i = 0; i < 2; i++) {
-      rabbitTemplate.send("", "Que", message);
-    }
-    Thread.sleep(1000);
-    assertEquals(1, result.size());
+    rabbitTemplate.send("auto.exch", routingKey, message);
   }
 
   @Test
-  public void send2RedundantMessagesFirstThrowExceptionThenHandle() throws InterruptedException {
-    result.clear();
-    MessageProperties props = new MessageProperties();
-    props.setHeader(BeetleHeader.PUBLISH_REDUNDANCY, 2);
-    props.setMessageId(UUID.randomUUID().toString());
-    Message message = new Message("foo".getBytes(), props);
-    for (int i = 0; i < 2; i++) {
-      rabbitTemplate.send("", "QueWithErrThenSucceed", message);
+  public void send2RedundantMessagesShouldReceive1() {
+    String messageId = UUID.randomUUID().toString();
+    sendRedundantMessages("test.succeed", 2, messageId);
+    System.out.println("1: " + messageId);
+
+    String messageId2 = UUID.randomUUID().toString();
+    sendRedundantMessages("test.succeed", 2, messageId2);
+    System.out.println("2: " + messageId2);
+
+    waitForMessageDelivery();
+
+    assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
+    assertEquals(1, result.stream().filter(s -> s.equals(messageId2)).count());
+  }
+
+  public void waitForMessageDelivery() {
+    try {
+      Thread.sleep(10000);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
     }
-    Thread.sleep(2000);
-    assertEquals(1, result.size());
+  }
+
+  @Test
+  public void send2RedundantMessagesFirstThrowExceptionThenHandle() {
+    String messageId = UUID.randomUUID().toString();
+    sendRedundantMessages("test.withErrThenSucceed", 2, messageId);
+    waitForMessageDelivery();
+    assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
   @Test
   public void send2RedundantMessagesHandlerThrowsExceptionExceedsExceptionLimit()
       throws InterruptedException {
-    result.clear();
-    MessageProperties props = new MessageProperties();
-    props.setHeader(BeetleHeader.PUBLISH_REDUNDANCY, 2);
-    props.setMessageId(UUID.randomUUID().toString());
-    Message message = new Message("foo".getBytes(), props);
-    for (int i = 0; i < 2; i++) {
-      rabbitTemplate.send("", "QueWithErr", message);
-    }
-    Thread.sleep(3000);
+    String messageId = UUID.randomUUID().toString();
+    sendRedundantMessages("test.withErr", 2, messageId);
+    waitForMessageDelivery();
     // exception limit is 3
-    assertEquals(3, result.size());
+    assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
   @Test
-  public void send2RedundantMessagesHandlerTimesOutExceedsExceptionLimit()
-      throws InterruptedException {
-    result.clear();
-    MessageProperties props = new MessageProperties();
-    props.setHeader(BeetleHeader.PUBLISH_REDUNDANCY, 2);
-    props.setMessageId(UUID.randomUUID().toString());
-    Message message = new Message("foo".getBytes(), props);
-    for (int i = 0; i < 2; i++) {
-      rabbitTemplate.send("", "QueWithTimeout", message);
-    }
-    Thread.sleep(6000);
+  public void send2RedundantMessagesHandlerTimesOutExceedsExceptionLimit() {
+    String messageId = UUID.randomUUID().toString();
+    sendRedundantMessages("test.withTimeout", 2, messageId);
+    waitForMessageDelivery();
     // exception limit is 3
-    assertEquals(3, result.size());
+    assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
   @Test
-  public void send2RedundantMessagesHandlerFirstTimesOutThenSucceeds() throws InterruptedException {
-    result.clear();
-    MessageProperties props = new MessageProperties();
-    props.setHeader(BeetleHeader.PUBLISH_REDUNDANCY, 2);
-    props.setMessageId(UUID.randomUUID().toString());
-    Message message = new Message("foo".getBytes(), props);
-    for (int i = 0; i < 2; i++) {
-      rabbitTemplate.send("", "QueWithTimeoutThenSucceed", message);
-    }
-    Thread.sleep(3000);
-    assertEquals(1, result.size());
+  public void send2RedundantMessagesHandlerFirstTimesOutThenSucceeds() {
+    String messageId = UUID.randomUUID().toString();
+    sendRedundantMessages("test.withTimeoutThenSucceed", 2, messageId);
+    waitForMessageDelivery();
+    assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
-  private static List<String> result = new ArrayList<>();
+  private static CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
 
   public static class MyService {
 
     @RabbitListener(
         bindings =
             @QueueBinding(
-                value = @Queue(value = "Que", autoDelete = "true"),
+                value = @Queue(value = "QueueSucceed", autoDelete = "true"),
                 exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
-                key = "auto.rk"))
-    public void handle(String foo) {
-      result.add(foo.toUpperCase());
+                key = "test.succeed"))
+    public void handle(Message message) {
+      System.out.println("handle received " + message.getMessageProperties().getMessageId());
+      result.add(message.getMessageProperties().getMessageId());
     }
 
     @RabbitListener(
         bindings =
             @QueueBinding(
-                value = @Queue(value = "QueWithErrThenSucceed", autoDelete = "true"),
+                value = @Queue(value = "QueueSucceed2", autoDelete = "true"),
                 exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
-                key = "auto.rk"))
+                key = "test.succeed"))
+    public void handle2(Message message) {
+      System.out.println("handle2 received " + message.getMessageProperties().getMessageId());
+      result.add(message.getMessageProperties().getMessageId());
+    }
+
+    @RabbitListener(
+        bindings =
+            @QueueBinding(
+                value = @Queue(value = "QueueWithErrThenSucceed", autoDelete = "true"),
+                exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
+                key = "test.withErrThenSucceed"))
     public void handleWithErrorThenSucceed(Message message) {
       if (message.getMessageProperties().isRedelivered()) {
-        result.add(message.getBody().toString().toUpperCase());
+        result.add(message.getMessageProperties().getMessageId());
       } else {
         throw new IllegalStateException("message handling failed!");
       }
@@ -141,34 +162,34 @@ public class BeetleClientTest {
     @RabbitListener(
         bindings =
             @QueueBinding(
-                value = @Queue(value = "QueWithErr", autoDelete = "true"),
+                value = @Queue(value = "QueueWithErr", autoDelete = "true"),
                 exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
-                key = "auto.rk"))
+                key = "test.withErr"))
     public void handleWithError(Message message) {
-      result.add(message.getBody().toString().toUpperCase());
+      result.add(message.getMessageProperties().getMessageId());
       throw new IllegalStateException("message handling failed!");
     }
 
     @RabbitListener(
         bindings =
             @QueueBinding(
-                value = @Queue(value = "QueWithTimeout", autoDelete = "true"),
+                value = @Queue(value = "QueueWithTimeout", autoDelete = "true"),
                 exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
-                key = "auto.rk"))
+                key = "test.withTimeout"))
     public void handleWithTimeout(Message message) throws InterruptedException {
-      result.add(message.getBody().toString().toUpperCase());
+      result.add(message.getMessageProperties().getMessageId());
       Thread.sleep(1100);
     }
 
     @RabbitListener(
         bindings =
             @QueueBinding(
-                value = @Queue(value = "QueWithTimeoutThenSucceed", autoDelete = "true"),
+                value = @Queue(value = "QueueWithTimeoutThenSucceed", autoDelete = "true"),
                 exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
-                key = "auto.rk"))
+                key = "test.withTimeoutThenSucceed"))
     public void handleWithTimeoutThenSucceed(Message message) throws InterruptedException {
       if (message.getMessageProperties().isRedelivered()) {
-        result.add(message.getBody().toString().toUpperCase());
+        result.add(message.getMessageProperties().getMessageId());
       } else {
         Thread.sleep(2000);
       }

@@ -68,6 +68,12 @@
             <version>2.2.1.RELEASE</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>rabbitmq</artifactId>
+            <version>1.12.3</version>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 </project>

@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static com.xing.beetle.util.RetryExecutor.Backoff.linear;
 
@@ -20,6 +21,7 @@ class Failover {
   private final int timeout;
   private final int maxRetries;
   private final RetryExecutor retryExecutor;
+  private ReentrantLock lock = new ReentrantLock();
 
   Failover(int timeout, int maxRetries) {
     this.timeout = timeout;
@@ -30,6 +32,7 @@ class Failover {
   }
 
   public <T> T execute(ExceptionSupport.Supplier<? extends T> supplier) {
+    lock.lock();
     try {
       return retryExecutor.supply(supplier).toCompletableFuture().get(timeout, TimeUnit.SECONDS);
     } catch (TimeoutException e) {
@@ -37,6 +40,8 @@ class Failover {
       throw new DeduplicationException("Request timed out", e);
     } catch (Exception e) {
       throw new DeduplicationException("Request failed", e);
+    } finally {
+      lock.unlock();
     }
   }
 }
