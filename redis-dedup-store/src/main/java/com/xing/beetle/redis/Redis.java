@@ -2,6 +2,7 @@ package com.xing.beetle.redis;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
 
 import java.io.File;
@@ -82,7 +83,7 @@ public class Redis {
         if (client != null) {
           client.disconnect();
         }
-        client = new Jedis(activeMaster);
+        client = new Jedis(HostAndPort.parseString(activeMaster));
         client.connect();
       }
     }

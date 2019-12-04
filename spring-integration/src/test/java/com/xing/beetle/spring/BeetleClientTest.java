@@ -38,21 +38,28 @@ public class BeetleClientTest {
   @Autowired private MyService service;
 
   static {
+    GenericContainer redis = new GenericContainer("redis:3.0.2").withExposedPorts(6379);
+    redis.start();
+
     List<GenericContainer> rabbitBrokers =
         IntStream.range(0, 2)
             .mapToObj(i -> new GenericContainer("rabbitmq:3.5.3").withExposedPorts(5672))
             .collect(Collectors.toList());
     rabbitBrokers.forEach(GenericContainer::start);
 
-    List<String> addresses =
+    List<String> rabbitAddresses =
         rabbitBrokers.stream()
             .map(rabbit -> rabbit.getContainerIpAddress() + ":" + rabbit.getFirstMappedPort())
             .collect(Collectors.toList());
 
-    System.setProperty("spring.rabbitmq.addresses", String.join(",", addresses));
+    System.setProperty("spring.rabbitmq.addresses", String.join(",", rabbitAddresses));
+    System.setProperty(
+        "beetle.redis.redis_server",
+        String.join(
+            ":", new String[] {redis.getContainerIpAddress(), redis.getFirstMappedPort() + ""}));
   }
 
-  private void sendRedundantMessages(String routingKey, int redundancy, String messageId) {
+  private void sendRedundantMessage(String routingKey, int redundancy, String messageId) {
     MessageProperties props = new MessageProperties();
     props.setHeader(BeetleHeader.PUBLISH_REDUNDANCY, redundancy);
     props.setMessageId(messageId);
@@ -61,65 +68,62 @@ public class BeetleClientTest {
   }
 
   @Test
-  public void send2RedundantMessagesShouldReceive1() {
+  public void handleSuccessfully() {
     String messageId = UUID.randomUUID().toString();
-    sendRedundantMessages("test.succeed", 2, messageId);
-    System.out.println("1: " + messageId);
+    sendRedundantMessage("test.succeed", 2, messageId);
 
     String messageId2 = UUID.randomUUID().toString();
-    sendRedundantMessages("test.succeed", 2, messageId2);
-    System.out.println("2: " + messageId2);
+    sendRedundantMessage("test.succeed", 2, messageId2);
 
-    waitForMessageDelivery();
+    waitForMessageDelivery(20000);
 
     assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(1, result.stream().filter(s -> s.equals(messageId2)).count());
   }
 
-  public void waitForMessageDelivery() {
+  public void waitForMessageDelivery(int millis) {
     try {
-      Thread.sleep(10000);
+      Thread.sleep(millis);
     } catch (InterruptedException e) {
       e.printStackTrace();
     }
   }
 
   @Test
-  public void send2RedundantMessagesFirstThrowExceptionThenHandle() {
+  public void throwExceptionExceedExceptionLimit() throws InterruptedException {
     String messageId = UUID.randomUUID().toString();
-    sendRedundantMessages("test.withErrThenSucceed", 2, messageId);
-    waitForMessageDelivery();
-    assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
-  }
-
-  @Test
-  public void send2RedundantMessagesHandlerThrowsExceptionExceedsExceptionLimit()
-      throws InterruptedException {
-    String messageId = UUID.randomUUID().toString();
-    sendRedundantMessages("test.withErr", 2, messageId);
-    waitForMessageDelivery();
+    sendRedundantMessage("test.withErr", 2, messageId);
+    waitForMessageDelivery(4000);
     // exception limit is 3
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
   @Test
-  public void send2RedundantMessagesHandlerTimesOutExceedsExceptionLimit() {
+  public void timeoutExceedExceptionLimit() {
     String messageId = UUID.randomUUID().toString();
-    sendRedundantMessages("test.withTimeout", 2, messageId);
-    waitForMessageDelivery();
+    sendRedundantMessage("test.withTimeout", 2, messageId);
+    waitForMessageDelivery(6000);
     // exception limit is 3
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
   @Test
-  public void send2RedundantMessagesHandlerFirstTimesOutThenSucceeds() {
+  public void firstTimeoutThenSucceed() {
     String messageId = UUID.randomUUID().toString();
-    sendRedundantMessages("test.withTimeoutThenSucceed", 2, messageId);
-    waitForMessageDelivery();
+    sendRedundantMessage("test.withTimeoutThenSucceed", 2, messageId);
+    waitForMessageDelivery(4000);
     assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
-  private static CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
+  @Test
+  public void firstThrowExceptionThenHandle() {
+    String messageId = UUID.randomUUID().toString();
+    sendRedundantMessage("test.withErrThenSucceed", 2, messageId);
+    waitForMessageDelivery(4000);
+    assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
+  }
+
+  private static final CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
 
   public static class MyService {
 
@@ -130,18 +134,6 @@ public class BeetleClientTest {
                 exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
                 key = "test.succeed"))
     public void handle(Message message) {
-      System.out.println("handle received " + message.getMessageProperties().getMessageId());
-      result.add(message.getMessageProperties().getMessageId());
-    }
-
-    @RabbitListener(
-        bindings =
-            @QueueBinding(
-                value = @Queue(value = "QueueSucceed2", autoDelete = "true"),
-                exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
-                key = "test.succeed"))
-    public void handle2(Message message) {
-      System.out.println("handle2 received " + message.getMessageProperties().getMessageId());
       result.add(message.getMessageProperties().getMessageId());
     }
 
@@ -152,10 +144,12 @@ public class BeetleClientTest {
                 exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
                 key = "test.withErrThenSucceed"))
     public void handleWithErrorThenSucceed(Message message) {
-      if (message.getMessageProperties().isRedelivered()) {
-        result.add(message.getMessageProperties().getMessageId());
-      } else {
-        throw new IllegalStateException("message handling failed!");
+      synchronized (result) {
+        if (!result.contains(message.getMessageProperties().getMessageId())) {
+          result.add(message.getMessageProperties().getMessageId());
+          throw new IllegalStateException(
+              "message handling failed for " + message.getMessageProperties().getMessageId());
+        }
       }
     }
 
@@ -167,7 +161,8 @@ public class BeetleClientTest {
                 key = "test.withErr"))
     public void handleWithError(Message message) {
       result.add(message.getMessageProperties().getMessageId());
-      throw new IllegalStateException("message handling failed!");
+      throw new IllegalStateException(
+          "message handling failed for " + message.getMessageProperties().getMessageId());
     }
 
     @RabbitListener(
@@ -188,10 +183,11 @@ public class BeetleClientTest {
                 exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
                 key = "test.withTimeoutThenSucceed"))
     public void handleWithTimeoutThenSucceed(Message message) throws InterruptedException {
-      if (message.getMessageProperties().isRedelivered()) {
-        result.add(message.getMessageProperties().getMessageId());
-      } else {
-        Thread.sleep(2000);
+      synchronized (result) {
+        if (!result.contains(message.getMessageProperties().getMessageId())) {
+          result.add(message.getMessageProperties().getMessageId());
+          Thread.sleep(2000);
+        }
       }
     }
   }
