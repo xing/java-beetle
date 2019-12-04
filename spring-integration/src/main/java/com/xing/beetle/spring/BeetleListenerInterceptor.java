@@ -114,7 +114,7 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
         registry.getListenerContainers().stream()
             .filter(AbstractMessageListenerContainer.class::isInstance)
             .map(AbstractMessageListenerContainer.class::cast)
-            .flatMap(c -> Stream.of(c.getQueueNames()).map(q -> Map.entry(q, c)))
+            .flatMap(c -> Stream.of(c.getListenerId()).map(q -> Map.entry(q, c)))
             .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getAcknowledgeMode()));
   }
 

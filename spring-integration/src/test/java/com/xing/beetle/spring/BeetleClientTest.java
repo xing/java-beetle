@@ -6,7 +6,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
-import org.springframework.amqp.rabbit.annotation.*;
+import org.springframework.amqp.rabbit.annotation.EnableRabbit;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -64,18 +65,18 @@ public class BeetleClientTest {
     props.setHeader(BeetleHeader.PUBLISH_REDUNDANCY, redundancy);
     props.setMessageId(messageId);
     Message message = new Message("foo".getBytes(), props);
-    rabbitTemplate.send("auto.exch", routingKey, message);
+    rabbitTemplate.send("", routingKey, message);
   }
 
   @Test
   public void handleSuccessfully() {
     String messageId = UUID.randomUUID().toString();
-    sendRedundantMessage("test.succeed", 2, messageId);
+    sendRedundantMessage("QueueSucceed", 2, messageId);
 
     String messageId2 = UUID.randomUUID().toString();
-    sendRedundantMessage("test.succeed", 2, messageId2);
+    sendRedundantMessage("QueueSucceed", 2, messageId2);
 
-    waitForMessageDelivery(20000);
+    waitForMessageDelivery(2000);
 
     assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(1, result.stream().filter(s -> s.equals(messageId2)).count());
@@ -90,27 +91,29 @@ public class BeetleClientTest {
   }
 
   @Test
-  public void throwExceptionExceedExceptionLimit() throws InterruptedException {
+  public void throwExceptionExceedExceptionLimit() {
     String messageId = UUID.randomUUID().toString();
-    sendRedundantMessage("test.withErr", 2, messageId);
+    sendRedundantMessage("QueueWithError", 2, messageId);
     waitForMessageDelivery(4000);
     // exception limit is 3
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
+    assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
   }
 
   @Test
   public void timeoutExceedExceptionLimit() {
     String messageId = UUID.randomUUID().toString();
-    sendRedundantMessage("test.withTimeout", 2, messageId);
+    sendRedundantMessage("QueueWithTimeout", 2, messageId);
     waitForMessageDelivery(6000);
     // exception limit is 3
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
+    assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
   }
 
   @Test
   public void firstTimeoutThenSucceed() {
     String messageId = UUID.randomUUID().toString();
-    sendRedundantMessage("test.withTimeoutThenSucceed", 2, messageId);
+    sendRedundantMessage("QueueWithTimeoutThenSucceed", 2, messageId);
     waitForMessageDelivery(4000);
     assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
   }
@@ -118,31 +121,27 @@ public class BeetleClientTest {
   @Test
   public void firstThrowExceptionThenHandle() {
     String messageId = UUID.randomUUID().toString();
-    sendRedundantMessage("test.withErrThenSucceed", 2, messageId);
+    sendRedundantMessage("QueueWithErrorThenSucceed", 2, messageId);
     waitForMessageDelivery(4000);
     assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
   private static final CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
+  private static final CopyOnWriteArrayList<String> deadLettered = new CopyOnWriteArrayList<>();
 
   public static class MyService {
 
-    @RabbitListener(
-        bindings =
-            @QueueBinding(
-                value = @Queue(value = "QueueSucceed", autoDelete = "true"),
-                exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
-                key = "test.succeed"))
+    @RabbitListener(queues = "QueueSucceed")
     public void handle(Message message) {
       result.add(message.getMessageProperties().getMessageId());
     }
 
-    @RabbitListener(
-        bindings =
-            @QueueBinding(
-                value = @Queue(value = "QueueWithErrThenSucceed", autoDelete = "true"),
-                exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
-                key = "test.withErrThenSucceed"))
+    @RabbitListener(queues = "QueueSucceed")
+    public void handle2(Message message) {
+      result.add(message.getMessageProperties().getMessageId());
+    }
+
+    @RabbitListener(queues = "QueueWithErrorThenSucceed")
     public void handleWithErrorThenSucceed(Message message) {
       synchronized (result) {
         if (!result.contains(message.getMessageProperties().getMessageId())) {
@@ -153,35 +152,26 @@ public class BeetleClientTest {
       }
     }
 
-    @RabbitListener(
-        bindings =
-            @QueueBinding(
-                value = @Queue(value = "QueueWithErr", autoDelete = "true"),
-                exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
-                key = "test.withErr"))
+    @RabbitListener(queues = "QueueWithError")
     public void handleWithError(Message message) {
+      if (message.getMessageProperties().isRedelivered()) {
+        deadLettered.add(message.getMessageProperties().getMessageId());
+      }
       result.add(message.getMessageProperties().getMessageId());
       throw new IllegalStateException(
           "message handling failed for " + message.getMessageProperties().getMessageId());
     }
 
-    @RabbitListener(
-        bindings =
-            @QueueBinding(
-                value = @Queue(value = "QueueWithTimeout", autoDelete = "true"),
-                exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
-                key = "test.withTimeout"))
+    @RabbitListener(queues = "QueueWithTimeout")
     public void handleWithTimeout(Message message) throws InterruptedException {
+      if (message.getMessageProperties().isRedelivered()) {
+        deadLettered.add(message.getMessageProperties().getMessageId());
+      }
       result.add(message.getMessageProperties().getMessageId());
       Thread.sleep(1100);
     }
 
-    @RabbitListener(
-        bindings =
-            @QueueBinding(
-                value = @Queue(value = "QueueWithTimeoutThenSucceed", autoDelete = "true"),
-                exchange = @Exchange(value = "auto.exch", autoDelete = "true"),
-                key = "test.withTimeoutThenSucceed"))
+    @RabbitListener(queues = "QueueWithTimeoutThenSucceed")
     public void handleWithTimeoutThenSucceed(Message message) throws InterruptedException {
       synchronized (result) {
         if (!result.contains(message.getMessageProperties().getMessageId())) {
@@ -207,6 +197,31 @@ public class BeetleClientTest {
     @Bean
     public MyService myService() {
       return new MyService();
+    }
+
+    @Bean
+    public org.springframework.amqp.core.Queue queueWithTimeoutThenSucceed() {
+      return new org.springframework.amqp.core.Queue("QueueWithTimeoutThenSucceed");
+    }
+
+    @Bean
+    public org.springframework.amqp.core.Queue queueWithErrorThenSucceed() {
+      return new org.springframework.amqp.core.Queue("QueueWithErrorThenSucceed");
+    }
+
+    @Bean
+    public org.springframework.amqp.core.Queue queueSucceed() {
+      return new org.springframework.amqp.core.Queue("QueueSucceed");
+    }
+
+    @Bean
+    public org.springframework.amqp.core.Queue queueWithError() {
+      return new org.springframework.amqp.core.Queue("QueueWithError");
+    }
+
+    @Bean
+    public org.springframework.amqp.core.Queue queueWithTimeout() {
+      return new org.springframework.amqp.core.Queue("QueueWithTimeout");
     }
   }
 }
