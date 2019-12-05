@@ -18,7 +18,9 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.testcontainers.containers.GenericContainer;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
@@ -36,7 +38,7 @@ public class BeetleClientTest {
 
   @Autowired private RabbitTemplate rabbitTemplate;
 
-  @Autowired private MyService service;
+  @Autowired private MessageHandlingService service;
 
   static {
     GenericContainer redis = new GenericContainer("redis:3.0.2").withExposedPorts(6379);
@@ -94,7 +96,17 @@ public class BeetleClientTest {
   public void throwExceptionExceedExceptionLimit() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithError", 2, messageId);
-    waitForMessageDelivery(4000);
+    waitForMessageDelivery(16000);
+    // exception limit is 3
+    assertEquals(1, redelivered.stream().filter(s -> s.equals(messageId)).count());
+    assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
+  }
+
+  @Test
+  public void throwExceptionExceedExceptionLimitWithDeadLettering() {
+    String messageId = UUID.randomUUID().toString();
+    sendRedundantMessage("QueueWithErrorDL", 2, messageId);
+    waitForMessageDelivery(16000);
     // exception limit is 3
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
@@ -104,7 +116,17 @@ public class BeetleClientTest {
   public void timeoutExceedExceptionLimit() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithTimeout", 2, messageId);
-    waitForMessageDelivery(6000);
+    waitForMessageDelivery(16000);
+    // exception limit is 3
+    assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
+    assertEquals(1, redelivered.stream().filter(s -> s.equals(messageId)).count());
+  }
+
+  @Test
+  public void timeoutExceedExceptionLimitWithDeadLettering() {
+    String messageId = UUID.randomUUID().toString();
+    sendRedundantMessage("QueueWithTimeoutDL", 2, messageId);
+    waitForMessageDelivery(16000);
     // exception limit is 3
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
@@ -127,9 +149,10 @@ public class BeetleClientTest {
   }
 
   private static final CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
+  private static final CopyOnWriteArrayList<String> redelivered = new CopyOnWriteArrayList<>();
   private static final CopyOnWriteArrayList<String> deadLettered = new CopyOnWriteArrayList<>();
 
-  public static class MyService {
+  public static class MessageHandlingService {
 
     @RabbitListener(queues = "QueueSucceed")
     public void handle(Message message) {
@@ -155,6 +178,16 @@ public class BeetleClientTest {
     @RabbitListener(queues = "QueueWithError")
     public void handleWithError(Message message) {
       if (message.getMessageProperties().isRedelivered()) {
+        redelivered.add(message.getMessageProperties().getMessageId());
+      }
+      result.add(message.getMessageProperties().getMessageId());
+      throw new IllegalStateException(
+          "message handling failed for " + message.getMessageProperties().getMessageId());
+    }
+
+    @RabbitListener(queues = "QueueWithErrorDL")
+    public void handleWithErrorDeadLettered(Message message) {
+      if (message.getMessageProperties().getHeader("x-death") != null) {
         deadLettered.add(message.getMessageProperties().getMessageId());
       }
       result.add(message.getMessageProperties().getMessageId());
@@ -165,6 +198,15 @@ public class BeetleClientTest {
     @RabbitListener(queues = "QueueWithTimeout")
     public void handleWithTimeout(Message message) throws InterruptedException {
       if (message.getMessageProperties().isRedelivered()) {
+        redelivered.add(message.getMessageProperties().getMessageId());
+      }
+      result.add(message.getMessageProperties().getMessageId());
+      Thread.sleep(1100);
+    }
+
+    @RabbitListener(queues = "QueueWithTimeoutDL")
+    public void handleWithTimeoutDeadLettered(Message message) throws InterruptedException {
+      if (message.getMessageProperties().getHeader("x-death") != null) {
         deadLettered.add(message.getMessageProperties().getMessageId());
       }
       result.add(message.getMessageProperties().getMessageId());
@@ -195,8 +237,8 @@ public class BeetleClientTest {
   public static class EnableRabbitConfig {
 
     @Bean
-    public MyService myService() {
-      return new MyService();
+    public MessageHandlingService myService() {
+      return new MessageHandlingService();
     }
 
     @Bean
@@ -222,6 +264,22 @@ public class BeetleClientTest {
     @Bean
     public org.springframework.amqp.core.Queue queueWithTimeout() {
       return new org.springframework.amqp.core.Queue("QueueWithTimeout");
+    }
+
+    @Bean
+    public org.springframework.amqp.core.Queue queueWithErrorDeadLettered() {
+      Map<String, Object> arguments = new HashMap<>();
+      arguments.put(BeetleHeader.REQUEUE_AT_END_DELAY, "PT1S");
+      return new org.springframework.amqp.core.Queue(
+          "QueueWithErrorDL", true, true, true, arguments);
+    }
+
+    @Bean
+    public org.springframework.amqp.core.Queue queueWithTimeoutDeadLettered() {
+      Map<String, Object> arguments = new HashMap<>();
+      arguments.put(BeetleHeader.REQUEUE_AT_END_DELAY, "PT1S");
+      return new org.springframework.amqp.core.Queue(
+          "QueueWithTimeoutDL", true, true, true, arguments);
     }
   }
 }
