@@ -33,7 +33,7 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
 
   @Override
   public void releaseMutex(String key) {
-    store.remove(key(key, MUTEX));
+    store.delete(key(key, MUTEX));
   }
 
   @Override

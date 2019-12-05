@@ -23,7 +23,8 @@ public class RedisDedupStore implements KeyValueStore {
     this.failover =
         new Failover(
             this.properties.getRedisFailoverTimeout(),
-            this.properties.getRedisConfigurationMasterRetries());
+            this.properties.getRedisConfigurationMasterRetries(),
+            this.properties.getRedisConfigurationMasterRetryInterval());
   }
 
   @Override
@@ -63,7 +64,7 @@ public class RedisDedupStore implements KeyValueStore {
   }
 
   @Override
-  public void remove(String... keys) {
+  public void delete(String... keys) {
     this.failover.execute(() -> redis.getClient().del(keys));
   }
 

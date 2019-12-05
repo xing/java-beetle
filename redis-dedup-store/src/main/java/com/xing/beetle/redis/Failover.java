@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static com.xing.beetle.util.RetryExecutor.Backoff.linear;
+import static com.xing.beetle.util.RetryExecutor.Backoff.fixed;
 
 /**
  * Provides execution of any method with failover logic which uses retries and timeout. Retries are
@@ -23,12 +23,12 @@ class Failover {
   private final RetryExecutor retryExecutor;
   private ReentrantLock lock = new ReentrantLock();
 
-  Failover(int timeout, int maxRetries) {
+  Failover(int timeout, int maxRetries, int retryInterval) {
     this.timeout = timeout;
     this.maxRetries = maxRetries;
     RetryExecutor.Backoff backoff =
-        linear(1, TimeUnit.SECONDS).withUniformJitter(100).withMaxAttempts(this.maxRetries);
-    retryExecutor = RetryExecutor.SYNCHRONOUS.withBackoff(backoff);
+        fixed(retryInterval, TimeUnit.SECONDS).withMaxAttempts(this.maxRetries);
+    retryExecutor = RetryExecutor.DEFAULT.withBackoff(backoff);
   }
 
   public <T> T execute(ExceptionSupport.Supplier<? extends T> supplier) {
@@ -37,9 +37,9 @@ class Failover {
       return retryExecutor.supply(supplier).toCompletableFuture().get(timeout, TimeUnit.SECONDS);
     } catch (TimeoutException e) {
       logger.warn("Redis request timed out");
-      throw new DeduplicationException("Request timed out", e);
+      throw new DeduplicationException("Deduplication store request timed out", e);
     } catch (Exception e) {
-      throw new DeduplicationException("Request failed", e);
+      throw new DeduplicationException("Deduplication store request failed", e);
     } finally {
       lock.unlock();
     }

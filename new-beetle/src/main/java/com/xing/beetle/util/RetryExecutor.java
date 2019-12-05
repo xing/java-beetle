@@ -1,17 +1,14 @@
 package com.xing.beetle.util;
 
-import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.ThreadLocalRandom.current;
-
 import com.xing.beetle.util.ExceptionSupport.Supplier;
+
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.Predicate;
+
+import static java.util.Objects.requireNonNull;
+import static java.util.concurrent.ThreadLocalRandom.current;
 
 public class RetryExecutor {
 
@@ -35,7 +32,7 @@ public class RetryExecutor {
     long delayInMillis(int attempt, Throwable error);
 
     default Backoff withMaxAttempts(int max) {
-      return (att, err) -> att <= max ? delayInMillis(att, err) : -1;
+      return (att, err) -> att < max ? delayInMillis(att, err) : -1;
     }
 
     default Backoff withMaxDelay(long delay, TimeUnit unit) {
@@ -137,6 +134,8 @@ public class RetryExecutor {
           ForkJoinPool.commonPool(), Scheduler.IMMEDIATELY, Backoff.DEFAULT, Level.DEBUG);
   public static RetryExecutor SYNCHRONOUS =
       new RetryExecutor(Runnable::run, Scheduler.SYNCHRONOUS, Backoff.DEFAULT, Level.DEBUG);
+  public static RetryExecutor DEFAULT =
+      new RetryExecutor(Runnable::run, Scheduler.DEFAULT, Backoff.DEFAULT, Level.DEBUG);
 
   private final Executor executor;
   private final Scheduler scheduler;

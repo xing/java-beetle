@@ -37,7 +37,7 @@ public interface KeyValueStore {
 
   void put(String key, Value value);
 
-  void remove(String... keys);
+  void delete(String... keys);
 
   long increase(String key);
 }

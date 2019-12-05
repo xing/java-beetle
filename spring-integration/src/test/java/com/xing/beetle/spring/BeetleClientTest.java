@@ -96,7 +96,7 @@ public class BeetleClientTest {
   public void throwExceptionExceedExceptionLimit() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithError", 2, messageId);
-    waitForMessageDelivery(16000);
+    waitForMessageDelivery(6000);
     // exception limit is 3
     assertEquals(1, redelivered.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
@@ -106,17 +106,17 @@ public class BeetleClientTest {
   public void throwExceptionExceedExceptionLimitWithDeadLettering() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithErrorDL", 2, messageId);
-    waitForMessageDelivery(16000);
+    waitForMessageDelivery(12000);
     // exception limit is 3
-    assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
+    assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
   @Test
   public void timeoutExceedExceptionLimit() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithTimeout", 2, messageId);
-    waitForMessageDelivery(16000);
+    waitForMessageDelivery(6000);
     // exception limit is 3
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(1, redelivered.stream().filter(s -> s.equals(messageId)).count());
@@ -126,7 +126,7 @@ public class BeetleClientTest {
   public void timeoutExceedExceptionLimitWithDeadLettering() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithTimeoutDL", 2, messageId);
-    waitForMessageDelivery(16000);
+    waitForMessageDelivery(10000);
     // exception limit is 3
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
