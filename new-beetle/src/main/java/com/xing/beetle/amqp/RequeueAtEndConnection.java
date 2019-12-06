@@ -31,7 +31,7 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
     private final Channel delegate;
     private final SortedSet<Long> deadLetterDeliveryTags;
 
-    public RequeueAtEndChannel(Channel delegate) {
+    RequeueAtEndChannel(Channel delegate) {
       this.delegate = requireNonNull(delegate);
       this.deadLetterDeliveryTags = new ConcurrentSkipListSet<>();
     }

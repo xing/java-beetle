@@ -36,7 +36,7 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
       this(connection, -1);
     }
 
-    public MultiPlexingChannel(Connection connection, int channelNumber) throws IOException {
+    MultiPlexingChannel(Connection connection, int channelNumber) throws IOException {
       this.connection = requireNonNull(connection);
       this.consumerTags = new ConcurrentHashMap<>();
       this.tagMapping = new MsgDeliveryTagMapping();

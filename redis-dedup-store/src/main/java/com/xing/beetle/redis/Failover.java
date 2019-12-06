@@ -19,19 +19,17 @@ class Failover {
 
   private static Logger logger = LoggerFactory.getLogger(Failover.class);
   private final int timeout;
-  private final int maxRetries;
   private final RetryExecutor retryExecutor;
   private ReentrantLock lock = new ReentrantLock();
 
   Failover(int timeout, int maxRetries, int retryInterval) {
     this.timeout = timeout;
-    this.maxRetries = maxRetries;
     RetryExecutor.Backoff backoff =
-        fixed(retryInterval, TimeUnit.SECONDS).withMaxAttempts(this.maxRetries);
+        fixed(retryInterval, TimeUnit.SECONDS).withMaxAttempts(maxRetries);
     retryExecutor = RetryExecutor.DEFAULT.withBackoff(backoff);
   }
 
-  public <T> T execute(ExceptionSupport.Supplier<? extends T> supplier) {
+  <T> T execute(ExceptionSupport.Supplier<? extends T> supplier) {
     lock.lock();
     try {
       return retryExecutor.supply(supplier).toCompletableFuture().get(timeout, TimeUnit.SECONDS);

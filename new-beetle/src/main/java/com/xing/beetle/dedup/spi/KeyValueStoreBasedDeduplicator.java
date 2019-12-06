@@ -21,7 +21,7 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
     this.configuration = requireNonNull(configuration);
   }
 
-  String key(String messageId, String keySuffix) {
+  private String key(String messageId, String keySuffix) {
     return messageId + ":" + keySuffix;
   }
 

@@ -16,11 +16,11 @@ public class BeetleRedisProperties {
   private int redisConfigurationClientTimeout;
   private String redisConfigurationClientIds;
 
-  public String getRedisServer() {
+  String getRedisServer() {
     return redisServer;
   }
 
-  public void setRedisServer(String redisServer) {
+  void setRedisServer(String redisServer) {
     this.redisServer = redisServer;
   }
 
@@ -40,11 +40,11 @@ public class BeetleRedisProperties {
     this.redisDb = redisDb;
   }
 
-  public int getRedisFailoverTimeout() {
+  int getRedisFailoverTimeout() {
     return redisFailoverTimeout;
   }
 
-  public void setRedisFailoverTimeout(int redisFailoverTimeout) {
+  void setRedisFailoverTimeout(int redisFailoverTimeout) {
     this.redisFailoverTimeout = redisFailoverTimeout;
   }
 
@@ -56,19 +56,19 @@ public class BeetleRedisProperties {
     this.redisStatusKeyExpiryInterval = redisStatusKeyExpiryInterval;
   }
 
-  public int getRedisConfigurationMasterRetries() {
+  int getRedisConfigurationMasterRetries() {
     return redisConfigurationMasterRetries;
   }
 
-  public void setRedisConfigurationMasterRetries(int redisConfigurationMasterRetries) {
+  void setRedisConfigurationMasterRetries(int redisConfigurationMasterRetries) {
     this.redisConfigurationMasterRetries = redisConfigurationMasterRetries;
   }
 
-  public int getRedisConfigurationMasterRetryInterval() {
+  int getRedisConfigurationMasterRetryInterval() {
     return redisConfigurationMasterRetryInterval;
   }
 
-  public void setRedisConfigurationMasterRetryInterval(int redisConfigurationMasterRetryInterval) {
+  void setRedisConfigurationMasterRetryInterval(int redisConfigurationMasterRetryInterval) {
     this.redisConfigurationMasterRetryInterval = redisConfigurationMasterRetryInterval;
   }
 
@@ -88,11 +88,11 @@ public class BeetleRedisProperties {
     this.redisConfigurationClientIds = redisConfigurationClientIds;
   }
 
-  public String getSystemName() {
+  String getSystemName() {
     return systemName;
   }
 
-  public void setSystemName(String systemName) {
+  void setSystemName(String systemName) {
     this.systemName = systemName;
   }
 }

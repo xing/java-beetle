@@ -1,14 +1,8 @@
 package com.xing.beetle.amqp;
 
-import static java.util.Objects.requireNonNull;
-
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Consumer;
-import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.GetResponse;
-import com.rabbitmq.client.ShutdownSignalException;
+import com.rabbitmq.client.*;
 import com.xing.beetle.util.ExceptionSupport;
+
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
@@ -17,6 +11,8 @@ import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
+
+import static java.util.Objects.requireNonNull;
 
 public class MsgDeliveryTagMapping {
 
@@ -103,7 +99,7 @@ public class MsgDeliveryTagMapping {
   private final AtomicLong deliveryTagGenerator;
   private final ConcurrentNavigableMap<Long, Acknowledgement> deliveryTags;
 
-  public MsgDeliveryTagMapping() {
+  MsgDeliveryTagMapping() {
     this.deliveryTagGenerator = new AtomicLong();
     this.deliveryTags = new ConcurrentSkipListMap<>();
   }
@@ -117,7 +113,7 @@ public class MsgDeliveryTagMapping {
     acks.clear();
   }
 
-  public void basicNack(long deliveryTag, boolean multiple, boolean requeue) throws IOException {
+  void basicNack(long deliveryTag, boolean multiple, boolean requeue) throws IOException {
     Map<Long, Acknowledgement> acks =
         multiple
             ? deliveryTags.headMap(deliveryTag, true).descendingMap()
@@ -126,13 +122,13 @@ public class MsgDeliveryTagMapping {
     acks.clear();
   }
 
-  public void basicReject(long deliveryTag, boolean requeue) throws IOException {
+  void basicReject(long deliveryTag, boolean requeue) throws IOException {
     Map<Long, Acknowledgement> acks = deliveryTags.subMap(deliveryTag, deliveryTag + 1);
     doWithEachChannelOnlyOnce(acks, Mode.REJECT, false, requeue);
     acks.clear();
   }
 
-  public Consumer createConsumerDecorator(Consumer delegate, Channel channel) {
+  Consumer createConsumerDecorator(Consumer delegate, Channel channel) {
     return new MappingConsumer(delegate, channel);
   }
 
@@ -150,7 +146,7 @@ public class MsgDeliveryTagMapping {
             });
   }
 
-  public long mapDelivery(Channel channel, long deliveryTag) {
+  private long mapDelivery(Channel channel, long deliveryTag) {
     long tag = deliveryTagGenerator.incrementAndGet();
     deliveryTags.put(
         tag,
@@ -159,13 +155,13 @@ public class MsgDeliveryTagMapping {
     return tag;
   }
 
-  public Envelope mapEnvelope(Channel channel, Envelope envelope) {
+  Envelope mapEnvelope(Channel channel, Envelope envelope) {
     long tag = mapDelivery(channel, envelope.getDeliveryTag());
     return new Envelope(
         tag, envelope.isRedeliver(), envelope.getExchange(), envelope.getRoutingKey());
   }
 
-  public GetResponse mapResponse(Channel channel, GetResponse response) {
+  GetResponse mapResponse(Channel channel, GetResponse response) {
     if (response != null) {
       Envelope envelope = mapEnvelope(channel, response.getEnvelope());
       return new GetResponse(

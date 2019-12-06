@@ -33,7 +33,7 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
     private final boolean rejectAndRequeue;
     private static final int FLAG_REDUNDANT = 1;
 
-    public SpringMessageAdaptor(Channel channel, boolean needToAck, boolean rejectAndRequeue) {
+    SpringMessageAdaptor(Channel channel, boolean needToAck, boolean rejectAndRequeue) {
       this.channel = requireNonNull(channel);
       this.needToAck = needToAck;
       this.rejectAndRequeue = rejectAndRequeue;

@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.exceptions.JedisConnectionException;
 
 import java.io.File;
 import java.io.IOException;
@@ -76,15 +77,23 @@ public class Redis {
     if (activeMaster.equals(serverAddress)) {
       logger.debug("Master unchanged");
     } else {
-      activeMaster = serverAddress;
-      if (activeMaster.isEmpty() && client != null) {
-        client.disconnect();
-      } else {
-        if (client != null) {
+      try {
+        HostAndPort hostAndPort = HostAndPort.parseString(serverAddress);
+        activeMaster = serverAddress;
+        if (activeMaster.isEmpty() && client != null) {
           client.disconnect();
+        } else {
+          if (client != null) {
+            client.disconnect();
+          }
+          client = new Jedis(hostAndPort);
+          client.connect();
         }
-        client = new Jedis(HostAndPort.parseString(activeMaster));
-        client.connect();
+      } catch (JedisConnectionException e) {
+        throw new DeduplicationException(
+            "Cannot connect to redis at given address: " + serverAddress, e);
+      } catch (Exception e) {
+        throw new DeduplicationException("Invalid redis address", e);
       }
     }
   }

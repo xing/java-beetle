@@ -14,17 +14,15 @@ public class RedisDedupStore implements KeyValueStore {
   private static final Long MUTEX_ACQUIRED = 1L;
 
   private final Redis redis;
-  private final BeetleRedisProperties properties;
   private final Failover failover;
 
   RedisDedupStore(BeetleRedisProperties properties) {
-    this.properties = properties;
     this.redis = new Redis(properties);
     this.failover =
         new Failover(
-            this.properties.getRedisFailoverTimeout(),
-            this.properties.getRedisConfigurationMasterRetries(),
-            this.properties.getRedisConfigurationMasterRetryInterval());
+            properties.getRedisFailoverTimeout(),
+            properties.getRedisConfigurationMasterRetries(),
+            properties.getRedisConfigurationMasterRetryInterval());
   }
 
   @Override

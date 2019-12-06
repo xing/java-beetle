@@ -25,7 +25,7 @@ public class BeetleChannel implements DefaultChannel.Decorator {
   private final RingStream<Channel> delegates;
   private final MsgDeliveryTagMapping tagMapping;
 
-  public BeetleChannel(List<Channel> channels) {
+  BeetleChannel(List<Channel> channels) {
     this.delegates = new RingStream<>(channels.toArray(new Channel[channels.size()]));
     this.tagMapping = new MsgDeliveryTagMapping();
   }

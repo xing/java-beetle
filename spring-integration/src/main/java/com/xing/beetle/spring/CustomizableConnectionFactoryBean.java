@@ -6,9 +6,9 @@ import java.lang.reflect.Field;
 import java.util.Objects;
 import org.springframework.amqp.rabbit.connection.RabbitConnectionFactoryBean;
 
-public class CustomizableConnectionFactoryBean extends RabbitConnectionFactoryBean {
+class CustomizableConnectionFactoryBean extends RabbitConnectionFactoryBean {
 
-  public CustomizableConnectionFactoryBean(ConnectionFactory factory) {
+  CustomizableConnectionFactoryBean(ConnectionFactory factory) {
     try {
       Field connectionFactory =
           RabbitConnectionFactoryBean.class.getDeclaredField("connectionFactory");

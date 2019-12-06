@@ -10,7 +10,7 @@ public class DeduplicationConfiguration {
   private int handlerExecutionAttemptsDelay = 10;
   private int exceptionLimit = 0;
 
-  public int getHandlerTimeout() {
+  int getHandlerTimeout() {
     return handlerTimeout;
   }
 
@@ -18,7 +18,7 @@ public class DeduplicationConfiguration {
     this.handlerTimeout = handlerTimeout;
   }
 
-  public int getMaxHandlerExecutionAttempts() {
+  int getMaxHandlerExecutionAttempts() {
     if (maxHandlerExecutionAttempts <= exceptionLimit) {
       return exceptionLimit + 1;
     }
@@ -29,7 +29,7 @@ public class DeduplicationConfiguration {
     this.maxHandlerExecutionAttempts = maxHandlerExecutionAttempts;
   }
 
-  public int getHandlerExecutionAttemptsDelay() {
+  int getHandlerExecutionAttemptsDelay() {
     return handlerExecutionAttemptsDelay;
   }
 
@@ -37,7 +37,7 @@ public class DeduplicationConfiguration {
     this.handlerExecutionAttemptsDelay = handlerExecutionAttemptsDelay;
   }
 
-  public int getExceptionLimit() {
+  int getExceptionLimit() {
     return exceptionLimit;
   }
 
@@ -45,11 +45,11 @@ public class DeduplicationConfiguration {
     this.exceptionLimit = exceptionLimit;
   }
 
-  public int getMutexExpiration() {
+  int getMutexExpiration() {
     return 2 * handlerTimeout;
   }
 
-  public int getMaxhandlerExecutionAttemptsDelay() {
+  int getMaxhandlerExecutionAttemptsDelay() {
     return 2 * handlerExecutionAttemptsDelay;
   }
 }
