@@ -1,5 +1,6 @@
 package com.xing.beetle.redis;
 
+import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -12,7 +13,8 @@ public class RedisDedupStoreAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  KeyValueStore beetleDedupStore(BeetleRedisProperties properties) {
-    return new RedisDedupStore(properties);
+  KeyValueStore beetleDedupStore(
+      BeetleRedisProperties properties, BeetleAmqpConfiguration beetleAmqpConfiguration) {
+    return new RedisDedupStore(properties, beetleAmqpConfiguration);
   }
 }

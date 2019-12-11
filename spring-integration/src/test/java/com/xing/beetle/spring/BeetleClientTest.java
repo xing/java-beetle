@@ -1,9 +1,13 @@
 package com.xing.beetle.spring;
 
 import com.xing.beetle.BeetleHeader;
+import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.redis.RedisDedupStoreAutoConfiguration;
 import org.junit.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
@@ -14,6 +18,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.testcontainers.containers.GenericContainer;
@@ -27,18 +32,22 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.when;
 
 /**
  * Full blown beetle client test with spring integration (RabbitListener) and deduplication (with
  * Redis).
  */
 @RunWith(SpringJUnit4ClassRunner.class)
+@ExtendWith(MockitoExtension.class)
 @SpringBootTest
 public class BeetleClientTest {
 
   @Autowired private RabbitTemplate rabbitTemplate;
-
   @Autowired private MessageHandlingService service;
+
+  private static String beetleServers;
+  private static String redisServer;
 
   static {
     GenericContainer redis = new GenericContainer("redis:3.0.2").withExposedPorts(6379);
@@ -55,11 +64,10 @@ public class BeetleClientTest {
             .map(rabbit -> rabbit.getContainerIpAddress() + ":" + rabbit.getFirstMappedPort())
             .collect(Collectors.toList());
 
-    System.setProperty("spring.rabbitmq.addresses", String.join(",", rabbitAddresses));
-    System.setProperty(
-        "beetle.redis.redis_server",
+    beetleServers = String.join(",", rabbitAddresses);
+    redisServer =
         String.join(
-            ":", new String[] {redis.getContainerIpAddress(), redis.getFirstMappedPort() + ""}));
+            ":", new String[] {redis.getContainerIpAddress(), redis.getFirstMappedPort() + ""});
   }
 
   private void sendRedundantMessage(String routingKey, int redundancy, String messageId) {
@@ -96,17 +104,17 @@ public class BeetleClientTest {
   public void throwExceptionExceedExceptionLimit() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithError", 2, messageId);
-    waitForMessageDelivery(6000);
+    waitForMessageDelivery(4000);
     // exception limit is 3
     assertEquals(1, redelivered.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
   @Test
-  public void throwExceptionExceedExceptionLimitWithDeadLettering() {
+  public void throwExceptionExceedExceptionLimitWithDeadLettering() throws InterruptedException {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithErrorDL", 2, messageId);
-    waitForMessageDelivery(12000);
+    waitForMessageDelivery(2000);
     // exception limit is 3
     assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
@@ -127,7 +135,7 @@ public class BeetleClientTest {
   public void timeoutExceedExceptionLimitWithDeadLettering() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithTimeoutDL", 2, messageId);
-    waitForMessageDelivery(10000);
+    waitForMessageDelivery(6000);
     // exception limit is 3
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
@@ -145,7 +153,7 @@ public class BeetleClientTest {
   public void firstThrowExceptionThenHandle() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithErrorThenSucceed", 2, messageId);
-    waitForMessageDelivery(4000);
+    waitForMessageDelivery(2000);
     assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
@@ -272,7 +280,7 @@ public class BeetleClientTest {
       Map<String, Object> arguments = new HashMap<>();
       arguments.put(BeetleHeader.REQUEUE_AT_END_DELAY, "PT1S");
       return new org.springframework.amqp.core.Queue(
-          "QueueWithErrorDL", true, true, true, arguments);
+          "QueueWithErrorDL", true, true, false, arguments);
     }
 
     @Bean
@@ -280,7 +288,25 @@ public class BeetleClientTest {
       Map<String, Object> arguments = new HashMap<>();
       arguments.put(BeetleHeader.REQUEUE_AT_END_DELAY, "PT1S");
       return new org.springframework.amqp.core.Queue(
-          "QueueWithTimeoutDL", true, true, true, arguments);
+          "QueueWithTimeoutDL", true, true, false, arguments);
+    }
+
+    @Bean
+    @Primary
+    public BeetleAmqpConfiguration beetleAmqpConfiguration() {
+      BeetleAmqpConfiguration beetleAmqpConfiguration = Mockito.mock(BeetleAmqpConfiguration.class);
+
+      when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
+      when(beetleAmqpConfiguration.getBeetleServers()).thenReturn(beetleServers);
+      when(beetleAmqpConfiguration.getHandlerTimeout()).thenReturn(1L);
+      when(beetleAmqpConfiguration.getMutexExpiration()).thenReturn(2);
+      when(beetleAmqpConfiguration.getExceptionLimit()).thenReturn(3L);
+      when(beetleAmqpConfiguration.getMaxHandlerExecutionAttempts()).thenReturn(3L);
+      when(beetleAmqpConfiguration.getBeetleRedisStatusKeyExpiryInterval()).thenReturn(0);
+      when(beetleAmqpConfiguration.getHandlerExecutionAttemptsDelay()).thenReturn(1);
+      when(beetleAmqpConfiguration.getMaxhandlerExecutionAttemptsDelay()).thenReturn(2);
+
+      return beetleAmqpConfiguration;
     }
   }
 }

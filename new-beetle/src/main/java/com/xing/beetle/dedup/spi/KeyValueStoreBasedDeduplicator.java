@@ -1,6 +1,10 @@
 package com.xing.beetle.dedup.spi;
 
+import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore.Value;
+
+import java.util.Arrays;
+import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 
@@ -8,17 +12,12 @@ import static java.util.Objects.requireNonNull;
 public class KeyValueStoreBasedDeduplicator implements Deduplicator {
 
   private KeyValueStore store;
-  private DeduplicationConfiguration configuration;
-
-  public KeyValueStoreBasedDeduplicator(KeyValueStore store) {
-    this.store = requireNonNull(store);
-    this.configuration = new DeduplicationConfiguration();
-  }
+  private BeetleAmqpConfiguration beetleAmqpConfig;
 
   public KeyValueStoreBasedDeduplicator(
-      KeyValueStore store, DeduplicationConfiguration configuration) {
+      KeyValueStore store, BeetleAmqpConfiguration beetleAmqpConfig) {
     this.store = requireNonNull(store);
-    this.configuration = requireNonNull(configuration);
+    this.beetleAmqpConfig = requireNonNull(beetleAmqpConfig);
   }
 
   private String key(String messageId, String keySuffix) {
@@ -26,64 +25,75 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
   }
 
   @Override
-  public boolean tryAcquireMutex(String key, int secondsToExpire) {
+  public boolean tryAcquireMutex(String messageId, int secondsToExpire) {
     return store.putIfAbsentTtl(
-        key(key, MUTEX), new Value(System.currentTimeMillis()), secondsToExpire);
+        key(messageId, MUTEX), new Value(System.currentTimeMillis()), secondsToExpire);
   }
 
   @Override
-  public void releaseMutex(String key) {
-    store.delete(key(key, MUTEX));
+  public void releaseMutex(String messageId) {
+    store.delete(key(messageId, MUTEX));
   }
 
   @Override
-  public void complete(String key) {
-    store.put(key(key, STATUS), new Value("completed"));
+  public void complete(String messageId) {
+    store.put(key(messageId, STATUS), new Value("completed"));
   }
 
   @Override
-  public boolean completed(String key) {
-    Value status = store.putIfAbsent(key(key, STATUS), new Value("incomplete"));
-    return status.getAsString().equals("completed");
+  public boolean completed(String messageId) {
+    if (store.putIfAbsentTtl(
+        key(messageId, STATUS),
+        new Value("incomplete"),
+        beetleAmqpConfig.getBeetleRedisStatusKeyExpiryInterval())) {
+      return false;
+    } else {
+      return store
+          .get(key(messageId, STATUS))
+          .map(value -> value.getAsString().equals("completed"))
+          .orElse(false);
+    }
   }
 
   @Override
-  public boolean delayed(String key) {
+  public boolean delayed(String messageId) {
     return store
-        .get(key(key, DELAY))
+        .get(key(messageId, DELAY))
         .map(delay -> delay.getAsNumber() > 0 && delay.getAsNumber() > System.currentTimeMillis())
         .orElse(false);
   }
 
   @Override
-  public void setDelay(String key, long timestamp) {
-    store.put(key(key, DELAY), new Value(timestamp));
+  public void setDelay(String messageId, long timestamp) {
+    store.put(key(messageId, DELAY), new Value(timestamp));
   }
 
   @Override
-  public long incrementAttempts(String key) {
-    return store.increase(key(key, ATTEMPTS));
+  public long incrementAttempts(String messageId) {
+    return store.increase(key(messageId, ATTEMPTS));
   }
 
   @Override
-  public long incrementExceptions(String key) {
-    return store.increase(key(key, EXCEPTIONS));
+  public long incrementExceptions(String messageId) {
+    return store.increase(key(messageId, EXCEPTIONS));
   }
 
   @Override
-  public long incrementAckCount(String key) {
-    return store.increase(key(key, ACK_COUNT));
+  public long incrementAckCount(String messageId) {
+    return store.increase(key(messageId, ACK_COUNT));
   }
 
   @Override
-  public void deleteKeys(String key) {
-    for (String keySuffix : keySuffixes) {
-      store.delete(key(key, keySuffix));
-    }
+  public void deleteKeys(String messageId) {
+    Stream<String> suffixStream =
+        (beetleAmqpConfig.getBeetleRedisStatusKeyExpiryInterval() > 0)
+            ? Arrays.stream(keySuffixes).filter(s -> !s.equals(STATUS))
+            : Arrays.stream(keySuffixes);
+    store.delete(suffixStream.map(s -> key(messageId, s)).toArray(String[]::new));
   }
 
   @Override
-  public DeduplicationConfiguration getConfiguration() {
-    return this.configuration;
+  public BeetleAmqpConfiguration getBeetleAmqpConfiguration() {
+    return this.beetleAmqpConfig;
   }
 }

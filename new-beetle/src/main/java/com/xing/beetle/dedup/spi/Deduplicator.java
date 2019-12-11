@@ -1,5 +1,6 @@
 package com.xing.beetle.dedup.spi;
 
+import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.util.ExceptionSupport;
@@ -28,27 +29,27 @@ public interface Deduplicator {
   String[] keySuffixes =
       new String[] {MUTEX, STATUS, ACK_COUNT, TIMEOUT, DELAY, ATTEMPTS, EXCEPTIONS, EXPIRES};
 
-  boolean tryAcquireMutex(String key, int secondsToExpire);
+  boolean tryAcquireMutex(String messageId, int secondsToExpire);
 
-  void releaseMutex(String key);
+  void releaseMutex(String messageId);
 
-  void complete(String key);
+  void complete(String messageId);
 
-  boolean completed(String key);
+  boolean completed(String messageId);
 
-  boolean delayed(String key);
+  boolean delayed(String messageId);
 
-  void setDelay(String key, long timestamp);
+  void setDelay(String messageId, long timestamp);
 
-  long incrementAttempts(String key);
+  long incrementAttempts(String messageId);
 
-  long incrementExceptions(String key);
+  long incrementExceptions(String messageId);
 
-  long incrementAckCount(String key);
+  long incrementAckCount(String messageId);
 
-  void deleteKeys(String key);
+  void deleteKeys(String messageId);
 
-  DeduplicationConfiguration getConfiguration();
+  BeetleAmqpConfiguration getBeetleAmqpConfiguration();
 
   default <M> void runHandler(
       M message, MessageListener<M> listener, MessageAdapter<M> adapter, Duration timeout) {
@@ -85,7 +86,7 @@ public interface Deduplicator {
           listener,
           String.format("Beetle: ignored completed message %s", adapter.keyOf(message)));
     } else {
-      if (tryAcquireMutex(key, getConfiguration().getMutexExpiration())) {
+      if (tryAcquireMutex(key, getBeetleAmqpConfiguration().getMutexExpiration())) {
         if (completed(key)) {
           dropMessage(
               message,
@@ -96,26 +97,26 @@ public interface Deduplicator {
           adapter.requeue(message);
         } else {
           long attempt = incrementAttempts(key);
-          if (attempt >= getConfiguration().getMaxHandlerExecutionAttempts()) {
+          if (attempt > getBeetleAmqpConfiguration().getMaxHandlerExecutionAttempts()) {
             failureNotification(
                 message,
                 adapter,
                 listener,
-                key,
                 String.format(
                     "Beetle: reached the handler execution attempts limit: %d on %s",
-                    getConfiguration().getMaxHandlerExecutionAttempts(), adapter.keyOf(message)));
+                    getBeetleAmqpConfiguration().getMaxHandlerExecutionAttempts(),
+                    adapter.keyOf(message)));
           } else {
             try {
               runHandler(
                   message,
                   listener,
                   adapter,
-                  Duration.ofSeconds(getConfiguration().getHandlerTimeout()));
+                  Duration.ofSeconds(getBeetleAmqpConfiguration().getHandlerTimeout()));
               complete(key);
               cleanUp(message, adapter);
             } catch (Throwable throwable) {
-              handleException(message, adapter, listener, key, attempt, throwable);
+              handleException(message, adapter, listener, attempt, throwable);
             } finally {
               releaseMutex(key);
             }
@@ -143,21 +144,19 @@ public interface Deduplicator {
       M message,
       MessageAdapter<M> adapter,
       MessageListener<M> listener,
-      String key,
       long attempt,
       Throwable throwable) {
-    long exceptions = incrementExceptions(key);
-    if (exceptions >= getConfiguration().getExceptionLimit()) {
+    long exceptions = incrementExceptions(adapter.keyOf(message));
+    if (exceptions >= getBeetleAmqpConfiguration().getExceptionLimit()) {
       failureNotification(
           message,
           adapter,
           listener,
-          key,
           String.format(
               "Beetle: reached the handler exceptions limit: %d on %s",
-              getConfiguration().getExceptionLimit(), adapter.keyOf(message)));
+              getBeetleAmqpConfiguration().getExceptionLimit(), adapter.keyOf(message)));
     } else {
-      setDelay(key, System.currentTimeMillis() + nextDelay(attempt));
+      setDelay(adapter.keyOf(message), System.currentTimeMillis() + nextDelay(attempt));
       adapter.requeue(message);
       // let Spring know about the exception so that it rejects the message
       ExceptionSupport.sneakyThrow(throwable);
@@ -165,12 +164,8 @@ public interface Deduplicator {
   }
 
   private <M> void failureNotification(
-      M message,
-      MessageAdapter<M> adapter,
-      MessageListener<M> listener,
-      String key,
-      String reason) {
-    complete(key);
+      M message, MessageAdapter<M> adapter, MessageListener<M> listener, String reason) {
+    complete(adapter.keyOf(message));
     adapter.drop(message);
     listener.onFailure(message, reason);
     cleanUp(message, adapter);
@@ -181,7 +176,8 @@ public interface Deduplicator {
    * the last message with this message id.
    */
   private <M> void cleanUp(M message, MessageAdapter<M> adapter) {
-    if (getConfiguration().getMaxHandlerExecutionAttempts() > 1 || adapter.isRedundant(message)) {
+    if (getBeetleAmqpConfiguration().getMaxHandlerExecutionAttempts() > 1
+        || adapter.isRedundant(message)) {
       if (!adapter.isRedundant(message) || incrementAckCount(adapter.keyOf(message)) >= 2) {
         deleteKeys(adapter.keyOf(message));
       }
@@ -191,7 +187,7 @@ public interface Deduplicator {
   private int nextDelay(long attempt) {
     return (int)
         Math.min(
-            getConfiguration().getMaxhandlerExecutionAttemptsDelay(),
-            getConfiguration().getHandlerExecutionAttemptsDelay() * Math.pow(2, attempt));
+            getBeetleAmqpConfiguration().getMaxhandlerExecutionAttemptsDelay(),
+            getBeetleAmqpConfiguration().getHandlerExecutionAttemptsDelay() * Math.pow(2, attempt));
   }
 }

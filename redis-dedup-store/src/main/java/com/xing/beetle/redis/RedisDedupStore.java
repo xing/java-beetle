@@ -1,6 +1,8 @@
 package com.xing.beetle.redis;
 
+import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore;
+import redis.clients.jedis.params.SetParams;
 
 import java.util.Optional;
 
@@ -11,13 +13,12 @@ import java.util.Optional;
  */
 public class RedisDedupStore implements KeyValueStore {
 
-  private static final Long MUTEX_ACQUIRED = 1L;
-
   private final Redis redis;
   private final Failover failover;
 
-  RedisDedupStore(BeetleRedisProperties properties) {
-    this.redis = new Redis(properties);
+  RedisDedupStore(
+      BeetleRedisProperties properties, BeetleAmqpConfiguration beetleAmqpConfiguration) {
+    this.redis = new Redis(beetleAmqpConfiguration);
     this.failover =
         new Failover(
             properties.getRedisFailoverTimeout(),
@@ -48,12 +49,23 @@ public class RedisDedupStore implements KeyValueStore {
 
   @Override
   public boolean putIfAbsentTtl(String key, Value value, int secondsToExpire) {
-    Long result = this.failover.execute(() -> redis.getClient().setnx(key, value.getAsString()));
-    if (MUTEX_ACQUIRED.equals(result)) {
-      failover.execute(() -> redis.getClient().expire(key, secondsToExpire));
-      return true;
+    String result = "";
+    if (secondsToExpire > 0) {
+      result =
+          this.failover.execute(
+              () ->
+                  redis
+                      .getClient()
+                      .set(
+                          key,
+                          value.getAsString(),
+                          SetParams.setParams().nx().ex(secondsToExpire)));
+    } else {
+      result =
+          this.failover.execute(
+              () -> redis.getClient().set(key, value.getAsString(), SetParams.setParams().nx()));
     }
-    return false;
+    return result != null && result.equals("OK");
   }
 
   @Override

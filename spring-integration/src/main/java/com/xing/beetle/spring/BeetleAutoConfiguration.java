@@ -1,8 +1,8 @@
 package com.xing.beetle.spring;
 
+import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.amqp.BeetleConnectionFactory;
 import com.xing.beetle.dedup.spi.Deduplicator;
-import com.xing.beetle.dedup.spi.DeduplicationConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore;
 import com.xing.beetle.dedup.spi.KeyValueStoreBasedDeduplicator;
 import com.xing.beetle.spring.BeetleAutoConfiguration.BeetleConnectionFactoryCreator;
@@ -44,11 +44,13 @@ class BeetleAutoConfiguration {
       return factory;
     }
 
-    private RabbitConnectionFactoryBean getRabbitConnectionFactoryBean(RabbitProperties properties)
+    private RabbitConnectionFactoryBean getRabbitConnectionFactoryBean(
+        RabbitProperties properties, BeetleAmqpConfiguration beetleAmqpConfiguration)
         throws Exception {
       PropertyMapper map = PropertyMapper.get();
       RabbitConnectionFactoryBean factory =
           new CustomizableConnectionFactoryBean(beetleConnectionFactory());
+      properties.setAddresses(beetleAmqpConfiguration.getBeetleServers());
       map.from(properties::determineHost).whenNonNull().to(factory::setHost);
       map.from(properties::determinePort).to(factory::setPort);
       map.from(properties::determineUsername).whenNonNull().to(factory::setUsername);
@@ -82,11 +84,14 @@ class BeetleAutoConfiguration {
 
     @Bean
     ConnectionFactory rabbitConnectionFactory(
-        RabbitProperties properties, ObjectProvider<ConnectionNameStrategy> connectionNameStrategy)
+        RabbitProperties properties,
+        ObjectProvider<ConnectionNameStrategy> connectionNameStrategy,
+        BeetleAmqpConfiguration beetleAmqpConfiguration)
         throws Exception {
       PropertyMapper map = PropertyMapper.get();
       CachingConnectionFactory factory =
-          new CachingConnectionFactory(getRabbitConnectionFactoryBean(properties).getObject());
+          new CachingConnectionFactory(
+              getRabbitConnectionFactoryBean(properties, beetleAmqpConfiguration).getObject());
       map.from(properties::determineAddresses).to(factory::setAddresses);
       map.from(properties::isPublisherReturns).to(factory::setPublisherReturns);
       map.from(properties::getPublisherConfirmType)
@@ -150,9 +155,8 @@ class BeetleAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  Deduplicator deduplicator(
-      KeyValueStore store, DeduplicationConfiguration deduplicationConfiguration) {
-    return new KeyValueStoreBasedDeduplicator(store, deduplicationConfiguration);
+  Deduplicator deduplicator(KeyValueStore store, BeetleAmqpConfiguration beetleAmqpConfiguration) {
+    return new KeyValueStoreBasedDeduplicator(store, beetleAmqpConfiguration);
   }
 
   @Bean

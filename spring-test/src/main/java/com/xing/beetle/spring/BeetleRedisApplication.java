@@ -33,7 +33,7 @@ public class BeetleRedisApplication {
     AmqpTemplate template = context.getBean(RabbitTemplate.class);
     Object message = "hello world";
     template.convertAndSend(QUEUE, message, redundant(2));
-    Thread.sleep(100000);
+    Thread.sleep(10000);
     context.close();
   }
 
@@ -46,9 +46,9 @@ public class BeetleRedisApplication {
               autoDelete = "true",
               arguments = @Argument(name = BeetleHeader.REQUEUE_AT_END_DELAY, value = "PT1S")))
   public void onMessage(Message message, Channel channel) throws Exception {
-    if (!message.getMessageProperties().isRedelivered()) {
-      Thread.sleep(30000);
-    }
+    //    if (!message.getMessageProperties().isRedelivered()) {
+    //      Thread.sleep(30000);
+    //    }
     System.out.println(message);
   }
 }

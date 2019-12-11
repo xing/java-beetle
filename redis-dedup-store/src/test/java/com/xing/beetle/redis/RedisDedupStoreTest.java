@@ -1,12 +1,16 @@
 package com.xing.beetle.redis;
 
+import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.testcontainers.containers.GenericContainer;
 
 import java.io.IOException;
@@ -16,8 +20,10 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.when;
 
 /** Integration test for RedisDedupStore with a Redis container. */
+@ExtendWith(MockitoExtension.class)
 class RedisDedupStoreTest {
 
   private static String redisServer = "";
@@ -26,6 +32,8 @@ class RedisDedupStoreTest {
     GenericContainer redis = startRedisContainer();
     redisServer = getRedisAddress(redis);
   }
+
+  @Mock BeetleAmqpConfiguration beetleAmqpConfiguration;
 
   @NotNull
   private static String getRedisAddress(GenericContainer redisContainer) {
@@ -47,8 +55,8 @@ class RedisDedupStoreTest {
   void testBasicOperations() {
     BeetleRedisProperties properties = new BeetleRedisProperties();
     properties.setRedisConfigurationMasterRetries(1);
-    properties.setRedisServer(redisServer);
-    RedisDedupStore store = new RedisDedupStore(properties);
+    when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
+    RedisDedupStore store = new RedisDedupStore(properties, beetleAmqpConfiguration);
     assertEquals("0", store.putIfAbsent("key", new KeyValueStore.Value("0")).getAsString());
     assertEquals(1, store.increase("key"));
     assertEquals("1", store.get("key").get().getAsString());
@@ -61,8 +69,8 @@ class RedisDedupStoreTest {
   void testMultiKeyDeletion() {
     BeetleRedisProperties properties = new BeetleRedisProperties();
     properties.setRedisConfigurationMasterRetries(1);
-    properties.setRedisServer(redisServer);
-    RedisDedupStore store = new RedisDedupStore(properties);
+    when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
+    RedisDedupStore store = new RedisDedupStore(properties, beetleAmqpConfiguration);
     store.put("key3", new KeyValueStore.Value("3"));
     store.put("key4", new KeyValueStore.Value("4"));
     assertTrue(store.get("key3").isPresent());
@@ -76,8 +84,8 @@ class RedisDedupStoreTest {
   void testPutIfAbsentWithTTL() throws InterruptedException {
     BeetleRedisProperties properties = new BeetleRedisProperties();
     properties.setRedisConfigurationMasterRetries(1);
-    properties.setRedisServer(redisServer);
-    RedisDedupStore store = new RedisDedupStore(properties);
+    when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
+    RedisDedupStore store = new RedisDedupStore(properties, beetleAmqpConfiguration);
     store.putIfAbsentTtl("keyTTL", new KeyValueStore.Value("ttl"), 1);
     assertTrue(store.get("keyTTL").isPresent());
     Thread.sleep(2000);
@@ -88,8 +96,8 @@ class RedisDedupStoreTest {
   void testPutIfAbsent() {
     BeetleRedisProperties properties = new BeetleRedisProperties();
     properties.setRedisConfigurationMasterRetries(1);
-    properties.setRedisServer(redisServer);
-    RedisDedupStore store = new RedisDedupStore(properties);
+    when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
+    RedisDedupStore store = new RedisDedupStore(properties, beetleAmqpConfiguration);
     KeyValueStore.Value value = store.putIfAbsent("key", new KeyValueStore.Value("value"));
     assertEquals("value", value.getAsString());
     assertTrue(store.get("key").isPresent());
@@ -105,11 +113,11 @@ class RedisDedupStoreTest {
     GenericContainer localRedis = startRedisContainer();
     String localRedisServer = getRedisAddress(localRedis);
     BeetleRedisProperties properties = new BeetleRedisProperties();
-    properties.setRedisServer(localRedisServer);
+    when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(localRedisServer);
     properties.setRedisFailoverTimeout(20);
     properties.setRedisConfigurationMasterRetries(3);
     properties.setRedisConfigurationMasterRetryInterval(1);
-    RedisDedupStore store = new RedisDedupStore(properties);
+    RedisDedupStore store = new RedisDedupStore(properties, beetleAmqpConfiguration);
     assertEquals(1, store.increase("key"));
     localRedis.stop();
 
@@ -130,15 +138,14 @@ class RedisDedupStoreTest {
 
   @Test
   void testTimeout() {
-
     GenericContainer localRedis = startRedisContainer();
     String localRedisServer = getRedisAddress(localRedis);
     BeetleRedisProperties properties = new BeetleRedisProperties();
-    properties.setRedisServer(localRedisServer);
+    when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(localRedisServer);
     properties.setRedisFailoverTimeout(3);
     properties.setRedisConfigurationMasterRetries(6);
     properties.setRedisConfigurationMasterRetryInterval(1);
-    RedisDedupStore store = new RedisDedupStore(properties);
+    RedisDedupStore store = new RedisDedupStore(properties, beetleAmqpConfiguration);
     assertEquals(1, store.increase("key"));
     localRedis.stop();
 
@@ -166,12 +173,15 @@ class RedisDedupStoreTest {
     List<String> lines = Arrays.asList(system + localRedisServer);
     Files.write(redisServerConfigFile, lines);
     BeetleRedisProperties properties = new BeetleRedisProperties();
-    properties.setSystemName("system");
-    properties.setRedisServer(redisServerConfigFile.toString());
+    if (system.equals("system/")) {
+      when(beetleAmqpConfiguration.getSystemName()).thenReturn("system");
+    }
+    when(beetleAmqpConfiguration.getBeetleRedisServer())
+        .thenReturn(redisServerConfigFile.toAbsolutePath().toString());
 
     properties.setRedisFailoverTimeout(1);
     properties.setRedisConfigurationMasterRetries(1);
-    RedisDedupStore store = new RedisDedupStore(properties);
+    RedisDedupStore store = new RedisDedupStore(properties, beetleAmqpConfiguration);
     assertEquals(1, store.increase("key"));
     localRedis.stop();
   }
@@ -179,24 +189,24 @@ class RedisDedupStoreTest {
   @Test
   void testServerAddressFromNonExistingFile() {
     BeetleRedisProperties properties = new BeetleRedisProperties();
-    properties.setSystemName("system");
-    properties.setRedisServer("redisServerConfig.txt");
+    when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn("redisServerConfig.txt");
 
     DeduplicationException deduplicationException =
         Assertions.assertThrows(
-            DeduplicationException.class, () -> new RedisDedupStore(properties));
+            DeduplicationException.class,
+            () -> new RedisDedupStore(properties, beetleAmqpConfiguration));
     assertEquals(deduplicationException.getMessage(), "Invalid redis address");
   }
 
   @Test
   void testServerAddressRedisNotRunning() {
     BeetleRedisProperties properties = new BeetleRedisProperties();
-    properties.setSystemName("system");
-    properties.setRedisServer("localhost:6399");
+    when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn("localhost:6399");
 
     DeduplicationException deduplicationException =
         Assertions.assertThrows(
-            DeduplicationException.class, () -> new RedisDedupStore(properties));
+            DeduplicationException.class,
+            () -> new RedisDedupStore(properties, beetleAmqpConfiguration));
     assertEquals(
         deduplicationException.getMessage(),
         "Cannot connect to redis at given address: localhost:6399");

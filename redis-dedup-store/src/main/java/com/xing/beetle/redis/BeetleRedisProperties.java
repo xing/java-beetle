@@ -5,32 +5,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "beetle.redis")
 public class BeetleRedisProperties {
 
-  private String systemName;
-  private String redisServer;
-  private String redisServers;
   private String redisDb;
   private int redisFailoverTimeout;
-  private int redisStatusKeyExpiryInterval;
   private int redisConfigurationMasterRetries;
   private int redisConfigurationMasterRetryInterval;
   private int redisConfigurationClientTimeout;
   private String redisConfigurationClientIds;
-
-  String getRedisServer() {
-    return redisServer;
-  }
-
-  void setRedisServer(String redisServer) {
-    this.redisServer = redisServer;
-  }
-
-  public String getRedisServers() {
-    return redisServers;
-  }
-
-  public void setRedisServers(String redisServers) {
-    this.redisServers = redisServers;
-  }
 
   public String getRedisDb() {
     return redisDb;
@@ -46,14 +26,6 @@ public class BeetleRedisProperties {
 
   void setRedisFailoverTimeout(int redisFailoverTimeout) {
     this.redisFailoverTimeout = redisFailoverTimeout;
-  }
-
-  public int getRedisStatusKeyExpiryInterval() {
-    return redisStatusKeyExpiryInterval;
-  }
-
-  public void setRedisStatusKeyExpiryInterval(int redisStatusKeyExpiryInterval) {
-    this.redisStatusKeyExpiryInterval = redisStatusKeyExpiryInterval;
   }
 
   int getRedisConfigurationMasterRetries() {
@@ -88,11 +60,4 @@ public class BeetleRedisProperties {
     this.redisConfigurationClientIds = redisConfigurationClientIds;
   }
 
-  String getSystemName() {
-    return systemName;
-  }
-
-  void setSystemName(String systemName) {
-    this.systemName = systemName;
-  }
 }

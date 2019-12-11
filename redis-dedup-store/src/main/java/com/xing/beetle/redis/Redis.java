@@ -1,8 +1,8 @@
 package com.xing.beetle.redis;
 
+import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
@@ -17,14 +17,14 @@ import java.util.concurrent.locks.ReentrantLock;
 /** Encapsulates a Redis client (Jedis) which can switch connections when update() is called. */
 public class Redis {
   private static Logger logger = LoggerFactory.getLogger(Redis.class);
-  private BeetleRedisProperties config;
+  private BeetleAmqpConfiguration config;
   private String activeMaster = "";
   private Jedis client;
   private long lastMasterChanged;
   private ReentrantLock lock = new ReentrantLock();
   private Condition connected = lock.newCondition();
 
-  Redis(BeetleRedisProperties config) {
+  Redis(BeetleAmqpConfiguration config) {
     this.config = config;
     this.update();
   }
@@ -33,7 +33,7 @@ public class Redis {
     return config.getSystemName();
   }
 
-  public BeetleRedisProperties getConfig() {
+  public BeetleAmqpConfiguration getConfig() {
     return config;
   }
 
@@ -63,22 +63,22 @@ public class Redis {
   /** Reads the Redis server configuration and updates the client connection accordingly. */
   private void update() {
     String serverAddress;
-    if (Files.exists(Paths.get(config.getRedisServer()))) {
-      File file = new File(config.getRedisServer());
+    String beetleRedisServer = config.getBeetleRedisServer();
+    if (Files.exists(Paths.get(beetleRedisServer))) {
+      File file = new File(beetleRedisServer);
       lastMasterChanged = file.lastModified();
       serverAddress = extractRedisMaster(file);
     } else {
       logger.debug(
           "Server configuration {} is not a file. Using {} as a server address.",
-          config.getRedisServer(),
-          config.getRedisServer());
-      serverAddress = config.getRedisServer();
+          beetleRedisServer,
+          beetleRedisServer);
+      serverAddress = beetleRedisServer;
     }
     if (activeMaster.equals(serverAddress)) {
       logger.debug("Master unchanged");
     } else {
       try {
-        HostAndPort hostAndPort = HostAndPort.parseString(serverAddress);
         activeMaster = serverAddress;
         if (activeMaster.isEmpty() && client != null) {
           client.disconnect();
@@ -86,7 +86,8 @@ public class Redis {
           if (client != null) {
             client.disconnect();
           }
-          client = new Jedis(hostAndPort);
+          String[] parts = activeMaster.split(":", 2);
+          client = new Jedis(parts[0], Integer.parseInt(parts[1]));
           client.connect();
         }
       } catch (JedisConnectionException e) {
