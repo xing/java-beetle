@@ -3,7 +3,6 @@ package com.xing.beetle.spring;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessagePostProcessor;
-import org.springframework.amqp.rabbit.annotation.Argument;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -18,7 +17,7 @@ import com.xing.beetle.BeetleHeader;
 @EnableRabbit
 public class BeetleRedisApplication {
 
-  private static final String QUEUE = "myQueue";
+  private static final String QUEUE = "myQueue1234";
 
   static MessagePostProcessor redundant(int redundancy) {
     return msg -> {
@@ -33,18 +32,14 @@ public class BeetleRedisApplication {
     AmqpTemplate template = context.getBean(RabbitTemplate.class);
     Object message = "hello world";
     template.convertAndSend(QUEUE, message, redundant(2));
-    Thread.sleep(10000);
+    Thread.sleep(100000);
     context.close();
   }
 
   @RabbitListener(
       ackMode = "AUTO",
-      queuesToDeclare =
-          @Queue(
-              name = QUEUE,
-              durable = "false",
-              autoDelete = "true",
-              arguments = @Argument(name = BeetleHeader.REQUEUE_AT_END_DELAY, value = "PT1S")))
+      queuesToDeclare = @Queue(name = QUEUE, durable = "true", autoDelete = "false"))
+  // arguments = @Argument(name = BeetleHeader.REQUEUE_AT_END_DELAY, value = "PT1S")))
   public void onMessage(Message message, Channel channel) throws Exception {
     //    if (!message.getMessageProperties().isRedelivered()) {
     //      Thread.sleep(30000);

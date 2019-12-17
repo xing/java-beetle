@@ -38,8 +38,9 @@ class BeetleAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    BeetleConnectionFactory beetleConnectionFactory() {
-      BeetleConnectionFactory factory = new BeetleConnectionFactory();
+    BeetleConnectionFactory beetleConnectionFactory(
+        BeetleAmqpConfiguration beetleAmqpConfiguration) {
+      BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration);
       factory.setInvertRequeueParameter(true);
       return factory;
     }
@@ -49,7 +50,7 @@ class BeetleAutoConfiguration {
         throws Exception {
       PropertyMapper map = PropertyMapper.get();
       RabbitConnectionFactoryBean factory =
-          new CustomizableConnectionFactoryBean(beetleConnectionFactory());
+          new CustomizableConnectionFactoryBean(beetleConnectionFactory(beetleAmqpConfiguration));
       properties.setAddresses(beetleAmqpConfiguration.getBeetleServers());
       map.from(properties::determineHost).whenNonNull().to(factory::setHost);
       map.from(properties::determinePort).to(factory::setPort);

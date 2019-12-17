@@ -1,28 +1,20 @@
 package com.xing.beetle.amqp;
 
-import static java.util.Objects.requireNonNull;
-
-import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.*;
 import com.rabbitmq.client.AMQP.BasicProperties;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.Consumer;
-import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.GetResponse;
-import com.rabbitmq.client.ShutdownSignalException;
-import com.xing.beetle.BeetleHeader;
 import com.xing.beetle.util.ExceptionSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
-import java.time.Duration;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedSet;
+import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
 
+import static java.util.Objects.requireNonNull;
+
 public class RequeueAtEndConnection implements DefaultConnection.Decorator {
+
+  private static final Logger log = LoggerFactory.getLogger(RequeueAtEndConnection.class);
 
   private class RequeueAtEndChannel implements DefaultChannel.Decorator {
 
@@ -143,7 +135,7 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
 
     private Map<String, Object> configureOriginal(Map<String, Object> arguments, String queue) {
       arguments = new HashMap<>(arguments != null ? arguments : Collections.emptyMap());
-      arguments.remove(BeetleHeader.REQUEUE_AT_END_DELAY);
+      // arguments.remove(BeetleHeader.REQUEUE_AT_END_DELAY);
       arguments.put("x-dead-letter-exchange", "");
       arguments.put("x-dead-letter-routing-key", queue + DEAD_LETTER_SUFFIX);
       return arguments;
@@ -187,10 +179,11 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
         boolean autoDelete,
         Map<String, Object> arguments)
         throws IOException {
-      long ttlInMillis = ttlInMillis(arguments);
-      if (ttlInMillis >= 0) {
+
+      if (beetleAmqpConfiguration.isDeadLetteringEnabled()) {
         arguments = configureOriginal(arguments, queue);
-        Map<String, Object> deadLetterArgs = configureDeadLetter(queue, ttlInMillis);
+        Map<String, Object> deadLetterArgs =
+            configureDeadLetter(queue, beetleAmqpConfiguration.getDeadLetteringMsgTtl());
         AMQP.Queue.DeclareOk ok =
             delegate.queueDeclare(
                 queue + DEAD_LETTER_SUFFIX, durable, exclusive, autoDelete, deadLetterArgs);
@@ -199,37 +192,36 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
         }
         queueDeclared(queue);
       }
+      //TODO: send the real payload here
+      log.debug("Beetle: publishing policy options on {}: {}", "server", "payload");
+      delegate.exchangeDeclare(
+          beetleAmqpConfiguration.getBeetlePolicyExchangeName(), BuiltinExchangeType.DIRECT, true);
+      delegate.queueDeclare(
+          beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName(), true, false, false, null);
+      delegate.basicPublish(
+          beetleAmqpConfiguration.getBeetlePolicyExchangeName(),
+          beetleAmqpConfiguration.getBeetlePolicyUpdatesRoutingKey(),
+          null,
+          "payloadJson".getBytes());
       return delegate.queueDeclare(queue, durable, exclusive, autoDelete, arguments);
     }
 
-    private long ttlInMillis(Map<String, Object> arguments) {
-      Object paramValue =
-          arguments != null ? arguments.get(BeetleHeader.REQUEUE_AT_END_DELAY) : null;
-      if (paramValue instanceof String) {
-        return Duration.parse((String) paramValue).toMillis();
-      } else if (paramValue instanceof Number) {
-        return ((Number) paramValue).longValue();
-      } else if (paramValue == null) {
-        return requeueAtEndDelayInMillis;
-      } else {
-        throw new IllegalArgumentException("Unknown value type " + paramValue);
-      }
-    }
+
   }
 
   private final Connection delegate;
   private final long requeueAtEndDelayInMillis;
   private final boolean invertRequeueParameter;
   private final Set<String> deadLetterQueues;
-
-  public RequeueAtEndConnection(Connection delegate) {
-    this(delegate, -1, false);
-  }
+  private final BeetleAmqpConfiguration beetleAmqpConfiguration;
 
   public RequeueAtEndConnection(
-      Connection delegate, long requeueAtEndDelayInMillis, boolean invertRequeueParameter) {
+      Connection delegate,
+      BeetleAmqpConfiguration beetleAmqpConfiguration,
+      boolean invertRequeueParameter) {
+    this.beetleAmqpConfiguration = beetleAmqpConfiguration;
     this.delegate = requireNonNull(delegate);
-    this.requeueAtEndDelayInMillis = requeueAtEndDelayInMillis;
+    this.requeueAtEndDelayInMillis = beetleAmqpConfiguration.getDeadLetteringMsgTtl();
     this.invertRequeueParameter = invertRequeueParameter;
     this.deadLetterQueues = new HashSet<>();
   }

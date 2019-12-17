@@ -8,11 +8,20 @@ import org.springframework.context.annotation.Profile;
 @Profile("!test")
 public class BeetleAmqpConfiguration {
 
+  private String systemName;
+  private String beetlePolicyExchangeName = "beetle-policies";
+  private String beetlePolicyUpdatesQueueName = "beetle-policy-updates";
+  private String beetlePolicyUpdatesRoutingKey = "beetle.policy.update";
+
   private String beetleRedisServer;
   private String beetleServers;
   private String beetleAdditionalSubscriptionServers;
   private int beetleRedisStatusKeyExpiryInterval;
-  private String systemName;
+
+  private boolean deadLetteringEnabled = false;
+  private int deadLetteringMsgTtl = 1000; // 1 second
+  private String user = "guest";
+  private String password = "guest";
 
   private int handlerTimeout = 600;
   private int maxHandlerExecutionAttempts = 1;
@@ -88,4 +97,25 @@ public class BeetleAmqpConfiguration {
   public int getHandlerExecutionAttemptsDelay() {
     return handlerExecutionAttemptsDelay;
   }
+
+  public int getDeadLetteringMsgTtl() {
+    return deadLetteringMsgTtl;
+  }
+
+  public String getBeetlePolicyExchangeName() {
+    return beetlePolicyExchangeName;
+  }
+
+  public String getBeetlePolicyUpdatesQueueName() {
+    return beetlePolicyUpdatesQueueName;
+  }
+
+  public String getBeetlePolicyUpdatesRoutingKey() {
+    return beetlePolicyUpdatesRoutingKey;
+  }
+
+  public boolean isDeadLetteringEnabled() {
+    return deadLetteringEnabled;
+  }
+
 }

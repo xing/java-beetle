@@ -59,5 +59,4 @@ public class BeetleRedisProperties {
   public void setRedisConfigurationClientIds(String redisConfigurationClientIds) {
     this.redisConfigurationClientIds = redisConfigurationClientIds;
   }
-
 }

@@ -4,14 +4,19 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.GetResponse;
+import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.amqp.RequeueAtEndConnection;
-import java.math.BigDecimal;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.Mockito;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.math.BigDecimal;
+
+import static org.mockito.Mockito.when;
 
 @Testcontainers
 class RequeueAtEndConnectionIT {
@@ -32,7 +37,7 @@ class RequeueAtEndConnectionIT {
     "99999999,true,true,1,1.0"
   })
   void test(
-      long requeueDelay,
+      int requeueDelay,
       boolean revertRequeue,
       boolean requeue,
       int expectedMessageFactor,
@@ -42,8 +47,19 @@ class RequeueAtEndConnectionIT {
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost(container.getContainerIpAddress());
     factory.setPort(container.getAmqpPort());
+
+    BeetleAmqpConfiguration beetleAmqpConfiguration = beetleAmqpConfiguration();
+    when(beetleAmqpConfiguration.getBeetleServers())
+        .thenReturn(container.getContainerIpAddress() + ":" + container.getAmqpPort());
+    if (requeueDelay >= 0) {
+      when(beetleAmqpConfiguration.getDeadLetteringMsgTtl()).thenReturn(requeueDelay);
+      when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(true);
+    } else {
+      when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(false);
+    }
     try (Connection connection =
-        new RequeueAtEndConnection(factory.newConnection(), requeueDelay, revertRequeue)) {
+        new RequeueAtEndConnection(
+            factory.newConnection(), beetleAmqpConfiguration, revertRequeue)) {
       Channel channel = connection.createChannel();
       channel.queueDeclare(QUEUE, false, false, true, null);
       for (byte i = 0; i < NUMBER_OF_MESSAGES; i++) {
@@ -68,5 +84,26 @@ class RequeueAtEndConnectionIT {
       }
       Assertions.assertEquals(expectedMessageFactor * NUMBER_OF_MESSAGES, processMessageCount);
     }
+  }
+
+  BeetleAmqpConfiguration beetleAmqpConfiguration() {
+    BeetleAmqpConfiguration beetleAmqpConfiguration = Mockito.mock(BeetleAmqpConfiguration.class);
+
+    when(beetleAmqpConfiguration.getHandlerTimeout()).thenReturn(1L);
+    when(beetleAmqpConfiguration.getMutexExpiration()).thenReturn(2);
+    when(beetleAmqpConfiguration.getExceptionLimit()).thenReturn(3L);
+    when(beetleAmqpConfiguration.getMaxHandlerExecutionAttempts()).thenReturn(3L);
+    when(beetleAmqpConfiguration.getBeetleRedisStatusKeyExpiryInterval()).thenReturn(0);
+    when(beetleAmqpConfiguration.getHandlerExecutionAttemptsDelay()).thenReturn(1);
+    when(beetleAmqpConfiguration.getMaxhandlerExecutionAttemptsDelay()).thenReturn(2);
+    when(beetleAmqpConfiguration.getDeadLetteringMsgTtl()).thenReturn(10);
+
+    when(beetleAmqpConfiguration.getBeetlePolicyExchangeName()).thenReturn("beetle-policies");
+    when(beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName())
+        .thenReturn("beetle-policy-updates");
+    when(beetleAmqpConfiguration.getBeetlePolicyUpdatesRoutingKey())
+        .thenReturn("beetle.policy.update");
+
+    return beetleAmqpConfiguration;
   }
 }

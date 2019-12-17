@@ -3,6 +3,7 @@ package com.xing.beetle.amqp;
 import com.rabbitmq.client.*;
 import com.xing.beetle.util.ExceptionSupport.Supplier;
 import com.xing.beetle.util.RetryExecutor;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -15,6 +16,11 @@ public class BeetleConnectionFactory extends ConnectionFactory {
   private RetryExecutor connectionEstablishingExecutor = RetryExecutor.SYNCHRONOUS;
   private long requeueAtEndDelayInMillis = -1;
   private boolean invertRequeueParameter = false;
+  private BeetleAmqpConfiguration beetleAmqpConfiguration;
+
+  public BeetleConnectionFactory(BeetleAmqpConfiguration beetleAmqpConfiguration) {
+    this.beetleAmqpConfiguration = beetleAmqpConfiguration;
+  }
 
   private Supplier<RecoverableConnection> connection(
       ExecutorService executor, AddressResolver resolver, String clientProvidedName) {
@@ -48,9 +54,7 @@ public class BeetleConnectionFactory extends ConnectionFactory {
             .map(retryExecutor::supply)
             .map(RetryableConnection::new)
             .map(
-                c ->
-                    new RequeueAtEndConnection(
-                        c, requeueAtEndDelayInMillis, invertRequeueParameter))
+                c -> new RequeueAtEndConnection(c, beetleAmqpConfiguration, invertRequeueParameter))
             .map(MultiPlexingConnection::new)
             .collect(Collectors.toList());
     return new BeetleConnection(connections);

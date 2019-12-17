@@ -36,13 +36,13 @@ import static org.mockito.Mockito.when;
 
 /**
  * Full blown beetle client test with spring integration (RabbitListener) and deduplication (with
- * Redis) where dead lettering disabled.
+ * Redis) where dead lettering enabled.
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ExtendWith(MockitoExtension.class)
 @SpringBootTest
 @DirtiesContext
-public class BeetleClientTest {
+public class BeetleClientWithDeadLetteringTest {
 
   @Autowired private RabbitTemplate rabbitTemplate;
   @Autowired private MessageHandlingService service;
@@ -70,7 +70,7 @@ public class BeetleClientTest {
         String.join(
             ":", new String[] {redis.getContainerIpAddress(), redis.getFirstMappedPort() + ""});
 
-    System.setProperty("test.deadLetterEnabled", "false");
+    System.setProperty("test.deadLetterEnabled", "true");
   }
 
   private void sendRedundantMessage(String routingKey, int redundancy, String messageId) {
@@ -79,20 +79,6 @@ public class BeetleClientTest {
     props.setMessageId(messageId);
     Message message = new Message("foo".getBytes(), props);
     rabbitTemplate.send("", routingKey, message);
-  }
-
-  @Test
-  public void handleSuccessfully() {
-    String messageId = UUID.randomUUID().toString();
-    sendRedundantMessage("QueueSucceed", 2, messageId);
-
-    String messageId2 = UUID.randomUUID().toString();
-    sendRedundantMessage("QueueSucceed", 2, messageId2);
-
-    waitForMessageDelivery(2000);
-
-    assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
-    assertEquals(1, result.stream().filter(s -> s.equals(messageId2)).count());
   }
 
   public void waitForMessageDelivery(int millis) {
@@ -104,41 +90,25 @@ public class BeetleClientTest {
   }
 
   @Test
-  public void throwExceptionExceedExceptionLimit() {
+  public void throwExceptionExceedExceptionLimitWithDeadLettering() throws InterruptedException {
     String messageId = UUID.randomUUID().toString();
-    sendRedundantMessage("QueueWithError", 2, messageId);
+    sendRedundantMessage("QueueWithErrorDL", 2, messageId);
     waitForMessageDelivery(8000);
     // exception limit is 3
+    assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
+    assertEquals(0, redelivered.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
-    assertEquals(0, deadLettered.stream().filter(s -> s.equals(messageId)).count());
-    assertEquals(1, redelivered.stream().filter(s -> s.equals(messageId)).count());
   }
 
   @Test
-  public void timeoutExceedExceptionLimit() {
+  public void timeoutExceedExceptionLimitWithDeadLettering() {
     String messageId = UUID.randomUUID().toString();
-    sendRedundantMessage("QueueWithTimeout", 2, messageId);
+    sendRedundantMessage("QueueWithTimeoutDL", 2, messageId);
     waitForMessageDelivery(8000);
     // exception limit is 3
+    assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
+    assertEquals(0, redelivered.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
-    assertEquals(0, deadLettered.stream().filter(s -> s.equals(messageId)).count());
-    assertEquals(1, redelivered.stream().filter(s -> s.equals(messageId)).count());
-  }
-
-  @Test
-  public void firstTimeoutThenSucceed() {
-    String messageId = UUID.randomUUID().toString();
-    sendRedundantMessage("QueueWithTimeoutThenSucceed", 2, messageId);
-    waitForMessageDelivery(4000);
-    assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
-  }
-
-  @Test
-  public void firstThrowExceptionThenHandle() {
-    String messageId = UUID.randomUUID().toString();
-    sendRedundantMessage("QueueWithErrorThenSucceed", 2, messageId);
-    waitForMessageDelivery(2000);
-    assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
   private static final CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
@@ -147,65 +117,34 @@ public class BeetleClientTest {
 
   public static class MessageHandlingService {
 
-    @RabbitListener(queues = "QueueSucceed")
-    public void handle(Message message) {
-      result.add(message.getMessageProperties().getMessageId());
-    }
-
-    @RabbitListener(queues = "QueueSucceed")
-    public void handle2(Message message) {
-      result.add(message.getMessageProperties().getMessageId());
-    }
-
-    @RabbitListener(queues = "QueueWithErrorThenSucceed")
-    public void handleWithErrorThenSucceed(Message message) {
-      synchronized (result) {
-        if (!result.contains(message.getMessageProperties().getMessageId())) {
-          result.add(message.getMessageProperties().getMessageId());
-          throw new IllegalStateException(
-              "message handling failed for " + message.getMessageProperties().getMessageId());
-        }
-      }
-    }
-
-    @RabbitListener(queues = "QueueWithError")
-    public void handleWithError(Message message) {
-      if (message.getMessageProperties().isRedelivered()) {
-        redelivered.add(message.getMessageProperties().getMessageId());
-      }
+    @RabbitListener(queues = "QueueWithErrorDL")
+    public void handleWithErrorDeadLettered(Message message) {
       if (message.getMessageProperties().getHeader("x-death") != null) {
         deadLettered.add(message.getMessageProperties().getMessageId());
+      }
+      if (message.getMessageProperties().isRedelivered()) {
+        redelivered.add(message.getMessageProperties().getMessageId());
       }
       result.add(message.getMessageProperties().getMessageId());
       throw new IllegalStateException(
           "message handling failed for " + message.getMessageProperties().getMessageId());
     }
 
-    @RabbitListener(queues = "QueueWithTimeout")
-    public void handleWithTimeout(Message message) throws InterruptedException {
-      if (message.getMessageProperties().isRedelivered()) {
-        redelivered.add(message.getMessageProperties().getMessageId());
-      }
+    @RabbitListener(queues = "QueueWithTimeoutDL")
+    public void handleWithTimeoutDeadLettered(Message message) throws InterruptedException {
       if (message.getMessageProperties().getHeader("x-death") != null) {
         deadLettered.add(message.getMessageProperties().getMessageId());
+      }
+      if (message.getMessageProperties().isRedelivered()) {
+        redelivered.add(message.getMessageProperties().getMessageId());
       }
       result.add(message.getMessageProperties().getMessageId());
       Thread.sleep(1100);
     }
-
-    @RabbitListener(queues = "QueueWithTimeoutThenSucceed")
-    public void handleWithTimeoutThenSucceed(Message message) throws InterruptedException {
-      synchronized (result) {
-        if (!result.contains(message.getMessageProperties().getMessageId())) {
-          result.add(message.getMessageProperties().getMessageId());
-          Thread.sleep(2000);
-        }
-      }
-    }
   }
 
   @Configuration
-  @ConditionalOnProperty(value = "test.deadLetterEnabled", havingValue = "false")
+  @ConditionalOnProperty(value = "test.deadLetterEnabled", havingValue = "true")
   @EnableRabbit
   @EnableTransactionManagement
   @ComponentScan(
@@ -218,37 +157,24 @@ public class BeetleClientTest {
   public static class EnableRabbitConfig {
 
     @Bean
+    @ConditionalOnProperty(value = "test.deadLetterEnabled", havingValue = "true")
     public MessageHandlingService handlingService() {
       return new MessageHandlingService();
     }
 
     @Bean
-    public org.springframework.amqp.core.Queue queueWithTimeoutThenSucceed() {
-      return new org.springframework.amqp.core.Queue("QueueWithTimeoutThenSucceed");
+    public org.springframework.amqp.core.Queue queueWithErrorDeadLettered() {
+      return new org.springframework.amqp.core.Queue("QueueWithErrorDL", true, true, false, null);
     }
 
     @Bean
-    public org.springframework.amqp.core.Queue queueWithErrorThenSucceed() {
-      return new org.springframework.amqp.core.Queue("QueueWithErrorThenSucceed");
-    }
-
-    @Bean
-    public org.springframework.amqp.core.Queue queueSucceed() {
-      return new org.springframework.amqp.core.Queue("QueueSucceed");
-    }
-
-    @Bean
-    public org.springframework.amqp.core.Queue queueWithError() {
-      return new org.springframework.amqp.core.Queue("QueueWithError");
-    }
-
-    @Bean
-    public org.springframework.amqp.core.Queue queueWithTimeout() {
-      return new org.springframework.amqp.core.Queue("QueueWithTimeout");
+    public org.springframework.amqp.core.Queue queueWithTimeoutDeadLettered() {
+      return new org.springframework.amqp.core.Queue("QueueWithTimeoutDL", true, true, false, null);
     }
 
     @Bean
     @Primary
+    @ConditionalOnProperty(value = "test.deadLetterEnabled", havingValue = "true")
     public BeetleAmqpConfiguration beetleAmqpConfiguration() {
       BeetleAmqpConfiguration beetleAmqpConfiguration = Mockito.mock(BeetleAmqpConfiguration.class);
 
@@ -261,8 +187,8 @@ public class BeetleClientTest {
       when(beetleAmqpConfiguration.getBeetleRedisStatusKeyExpiryInterval()).thenReturn(0);
       when(beetleAmqpConfiguration.getHandlerExecutionAttemptsDelay()).thenReturn(1);
       when(beetleAmqpConfiguration.getMaxhandlerExecutionAttemptsDelay()).thenReturn(2);
-      when(beetleAmqpConfiguration.getDeadLetteringMsgTtl()).thenReturn(100);
-      when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(false);
+      when(beetleAmqpConfiguration.getDeadLetteringMsgTtl()).thenReturn(10);
+      when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(true);
 
       when(beetleAmqpConfiguration.getBeetlePolicyExchangeName()).thenReturn("beetle-policies");
       when(beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName())

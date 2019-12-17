@@ -23,17 +23,17 @@ public class BeetleApplication {
     MessageProperties props = new MessageProperties();
     props.setMessageId(UUID.randomUUID().toString());
     Message message = new Message(new byte[0], props);
-    for (int i = 0; i < 4; i++) {
-      template.send("myQueue", message);
+    for (int i = 0; i < 1; i++) {
+      template.send("myQueue12", message);
     }
-    Thread.sleep(1000);
+    Thread.sleep(1000000);
     context.close();
   }
 
   @RabbitListener(
       bindings =
           @QueueBinding(
-              value = @Queue(value = "myQueue", autoDelete = "true", durable = "true"),
+              value = @Queue(value = "myQueue12", autoDelete = "true", durable = "true"),
               exchange =
                   @Exchange(
                       value = "auto.exch",
