@@ -45,10 +45,8 @@ class KeyValueStoreBasedDeduplicatorTest {
 
   @Test
   void testBasicOperations() throws InterruptedException {
-    BeetleRedisProperties properties = new BeetleRedisProperties();
-    properties.setRedisConfigurationMasterRetries(1);
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
-    RedisDedupStore store = new RedisDedupStore(properties, beetleAmqpConfiguration);
+    RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     KeyValueStoreBasedDeduplicator deduplicator =
         new KeyValueStoreBasedDeduplicator(store, beetleAmqpConfiguration);
     assertFalse(deduplicator.delayed("messageId"));
@@ -64,10 +62,8 @@ class KeyValueStoreBasedDeduplicatorTest {
 
   @Test
   void testTryAcquireMutex() throws InterruptedException {
-    BeetleRedisProperties properties = new BeetleRedisProperties();
-    properties.setRedisConfigurationMasterRetries(1);
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
-    RedisDedupStore store = new RedisDedupStore(properties, beetleAmqpConfiguration);
+    RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     KeyValueStoreBasedDeduplicator deduplicator =
         new KeyValueStoreBasedDeduplicator(store, beetleAmqpConfiguration);
     assertTrue(deduplicator.tryAcquireMutex("messageId", 1));
@@ -82,12 +78,10 @@ class KeyValueStoreBasedDeduplicatorTest {
   @ParameterizedTest
   @ValueSource(ints = {0, 5})
   void testDeleteKeys(int expiryInterval) throws InterruptedException {
-    BeetleRedisProperties properties = new BeetleRedisProperties();
-    properties.setRedisConfigurationMasterRetries(1);
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
     when(beetleAmqpConfiguration.getBeetleRedisStatusKeyExpiryInterval())
         .thenReturn(expiryInterval);
-    RedisDedupStore store = new RedisDedupStore(properties, beetleAmqpConfiguration);
+    RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     KeyValueStoreBasedDeduplicator deduplicator =
         new KeyValueStoreBasedDeduplicator(store, beetleAmqpConfiguration);
     assertFalse(deduplicator.completed("messageId"));

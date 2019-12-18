@@ -1,5 +1,6 @@
 package com.xing.beetle.amqp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.*;
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.xing.beetle.util.ExceptionSupport;
@@ -15,6 +16,7 @@ import static java.util.Objects.requireNonNull;
 public class RequeueAtEndConnection implements DefaultConnection.Decorator {
 
   private static final Logger log = LoggerFactory.getLogger(RequeueAtEndConnection.class);
+  private ObjectMapper objectMapper = new ObjectMapper();
 
   private class RequeueAtEndChannel implements DefaultChannel.Decorator {
 
@@ -192,8 +194,31 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
         }
         queueDeclared(queue);
       }
-      //TODO: send the real payload here
-      log.debug("Beetle: publishing policy options on {}: {}", "server", "payload");
+
+      publishPolicyOptions(queue);
+      return delegate.queueDeclare(queue, durable, exclusive, autoDelete, arguments);
+    }
+
+    void publishPolicyOptions(String queue) throws IOException {
+      PolicyUpdatePayload payload = new PolicyUpdatePayload();
+      payload.setServer(delegate.getConnection().getAddress().toString());
+      payload.setQueue_name(queue);
+      if (beetleAmqpConfiguration.isDeadLetteringEnabled()) {
+        payload.setDead_letter_queue_name(queue + DEAD_LETTER_SUFFIX);
+      }
+      PolicyUpdatePayload.Bindings bindings = payload.new Bindings();
+      bindings.setExchange(queue);
+      bindings.setKey(queue);
+      payload.setBindings(bindings);
+      payload.setDead_lettering(beetleAmqpConfiguration.isDeadLetteringEnabled());
+      payload.setLazy(beetleAmqpConfiguration.isLazyQueuesEnabled());
+      payload.setMessage_ttl(beetleAmqpConfiguration.getDeadLetteringMsgTtl());
+
+      // TODO: send the real payload here
+      log.debug(
+          "Beetle: publishing policy options on {}: {}",
+          payload.getServer(),
+          objectMapper.writeValueAsString(payload));
       delegate.exchangeDeclare(
           beetleAmqpConfiguration.getBeetlePolicyExchangeName(), BuiltinExchangeType.DIRECT, true);
       delegate.queueDeclare(
@@ -202,15 +227,11 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
           beetleAmqpConfiguration.getBeetlePolicyExchangeName(),
           beetleAmqpConfiguration.getBeetlePolicyUpdatesRoutingKey(),
           null,
-          "payloadJson".getBytes());
-      return delegate.queueDeclare(queue, durable, exclusive, autoDelete, arguments);
+          objectMapper.writeValueAsString(payload).getBytes());
     }
-
-
   }
 
   private final Connection delegate;
-  private final long requeueAtEndDelayInMillis;
   private final boolean invertRequeueParameter;
   private final Set<String> deadLetterQueues;
   private final BeetleAmqpConfiguration beetleAmqpConfiguration;
@@ -221,7 +242,6 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
       boolean invertRequeueParameter) {
     this.beetleAmqpConfiguration = beetleAmqpConfiguration;
     this.delegate = requireNonNull(delegate);
-    this.requeueAtEndDelayInMillis = beetleAmqpConfiguration.getDeadLetteringMsgTtl();
     this.invertRequeueParameter = invertRequeueParameter;
     this.deadLetterQueues = new HashSet<>();
   }

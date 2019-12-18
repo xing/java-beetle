@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 public class BeetleConnectionFactory extends ConnectionFactory {
 
   private RetryExecutor connectionEstablishingExecutor = RetryExecutor.SYNCHRONOUS;
-  private long requeueAtEndDelayInMillis = -1;
   private boolean invertRequeueParameter = false;
   private BeetleAmqpConfiguration beetleAmqpConfiguration;
 
@@ -62,14 +61,6 @@ public class BeetleConnectionFactory extends ConnectionFactory {
 
   public void setConnectionEstablishingExecutor(RetryExecutor connectionEstablishExecutor) {
     this.connectionEstablishingExecutor = connectionEstablishExecutor;
-  }
-
-  public long getRequeueAtEndDelayInMillis() {
-    return requeueAtEndDelayInMillis;
-  }
-
-  public void setRequeueAtEndDelayInMillis(long requeueAtEndDelayInMillis) {
-    this.requeueAtEndDelayInMillis = requeueAtEndDelayInMillis;
   }
 
   public boolean isInvertRequeueParameter() {

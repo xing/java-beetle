@@ -8,13 +8,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties(BeetleRedisProperties.class)
 public class RedisDedupStoreAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  KeyValueStore beetleDedupStore(
-      BeetleRedisProperties properties, BeetleAmqpConfiguration beetleAmqpConfiguration) {
-    return new RedisDedupStore(properties, beetleAmqpConfiguration);
+  KeyValueStore beetleDedupStore(BeetleAmqpConfiguration beetleAmqpConfiguration) {
+    return new RedisDedupStore( beetleAmqpConfiguration);
   }
 }

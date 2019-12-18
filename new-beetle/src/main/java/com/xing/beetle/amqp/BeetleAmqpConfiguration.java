@@ -18,7 +18,18 @@ public class BeetleAmqpConfiguration {
   private String beetleAdditionalSubscriptionServers;
   private int beetleRedisStatusKeyExpiryInterval;
 
+  private int redisFailoverTimeout = 180;
+
+  public int getRedisFailoverTimeout() {
+    return redisFailoverTimeout;
+  }
+
+  void setRedisFailoverTimeout(int redisFailoverTimeout) {
+    this.redisFailoverTimeout = redisFailoverTimeout;
+  }
+
   private boolean deadLetteringEnabled = false;
+  private boolean lazyQueuesEnabled = false;
   private int deadLetteringMsgTtl = 1000; // 1 second
   private String user = "guest";
   private String password = "guest";
@@ -118,4 +129,7 @@ public class BeetleAmqpConfiguration {
     return deadLetteringEnabled;
   }
 
+  public boolean isLazyQueuesEnabled() {
+    return lazyQueuesEnabled;
+  }
 }

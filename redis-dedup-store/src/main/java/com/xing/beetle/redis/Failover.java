@@ -22,10 +22,9 @@ class Failover {
   private final RetryExecutor retryExecutor;
   private ReentrantLock lock = new ReentrantLock();
 
-  Failover(int timeout, int maxRetries, int retryInterval) {
-    this.timeout = timeout;
-    RetryExecutor.Backoff backoff =
-        fixed(retryInterval, TimeUnit.SECONDS).withMaxAttempts(maxRetries);
+  Failover(int timeoutInSeconds, int retryIntervalInSeconds) {
+    this.timeout = timeoutInSeconds;
+    RetryExecutor.Backoff backoff = fixed(retryIntervalInSeconds, TimeUnit.SECONDS);
     retryExecutor = RetryExecutor.DEFAULT.withBackoff(backoff);
   }
 
