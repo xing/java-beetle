@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.when;
 
 /**
@@ -73,21 +74,11 @@ public class BeetleClientWithDeadLetteringTest {
     System.setProperty("test.deadLetterEnabled", "true");
   }
 
-  private void sendRedundantMessage(String routingKey, int redundancy, String messageId) {
-    MessageProperties props = new MessageProperties();
-    props.setHeader(BeetleHeader.PUBLISH_REDUNDANCY, redundancy);
-    props.setMessageId(messageId);
-    Message message = new Message("foo".getBytes(), props);
-    rabbitTemplate.send("", routingKey, message);
-  }
-
-  public void waitForMessageDelivery(int millis) {
-    try {
-      Thread.sleep(millis);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
-    }
-  }
+  private static final CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
+  private static final CopyOnWriteArrayList<String> redelivered = new CopyOnWriteArrayList<>();
+  private static final CopyOnWriteArrayList<String> deadLettered = new CopyOnWriteArrayList<>();
+  private static final CopyOnWriteArrayList<String> queuePolicyMessages =
+      new CopyOnWriteArrayList<>();
 
   @Test
   public void throwExceptionExceedExceptionLimitWithDeadLettering() throws InterruptedException {
@@ -109,11 +100,26 @@ public class BeetleClientWithDeadLetteringTest {
     assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(0, redelivered.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
+
+    // make sure that queue for policy is declared and working
+    assertFalse(queuePolicyMessages.isEmpty());
   }
 
-  private static final CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
-  private static final CopyOnWriteArrayList<String> redelivered = new CopyOnWriteArrayList<>();
-  private static final CopyOnWriteArrayList<String> deadLettered = new CopyOnWriteArrayList<>();
+  private void sendRedundantMessage(String routingKey, int redundancy, String messageId) {
+    MessageProperties props = new MessageProperties();
+    props.setHeader(BeetleHeader.PUBLISH_REDUNDANCY, redundancy);
+    props.setMessageId(messageId);
+    Message message = new Message("foo".getBytes(), props);
+    rabbitTemplate.send("", routingKey, message);
+  }
+
+  public void waitForMessageDelivery(int millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+  }
 
   public static class MessageHandlingService {
 
@@ -140,6 +146,11 @@ public class BeetleClientWithDeadLetteringTest {
       }
       result.add(message.getMessageProperties().getMessageId());
       Thread.sleep(1100);
+    }
+
+    @RabbitListener(queues = "beetle-policy-updates")
+    public void receiveQueuePolicyMessages(Message message) {
+      queuePolicyMessages.add(message.getMessageProperties().getMessageId());
     }
   }
 

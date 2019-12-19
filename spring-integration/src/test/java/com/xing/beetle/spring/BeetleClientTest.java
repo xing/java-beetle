@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.when;
 
 /**
@@ -93,6 +94,9 @@ public class BeetleClientTest {
 
     assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(1, result.stream().filter(s -> s.equals(messageId2)).count());
+
+    //make sure that queue for policy is declared and working
+    assertFalse(queuePolicyMessages.isEmpty());
   }
 
   public void waitForMessageDelivery(int millis) {
@@ -144,6 +148,8 @@ public class BeetleClientTest {
   private static final CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
   private static final CopyOnWriteArrayList<String> redelivered = new CopyOnWriteArrayList<>();
   private static final CopyOnWriteArrayList<String> deadLettered = new CopyOnWriteArrayList<>();
+  private static final CopyOnWriteArrayList<String> queuePolicyMessages =
+      new CopyOnWriteArrayList<>();
 
   public static class MessageHandlingService {
 
@@ -201,6 +207,11 @@ public class BeetleClientTest {
           Thread.sleep(2000);
         }
       }
+    }
+
+    @RabbitListener(queues = "beetle-policy-updates")
+    public void receiveQueuePolicyMessages(Message message) {
+      queuePolicyMessages.add(message.getMessageProperties().getMessageId());
     }
   }
 
