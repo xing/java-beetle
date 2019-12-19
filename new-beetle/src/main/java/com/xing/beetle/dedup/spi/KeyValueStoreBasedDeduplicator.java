@@ -57,9 +57,10 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
 
   @Override
   public boolean delayed(String messageId) {
+    long now = System.currentTimeMillis();
     return store
         .get(key(messageId, DELAY))
-        .map(delay -> delay.getAsNumber() > 0 && delay.getAsNumber() > System.currentTimeMillis())
+        .map(delay -> delay.getAsNumber() > 0 && delay.getAsNumber() > now)
         .orElse(false);
   }
 

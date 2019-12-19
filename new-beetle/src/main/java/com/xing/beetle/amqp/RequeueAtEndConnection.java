@@ -214,7 +214,6 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
       payload.setLazy(beetleAmqpConfiguration.isLazyQueuesEnabled());
       payload.setMessage_ttl(beetleAmqpConfiguration.getDeadLetteringMsgTtl());
 
-      // TODO: send the real payload here
       log.debug(
           "Beetle: publishing policy options on {}: {}",
           payload.getServer(),
@@ -223,6 +222,10 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
           beetleAmqpConfiguration.getBeetlePolicyExchangeName(), BuiltinExchangeType.DIRECT, true);
       delegate.queueDeclare(
           beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName(), true, false, false, null);
+      delegate.queueBind(
+          beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName(),
+          beetleAmqpConfiguration.getBeetlePolicyExchangeName(),
+          beetleAmqpConfiguration.getBeetlePolicyUpdatesRoutingKey());
       delegate.basicPublish(
           beetleAmqpConfiguration.getBeetlePolicyExchangeName(),
           beetleAmqpConfiguration.getBeetlePolicyUpdatesRoutingKey(),

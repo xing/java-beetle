@@ -22,7 +22,7 @@ public class RetryExecutor {
     }
 
     static Backoff fixed(long delay, TimeUnit unit) {
-      return (att, err) -> unit.toMillis(delay);
+      return (att, err) -> att == 0 ? 0 : unit.toMillis(delay);
     }
 
     static Backoff linear(long delay, TimeUnit unit) {

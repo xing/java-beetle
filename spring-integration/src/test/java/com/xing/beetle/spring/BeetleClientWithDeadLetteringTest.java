@@ -180,6 +180,7 @@ public class BeetleClientWithDeadLetteringTest {
 
       when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
       when(beetleAmqpConfiguration.getBeetleServers()).thenReturn(beetleServers);
+      when(beetleAmqpConfiguration.getSystemName()).thenReturn("system");
       when(beetleAmqpConfiguration.getHandlerTimeout()).thenReturn(1L);
       when(beetleAmqpConfiguration.getMutexExpiration()).thenReturn(2);
       when(beetleAmqpConfiguration.getExceptionLimit()).thenReturn(3L);
@@ -189,6 +190,7 @@ public class BeetleClientWithDeadLetteringTest {
       when(beetleAmqpConfiguration.getMaxhandlerExecutionAttemptsDelay()).thenReturn(2);
       when(beetleAmqpConfiguration.getDeadLetteringMsgTtl()).thenReturn(10);
       when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(true);
+      when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
 
       when(beetleAmqpConfiguration.getBeetlePolicyExchangeName()).thenReturn("beetle-policies");
       when(beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName())
