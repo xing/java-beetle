@@ -95,7 +95,7 @@ public class BeetleClientTest {
     assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(1, result.stream().filter(s -> s.equals(messageId2)).count());
 
-    //make sure that queue for policy is declared and working
+    // make sure that queue for policy is declared and working
     assertFalse(queuePolicyMessages.isEmpty());
   }
 
