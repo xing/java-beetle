@@ -137,7 +137,6 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
 
     private Map<String, Object> configureOriginal(Map<String, Object> arguments, String queue) {
       arguments = new HashMap<>(arguments != null ? arguments : Collections.emptyMap());
-      // arguments.remove(BeetleHeader.REQUEUE_AT_END_DELAY);
       arguments.put("x-dead-letter-exchange", "");
       arguments.put("x-dead-letter-routing-key", queue + DEAD_LETTER_SUFFIX);
       return arguments;

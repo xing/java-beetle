@@ -105,37 +105,4 @@ class BeetleConnectionIT extends BaseBeetleIT {
   void testParams() {
     assertEquals(18, generateTestParameters().count());
   }
-
-  //    @ParameterizedTest(name = "BeetleChannel={0}")
-  //    @ValueSource(ints = {1, 2, 3})
-  //    @ExtendWith(ContainerLifecycle.class)
-  //    void testBasicAck(@Containers RabbitMQContainer[] containers) throws Exception {
-  //        Channel channel = createChannel(containers, false, -1);
-  //        channel.queueDeclare(QUEUE, false, false, false, null);
-  //        channel.basicPublish("", QUEUE, REDUNDANT.get(), "test1".getBytes());
-  //        List<Delivery> messages = new ArrayList<>();
-  //        channel.basicConsume(QUEUE, false, (tag, msg) -> {
-  //            channel.basicAck(msg.getEnvelope().getDeliveryTag(), false);
-  //            messages.add(msg);
-  //        }, System.out::println);
-  //        Thread.sleep(100);
-  //        assertEquals(getExpectedNumMessages(containers), messages.size());
-  //    }
-  //
-  //    @ParameterizedTest(name = "BeetleChannel={0}")
-  //    @ValueSource(ints = {1, 2, 3})
-  //    @ExtendWith(ContainerLifecycle.class)
-  //    void testBasicReject(@Containers RabbitMQContainer[] containers) throws Exception {
-  //        Channel channel = createConnection(containers, false, -1);
-  //        channel.queueDeclare(QUEUE, false, false, false, null);
-  //        channel.basicPublish("", QUEUE, REDUNDANT.get(), "test1".getBytes());
-  //        List<Delivery> messages = new ArrayList<>();
-  //        channel.basicConsume(QUEUE, false, (tag, msg) -> {
-  //            channel.basicReject(msg.getEnvelope().getDeliveryTag(), true);
-  //            messages.add(msg);
-  //        }, System.out::println);
-  //
-  //        Thread.sleep(100);
-  //        assertTrue(messages.size() > getExpectedNumMessages(containers));
-  //    }
 }
