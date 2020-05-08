@@ -1,6 +1,5 @@
 package com.xing.beetle;
 
-import com.github.dockerjava.api.model.PortBinding;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.Delivery;
@@ -8,10 +7,6 @@ import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.amqp.BeetleConnectionFactory;
 import com.xing.beetle.testcontainers.ContainerLifecycle;
 import com.xing.beetle.testcontainers.Containers;
-import com.xing.beetle.util.RetryExecutor;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -21,38 +16,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
 @Testcontainers
 class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
-
-  @Nested
-  class StartupWithUnreachableRabbit {
-
-    private final int port = ThreadLocalRandom.current().nextInt(1024, 65535);
-
-    RabbitMQContainer rabbit =
-        new RabbitMQContainer()
-            .withExposedPorts(5672)
-            .withCreateContainerCmdModifier(
-                cmd -> cmd.withPortBindings(PortBinding.parse(port + ":5672")));
-
-    @Test
-    @Disabled
-    void testLateStartup() throws Exception {
-      BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration());
-      factory.setConnectionEstablishingExecutor(RetryExecutor.ASYNC_EXPONENTIAL);
-      factory.setHost("localhost");
-      factory.setPort(port);
-      Channel channel = factory.newConnection().createChannel();
-      channel.queueDeclare(QUEUE, false, false, false, null);
-      rabbit.start();
-      channel.basicPublish("", QUEUE, null, "test1".getBytes());
-    }
-  }
 
   @ParameterizedTest(name = "Brokers={0}")
   @ValueSource(ints = {1, 2})
