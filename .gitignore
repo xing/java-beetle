@@ -5,3 +5,8 @@ target/
 .project
 .settings
 .classpath
+
+.vscode/
+
+.DS_Store
+bin/
