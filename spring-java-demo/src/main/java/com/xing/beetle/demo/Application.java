@@ -1,4 +1,4 @@
-package com.xing.beetle.springtest;
+package com.xing.beetle.demo;
 
 import java.util.UUID;
 import org.springframework.amqp.core.AmqpTemplate;
