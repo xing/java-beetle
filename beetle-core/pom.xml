@@ -19,7 +19,7 @@
 		<artifactId>beetle-parent</artifactId>
 		<version>1.0-SNAPSHOT</version>
 	</parent>
-	<artifactId>new-beetle</artifactId>
+	<artifactId>beetle-core</artifactId>
 	<dependencies>
 		<dependency>
 			<groupId>com.rabbitmq</groupId>

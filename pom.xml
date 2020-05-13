@@ -33,15 +33,40 @@
         <tag>HEAD</tag>
     </scm>
 
+    <repositories>
+        <repository>
+            <id>beetle-java-client-snapshots</id>
+            <name>beetle-java-client snapshots repo</name>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+        </repository>
+        <repository>
+            <id>beetle-java-client-releases</id>
+            <name>beetle-java-client releases repo</name>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+        </repository>
+    </repositories>
+
     <distributionManagement>
         <repository>
-            <id>sonatype-nexus-staging</id>
-            <name>Nexus Staging Repository</name>
+            <id>beetle-java-client-repo</id>
+            <name>Java Beetle Client Releases</name>
             <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
         <snapshotRepository>
-            <id>sonatype-nexus-snapshots</id>
-            <name>Nexus Snapshot Repository</name>
+            <id>beetle-java-client-repo</id>
+            <name>Java Beetle Client Snapshots</name>
             <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
