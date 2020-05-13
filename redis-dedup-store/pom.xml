@@ -14,7 +14,7 @@
     <dependencies>
         <dependency>
             <groupId>com.xing.beetle</groupId>
-            <artifactId>new-beetle</artifactId>
+            <artifactId>beetle-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
