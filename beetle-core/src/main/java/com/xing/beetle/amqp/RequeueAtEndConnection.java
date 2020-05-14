@@ -218,7 +218,7 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
           payload.getServer(),
           objectMapper.writeValueAsString(payload));
       delegate.exchangeDeclare(
-          beetleAmqpConfiguration.getBeetlePolicyExchangeName(), BuiltinExchangeType.DIRECT, true);
+          beetleAmqpConfiguration.getBeetlePolicyExchangeName(), BuiltinExchangeType.TOPIC, true);
       delegate.queueDeclare(
           beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName(), true, false, false, null);
       delegate.queueBind(
