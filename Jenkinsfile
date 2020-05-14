@@ -20,15 +20,17 @@ pipeline {
         }
 
         stage ('Build') {
-            withCredentials([usernamePassword(credentialsId: 'internal-repository', passwordVariable: 'PASSWORD_VAR', usernameVariable: 'USERNAME_VAR')])
-            {
-                sh 'mvn clean deploy -Dserver.username=${USERNAME_VAR} -Dserver.password=${PASSWORD_VAR}'
-            }
-            post {
-                success {
-                    junit 'target/surefire-reports/**/*.xml'
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'internal-repository', passwordVariable: 'PASSWORD_VAR', usernameVariable: 'USERNAME_VAR')])
+                {
+                    sh 'mvn clean deploy -Dserver.username=${USERNAME_VAR} -Dserver.password=${PASSWORD_VAR}'
                 }
             }
+        }
+    }
+    post {
+        success {
+            junit 'target/surefire-reports/**/*.xml'
         }
     }
 }
