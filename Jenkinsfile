@@ -24,6 +24,12 @@ pipeline {
         }
 
         stage ('Deploy') {
+            when {
+                anyOf{
+                    branch pattern: "master", comparator: "EQUALS"
+                    buildingTag()
+                }
+            }
             steps {
                 withCredentials([usernamePassword(credentialsId: 'nexus-sysarch-deploy', passwordVariable: 'PASSWORD_VAR', usernameVariable: 'USERNAME_VAR')])
                 {
