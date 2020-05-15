@@ -19,7 +19,7 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'internal-repository', passwordVariable: 'PASSWORD_VAR', usernameVariable: 'USERNAME_VAR')])
                 {
-                    sh 'mvn clean deploy -Dserver.username=${USERNAME_VAR} -Dserver.password=${PASSWORD_VAR}'
+                    sh 'mvn clean deploy -P ci-internal -Dnexus-nwse.username=${USERNAME_VAR} -Dnexus-nwse.password=${PASSWORD_VAR}'
                 }
             }
         }
