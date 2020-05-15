@@ -105,6 +105,8 @@
                             <version>3.8.1</version>
                             <configuration>ß
                                 <compilerVersion>1.8</compilerVersion>
+                                <fork>true</fork>
+                                <executable>/opt/openjdk1.11.0/bin/javac</executable>
                             </configuration>
                         </plugin>
                     </plugins>
