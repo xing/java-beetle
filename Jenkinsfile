@@ -10,7 +10,7 @@ pipeline {
                 sh '''
                     echo "PATH = ${PATH}"
                     echo "M2_HOME = ${M2_HOME}"
-                    cat "${M2_HOME}/settings.xml"
+                    which mvn
                 '''
             }
         }
