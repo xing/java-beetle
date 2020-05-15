@@ -94,7 +94,9 @@ public class BeetleChannel implements DefaultChannel.Decorator {
       BasicProperties props,
       byte[] body)
       throws IOException {
+
     int redundancy = 1;
+
     if (props != null && props.getHeaders() != null) {
       redundancy =
           (int) props.getHeaders().getOrDefault(BeetleHeader.PUBLISH_REDUNDANCY, redundancy);
@@ -102,6 +104,7 @@ public class BeetleChannel implements DefaultChannel.Decorator {
         props = props.builder().messageId(UUID.randomUUID().toString()).build();
       }
     }
+
     BasicProperties properties;
     if (props != null) {
       Map<String, Object> headers = new HashMap<>(props.getHeaders());
@@ -110,15 +113,18 @@ public class BeetleChannel implements DefaultChannel.Decorator {
     } else {
       properties = null;
     }
+
     long sent =
         delegates
             .streamAll()
             .filter(c -> send(c, exchange, routingKey, mandatory, immediate, properties, body))
             .limit(redundancy)
             .count();
+
     if (sent == 0) {
       throw new IOException("Unable to sent the message to any broker. Message Header: " + props);
     }
+
     if (sent != redundancy) {
       LOGGER.log(
           Level.WARNING,
