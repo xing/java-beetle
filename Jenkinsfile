@@ -12,7 +12,7 @@ pipeline {
                     echo "M2_HOME = ${M2_HOME}"
                     mvn --version
                     java -version
-                    javac
+
                 '''
             }
         }
