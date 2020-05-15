@@ -1,6 +1,7 @@
 package com.xing.beetle;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
@@ -13,7 +14,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.testcontainers.containers.RabbitMQContainer;
@@ -22,11 +25,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 class BeetleConnectionIT extends BaseBeetleIT {
 
-  private static final int NUMBER_OF_MESSAGES = 10;
+  private static final int NUMBER_OF_MESSAGES = 3;
 
   @ExtendWith(ContainerLifecycle.class)
   @ParameterizedTest
   @MethodSource("generateTestParameters")
+  @DisplayName("Read ACK")
   void testReadAck(
       @Containers RabbitMQContainer[] containers,
       ChannelReadMode mode,
@@ -56,11 +60,12 @@ class BeetleConnectionIT extends BaseBeetleIT {
   @ExtendWith(ContainerLifecycle.class)
   @ParameterizedTest
   @MethodSource("generateTestParametersNack")
+  @DisplayName("Read NACK")
   void testReadNack(
       @Containers RabbitMQContainer[] containers,
       ChannelReadMode mode,
-      MessageAcknowledgementStrategy strategy)
-      throws Exception {
+      MessageAcknowledgementStrategy strategy
+  ) throws Exception {
     ConnectionFactory factory = new ConnectionFactory();
     Stream<Connection> connections = createConnections(factory, containers);
     BeetleConnection beetleConnection =
@@ -80,6 +85,8 @@ class BeetleConnectionIT extends BaseBeetleIT {
     channel.close();
     channel = beetleConnection.createChannel();
     assertEquals(0, channel.messageCount(QUEUE));
+    channel.close();
+    beetleConnection.close();
   }
 
   static Object[] add(Object[] arr, Object element) {
@@ -102,6 +109,7 @@ class BeetleConnectionIT extends BaseBeetleIT {
   }
 
   @Test
+  @DisplayName("Test param count")
   void testParams() {
     assertEquals(18, generateTestParameters().count());
   }
