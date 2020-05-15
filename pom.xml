@@ -97,6 +97,19 @@
                     <url>https://nexus.dc.xing.com/repository/sysarch-snapshots/</url>
                 </snapshotRepository>
             </distributionManagement>
+            <build>
+                <pluginManagement>
+                    <plugins>
+                        <plugin>
+                            <artifactId>maven-compiler-plugin</artifactId>
+                            <version>3.8.1</version>
+                            <configuration>ß
+                                <compilerVersion>1.8</compilerVersion>
+                            </configuration>
+                        </plugin>
+                    </plugins>
+                </pluginManagement>
+            </build>
         </profile>
     </profiles>
     <developers>
