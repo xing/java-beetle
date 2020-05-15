@@ -18,14 +18,23 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'nexus-sysarch-deploy', passwordVariable: 'PASSWORD_VAR', usernameVariable: 'USERNAME_VAR')])
                 {
-                    sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn help:effective-pom clean test -s settings.xml -P ci-internal -Dserver.username=${USERNAME_VAR} -Dserver.password=${PASSWORD_VAR} -q'
+                    sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn clean test -s settings.xml -P ci-internal -Dserver.username=${USERNAME_VAR} -Dserver.password=${PASSWORD_VAR} -q'
+                }
+            }
+        }
+
+        stage ('Deploy') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'nexus-sysarch-deploy', passwordVariable: 'PASSWORD_VAR', usernameVariable: 'USERNAME_VAR')])
+                {
+                    sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn deploy -s settings.xml -P ci-internal -Dserver.username=${USERNAME_VAR} -Dserver.password=${PASSWORD_VAR} -q'
                 }
             }
         }
     }
-    post {
-        success {
-            junit 'target/surefire-reports/**/*.xml'
-        }
-    }
+    // post {
+    //     success {
+    //         junit 'target/surefire-reports/**/*.xml'
+    //     }
+    // }
 }
