@@ -35,42 +35,70 @@
 
     <repositories>
         <repository>
-            <id>beetle-java-client-snapshots</id>
-            <name>beetle-java-client snapshots repo</name>
-            <url>https://nexus.dc.xing.com/repository/sysarch-snapshots/</url>
-            <snapshots>
-                <enabled>true</enabled>
-            </snapshots>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-        </repository>
-        <repository>
-            <id>beetle-java-client-releases</id>
-            <name>beetle-java-client releases repo</name>
-            <url>https://nexus.dc.xing.com/repository/sysarch-releases/</url>
+            <id>central</id>
+            <name>Central Repository</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <layout>default</layout>
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
         </repository>
     </repositories>
 
     <distributionManagement>
         <repository>
-            <id>beetle-java-client-repo</id>
-            <name>Java Beetle Client Releases</name>
-            <url>https://nexus.dc.xing.com/repository/sysarch-releases/</url>
+            <id>sonatype-nexus-staging</id>
+            <name>Nexus Staging Repository</name>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
         <snapshotRepository>
-            <id>beetle-java-client-repo</id>
-            <name>Java Beetle Client Snapshots</name>
-            <url>https://nexus.dc.xing.com/repository/sysarch-snapshots/</url>
+            <id>sonatype-nexus-snapshots</id>
+            <name>Nexus Snapshot Repository</name>
+            <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
 
+    <profiles>
+        <profile>
+            <id>ci-internal</id>
+            <repositories>
+                <repository>
+                    <id>nexus-nwse</id>
+                    <name>beetle-java-client snapshots repo</name>
+                    <url>https://nexus.dc.xing.com/public/</url>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                </repository>
+                <!-- <repository>
+                    <id>beetle-java-client-releases</id>
+                    <name>beetle-java-client releases repo</name>
+                    <url>https://nexus.dc.xing.com/public/</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                </repository> -->
+            </repositories>
+            <distributionManagement>
+                <repository>
+                    <id>nexus-nwse</id>
+                    <name>Java Beetle Client Releases</name>
+                    <url>https://nexus.dc.xing.com/repository/sysarch-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>nexus-nwse</id>
+                    <name>Java Beetle Client Snapshots</name>
+                    <url>https://nexus.dc.xing.com/repository/sysarch-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+    </profiles>
     <developers>
         <developer>
             <name>Hakki Bagci</name>
