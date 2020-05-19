@@ -31,7 +31,7 @@ import java.util.Arrays;
 
 @Configuration
 @Import(BeetleConnectionFactoryCreator.class)
-class BeetleAutoConfiguration {
+public class BeetleAutoConfiguration {
 
   @Configuration
   static class BeetleConnectionFactoryCreator {
