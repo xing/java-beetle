@@ -1,7 +1,20 @@
 package com.xing.beetle.redis;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore;
+
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -12,15 +25,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.testcontainers.containers.GenericContainer;
-
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.when;
 
 /** Integration test for RedisDedupStore with a Redis container. */
 @ExtendWith(MockitoExtension.class)
@@ -80,12 +84,17 @@ class RedisDedupStoreTest {
 
   @Test
   void testPutIfAbsentWithTTL() throws InterruptedException {
+    int timeout = 1;
+
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
-    when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(2);
+    when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(timeout);
+
     RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
-    store.putIfAbsentTtl("keyTTL", new KeyValueStore.Value("ttl"), 2);
+    store.putIfAbsentTtl("keyTTL", new KeyValueStore.Value("ttl"), timeout);
+
     assertTrue(store.get("keyTTL").isPresent());
-    Thread.sleep(2000);
+
+    Thread.sleep(TimeUnit.SECONDS.toMillis(timeout));
     assertFalse(store.get("keyTTL").isPresent());
   }
 
@@ -119,7 +128,7 @@ class RedisDedupStoreTest {
             () -> {
               store.get("key");
             });
-    assertEquals(deduplicationException.getMessage(), "Deduplication store request timed out");
+    assertEquals("Deduplication store request timed out", deduplicationException.getMessage());
   }
 
   @ParameterizedTest
@@ -131,9 +140,11 @@ class RedisDedupStoreTest {
 
     List<String> lines = Arrays.asList(system + localRedisServer);
     Files.write(redisServerConfigFile, lines);
+
     if (system.equals("system/")) {
       when(beetleAmqpConfiguration.getSystemName()).thenReturn("system");
     }
+
     when(beetleAmqpConfiguration.getBeetleRedisServer())
         .thenReturn(redisServerConfigFile.toAbsolutePath().toString());
     when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
@@ -146,10 +157,12 @@ class RedisDedupStoreTest {
   @Test
   void testServerAddressFromNonExistingFile() {
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn("redisServerConfig.txt");
+
     DeduplicationException deduplicationException =
         Assertions.assertThrows(
             DeduplicationException.class, () -> new RedisDedupStore(beetleAmqpConfiguration));
-    assertEquals(deduplicationException.getMessage(), "Invalid redis address");
+
+    assertEquals("Invalid redis address", deduplicationException.getMessage());
   }
 
   @Test
@@ -159,8 +172,9 @@ class RedisDedupStoreTest {
     DeduplicationException deduplicationException =
         Assertions.assertThrows(
             DeduplicationException.class, () -> new RedisDedupStore(beetleAmqpConfiguration));
+
     assertEquals(
-        deduplicationException.getMessage(),
-        "Cannot connect to redis at given address: localhost:6399");
+        "Cannot connect to redis at given address: localhost:6399",
+        deduplicationException.getMessage());
   }
 }

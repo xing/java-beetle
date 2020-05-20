@@ -17,11 +17,17 @@ public class MultiPlexingConnectionIT {
   private static final String QUEUE = "test-queue";
   private static final int NUMBER_OF_MESSAGES = 10;
 
-  @Container
-  RabbitMQContainer container = new RabbitMQContainer();
+  @Container RabbitMQContainer container = new RabbitMQContainer();
 
   @ParameterizedTest(name = "MplexConn {0}/{1}")
-  @CsvSource({ "GET,AUTO", "GET,SINGLE", "GET,MULTIPLE", "CONSUME,AUTO", "CONSUME,SINGLE", "CONSUME,MULTIPLE" })
+  @CsvSource({
+    "GET,AUTO",
+    "GET,SINGLE",
+    "GET,MULTIPLE",
+    "CONSUME,AUTO",
+    "CONSUME,SINGLE",
+    "CONSUME,MULTIPLE"
+  })
   void test(ChannelReadMode mode, MessageAcknowledgementStrategy strategy) throws Exception {
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost(container.getContainerIpAddress());
@@ -34,7 +40,7 @@ public class MultiPlexingConnectionIT {
     channel.queueDeclare(queue, false, false, false, null);
 
     for (byte i = 0; i < NUMBER_OF_MESSAGES; i++) {
-      channel.basicPublish("", queue, null, new byte[] { i });
+      channel.basicPublish("", queue, null, new byte[] {i});
     }
 
     int messageCount = mode.readAck(channel, queue, strategy, NUMBER_OF_MESSAGES);

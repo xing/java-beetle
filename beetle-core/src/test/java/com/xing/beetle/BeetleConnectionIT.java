@@ -20,17 +20,19 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 class BeetleConnectionIT extends BaseBeetleIT {
 
-  private static final int NUMBER_OF_MESSAGES = 10;
+  private static final int NUMBER_OF_MESSAGES = 5;
 
   @ParameterizedTest(name = "Read ACK {0} {1} {2}")
   @MethodSource("generateTestParameters")
   @DisplayName("Read ACK")
-  void testReadAck(int containers, ChannelReadMode mode, MessageAcknowledgementStrategy strategy) throws Exception {
+  void testReadAck(int containers, ChannelReadMode mode, MessageAcknowledgementStrategy strategy)
+      throws Exception {
 
     ConnectionFactory factory = new ConnectionFactory();
 
     Stream<Connection> connections = createConnections(factory, containers);
-    BeetleConnection beetleConnection = new BeetleConnection(connections.collect(Collectors.toList()));
+    BeetleConnection beetleConnection =
+        new BeetleConnection(connections.collect(Collectors.toList()));
     Channel channel = beetleConnection.createChannel();
 
     String queue = String.format("%d-%s-%s", containers, mode, strategy);
@@ -53,10 +55,12 @@ class BeetleConnectionIT extends BaseBeetleIT {
 
   @ParameterizedTest(name = "Read NACK {0} {1} {2}")
   @MethodSource("generateTestParametersNack")
-  void testReadNack(int containers, ChannelReadMode mode, MessageAcknowledgementStrategy strategy) throws Exception {
+  void testReadNack(int containers, ChannelReadMode mode, MessageAcknowledgementStrategy strategy)
+      throws Exception {
     ConnectionFactory factory = new ConnectionFactory();
     Stream<Connection> connections = createConnections(factory, containers);
-    BeetleConnection beetleConnection = new BeetleConnection(connections.collect(Collectors.toList()));
+    BeetleConnection beetleConnection =
+        new BeetleConnection(connections.collect(Collectors.toList()));
     Channel channel = beetleConnection.createChannel();
     String queue = String.format("%d-%s-%s", containers, mode, strategy);
 
@@ -84,18 +88,20 @@ class BeetleConnectionIT extends BaseBeetleIT {
   }
 
   /**
-   * generate permutations of number of connected RMQ servers (1-3), read mode and
-   * acknowledgment strategies
+   * generate permutations of number of connected RMQ servers (1-3), read mode and acknowledgment
+   * strategies
    */
   static Stream<Object[]> generateTestParameters() {
-    return IntStream.rangeClosed(1, 3).mapToObj(cc -> add(new Object[0], cc))
+    return IntStream.rangeClosed(1, 3)
+        .mapToObj(cc -> add(new Object[0], cc))
         .flatMap(args -> Stream.of(ChannelReadMode.values()).map(rm -> add(args, rm)))
-        .flatMap(args -> Stream.of(MessageAcknowledgementStrategy.values()).map(rm -> add(args, rm)));
+        .flatMap(
+            args -> Stream.of(MessageAcknowledgementStrategy.values()).map(rm -> add(args, rm)));
   }
 
   /**
-   * generate permutations of number of connected RMQ servers (1-3), read mode and
-   * acknowledgment strategies excluding automatic ACK
+   * generate permutations of number of connected RMQ servers (1-3), read mode and acknowledgment
+   * strategies excluding automatic ACK
    */
   static Stream<Object[]> generateTestParametersNack() {
     return generateTestParameters()
