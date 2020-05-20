@@ -1,8 +1,9 @@
 package com.xing.beetle;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.GetResponse;
-import java.util.concurrent.atomic.AtomicInteger;
 
 enum ChannelReadMode {
   GET {
