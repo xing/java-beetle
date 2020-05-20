@@ -1,1 +1,1 @@
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.xing.beetle.amqp.BeetleAmqpConfiguration
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.xing.beetle.spring.BeetleAutoConfiguration,com.xing.beetle.amqp.BeetleAmqpConfiguration
