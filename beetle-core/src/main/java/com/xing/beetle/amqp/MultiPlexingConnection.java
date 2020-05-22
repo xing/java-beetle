@@ -73,11 +73,6 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
       Channel consumer = consumerTags.remove(consumerTag);
       if (consumer != null) {
         consumer.basicCancel(consumerTag);
-        try {
-          consumer.close();
-        } catch (TimeoutException e) {
-          ExceptionSupport.sneakyThrow(e);
-        }
       }
     }
 
