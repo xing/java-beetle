@@ -16,10 +16,10 @@ pipeline {
 
         stage ('Build') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'nexus-sysarch-deploy', passwordVariable: 'PASSWORD_VAR', usernameVariable: 'USERNAME_VAR')])
-                {
+                configFileProvider(
+                        [configFile(fileId: 'maven-settings', variable: 'MAVEN_SETTINGS')]) {
                     ansiColor('xterm') {
-                        sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn clean test -s settings.xml -P ci-internal -Dserver.username=${USERNAME_VAR} -Dserver.password=${PASSWORD_VAR} -q'
+                        sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn clean test -s ${MAVEN_SETTINGS} -P ci-internal -Dserver.username=${USERNAME_VAR} -Dserver.password=${PASSWORD_VAR} -q'
                     }
                 }
             }
@@ -27,24 +27,24 @@ pipeline {
 
         stage ('Deploy') {
             when {
-                anyOf{
-                    branch pattern: "master", comparator: "EQUALS"
+                anyOf {
+                    branch pattern: 'master', comparator: 'EQUALS'
                     buildingTag()
                 }
             }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'nexus-sysarch-deploy', passwordVariable: 'PASSWORD_VAR', usernameVariable: 'USERNAME_VAR')])
-                {
+                configFileProvider(
+                        [configFile(fileId: 'maven-settings', variable: 'MAVEN_SETTINGS')]) {
                     ansiColor('xterm') {
-                        sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn deploy -s settings.xml -P ci-internal -Dserver.username=${USERNAME_VAR} -Dserver.password=${PASSWORD_VAR} -q'
+                        sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn deploy -s ${MAVEN_SETTINGS}  -P ci-internal -q'
                     }
                 }
             }
         }
     }
-    // post {
-    //     success {
-    //         junit 'target/surefire-reports/**/*.xml'
-    //     }
-    // }
+// post {
+//     success {
+//         junit 'target/surefire-reports/**/*.xml'
+//     }
+// }
 }
