@@ -3,6 +3,8 @@ package com.xing.beetle.demo
 import org.springframework.amqp.core.AmqpTemplate
 import org.springframework.amqp.core.Message
 import org.springframework.amqp.core.MessageProperties
+import org.springframework.amqp.core.Queue
+import org.springframework.amqp.rabbit.core.RabbitAdmin
 import org.springframework.boot.CommandLineRunner
 import org.springframework.boot.ExitCodeGenerator
 import org.springframework.boot.SpringApplication
@@ -19,16 +21,20 @@ fun main() {
 @SpringBootApplication
 class Application
 
+
 @Component
 class AmqpDemo(
-    private val appContext: ApplicationContext,
-    private val template: AmqpTemplate
+        private val appContext: ApplicationContext,
+        private val template: AmqpTemplate
 ) : CommandLineRunner {
     override fun run(vararg args: String) {
         val message = Message(
-            ByteArray(0),
-            MessageProperties().apply { messageId = UUID.randomUUID().toString() }
+                ByteArray(0),
+                MessageProperties().apply { messageId = UUID.randomUUID().toString() }
         )
+
+        val rabbitAdmin: RabbitAdmin = appContext.getBean(RabbitAdmin::class.java)
+        rabbitAdmin.declareQueue(Queue("myQueue", false))
 
         repeat(40) {
             template.send("myQueue", message)
