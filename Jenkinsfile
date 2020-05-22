@@ -19,7 +19,7 @@ pipeline {
                 configFileProvider(
                         [configFile(fileId: 'maven-settings', variable: 'MAVEN_SETTINGS')]) {
                     ansiColor('xterm') {
-                        sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn clean test -s ${MAVEN_SETTINGS} -P ci-internal -Dserver.username=${USERNAME_VAR} -Dserver.password=${PASSWORD_VAR} -q'
+                        sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn clean test -s ${MAVEN_SETTINGS} -P ci-internal -q'
                     }
                 }
             }
