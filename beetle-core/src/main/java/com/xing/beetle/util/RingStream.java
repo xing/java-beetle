@@ -4,9 +4,14 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
+/**
+ * RingStream provides a stream that returns a stream of elements
+ * @param <E> Type of Stream elements
+ */
 public class RingStream<E> implements Iterable<E>, Iterator<E> {
 
   private final E[] elements;
@@ -30,6 +35,7 @@ public class RingStream<E> implements Iterable<E>, Iterator<E> {
 
   @Override
   public E next() {
+    if (elements.length == 0) throw new NoSuchElementException("stream is empty");
     int index = current.getAndUpdate(v -> (v + 1) % elements.length);
     return elements[index];
   }
