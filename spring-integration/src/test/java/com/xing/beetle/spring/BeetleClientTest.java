@@ -1,8 +1,19 @@
 package com.xing.beetle.spring;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import com.xing.beetle.BeetleHeader;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.redis.RedisDedupStoreAutoConfiguration;
+
 import org.junit.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.runner.RunWith;
@@ -24,16 +35,6 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.testcontainers.containers.GenericContainer;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.mockito.Mockito.when;
 
 /**
  * Full blown beetle client test with spring integration (RabbitListener) and deduplication (with
@@ -97,6 +98,40 @@ public class BeetleClientTest {
 
     // make sure that queue for policy is declared and working
     assertFalse(queuePolicyMessages.isEmpty());
+  }
+
+  @Test
+  public void testTemplateReceive() {
+
+    for (int i = 0; i < 10; i++) {
+      rabbitTemplate.convertAndSend("QueueTemplate", "message");
+    }
+
+    for (int i = 0; i < 10; i++) {
+      Message m = rabbitTemplate.receive("QueueTemplate", 5000);
+      if (m != null) {
+        assertEquals("message", new String(m.getBody()));
+      }
+    }
+  }
+
+  @Test
+  public void testRedundantTemplate() {
+    String messageId = UUID.randomUUID().toString();
+    sendRedundantMessage("QueueTemplate", 2, messageId);
+
+    int count = 0;
+
+    for (int i = 0; i < 2; i++) {
+      Message m = rabbitTemplate.receive("QueueTemplate", 500);
+      if (m != null) {
+        System.out.printf("%d %s\n", i, m);
+        assertEquals(messageId, m.getMessageProperties().getMessageId());
+        count++;
+      }
+    }
+
+    assertEquals(1, count);
   }
 
   public void waitForMessageDelivery(int millis) {
@@ -256,6 +291,11 @@ public class BeetleClientTest {
     @Bean
     public org.springframework.amqp.core.Queue queueWithTimeout() {
       return new org.springframework.amqp.core.Queue("QueueWithTimeout");
+    }
+
+    @Bean
+    public org.springframework.amqp.core.Queue queueTemplate() {
+      return new org.springframework.amqp.core.Queue("QueueTemplate");
     }
 
     @Bean
