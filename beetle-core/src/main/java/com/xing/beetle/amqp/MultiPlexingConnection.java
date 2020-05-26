@@ -1,24 +1,15 @@
 package com.xing.beetle.amqp;
 
-import static java.util.Objects.requireNonNull;
-
-import com.rabbitmq.client.AlreadyClosedException;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.ConfirmListener;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.GetResponse;
+import com.rabbitmq.client.*;
 import com.xing.beetle.util.ExceptionSupport;
 import com.xing.beetle.util.ExceptionSupport.Function;
+
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
+
+import static java.util.Objects.requireNonNull;
 
 public class MultiPlexingConnection implements DefaultConnection.Decorator {
 
@@ -31,6 +22,10 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
     private final Channel publisher;
 
     private volatile com.rabbitmq.client.Consumer defaultConsumer;
+
+    private int qosPrefetchCount = 0;
+    private int qosPrefetchSize = 0;
+    private boolean qosGlobal = false;
 
     public MultiPlexingChannel(Connection connection) throws IOException {
       this(connection, -1);
@@ -89,11 +84,45 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
       consumerTag =
           consumerTag == null || consumerTag.isEmpty() ? UUID.randomUUID().toString() : consumerTag;
       Channel channel = consumerTags.computeIfAbsent(consumerTag, this::newConsumer);
+      channel.setDefaultConsumer(callback);
+      channel.basicQos(this.qosPrefetchSize, this.qosPrefetchCount, this.qosGlobal);
+
       if (!autoAck) {
         callback = tagMapping.createConsumerDecorator(callback, channel);
       }
+      setDefaultConsumer(callback);
+
       return channel.basicConsume(
           queue, autoAck, consumerTag, noLocal, exclusive, arguments, callback);
+    }
+
+    @Override
+    public void basicQos(int prefetchCount) throws IOException {
+      this.qosPrefetchCount = prefetchCount;
+      consumerTags
+          .values()
+          .forEach((ExceptionSupport.Consumer<Channel>) ch -> ch.basicQos(prefetchCount));
+    }
+
+    @Override
+    public void basicQos(int prefetchCount, boolean global) throws IOException {
+      this.qosPrefetchCount = prefetchCount;
+      this.qosGlobal = global;
+      consumerTags
+          .values()
+          .forEach((ExceptionSupport.Consumer<Channel>) ch -> ch.basicQos(prefetchCount, global));
+    }
+
+    @Override
+    public void basicQos(int prefetchSize, int prefetchCount, boolean global) throws IOException {
+      this.qosPrefetchSize = prefetchSize;
+      this.qosPrefetchCount = prefetchCount;
+      this.qosGlobal = global;
+      consumerTags
+          .values()
+          .forEach(
+              (ExceptionSupport.Consumer<Channel>)
+                  ch -> ch.basicQos(prefetchSize, prefetchCount, global));
     }
 
     @Override
@@ -108,15 +137,6 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
     @Override
     public void basicNack(long deliveryTag, boolean multiple, boolean requeue) throws IOException {
       tagMapping.basicNack(deliveryTag, multiple, requeue);
-    }
-
-    @Override
-    public void basicQos(int prefetchSize, int prefetchCount, boolean global) throws IOException {
-      consumerTags
-          .values()
-          .forEach(
-              (ExceptionSupport.Consumer<Channel>)
-                  ch -> ch.basicQos(prefetchSize, prefetchCount, global));
     }
 
     @Override
