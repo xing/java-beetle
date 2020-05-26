@@ -107,12 +107,17 @@ public class BeetleClientTest {
       rabbitTemplate.convertAndSend("QueueTemplate", "message");
     }
 
+    int count = 0;
+
     for (int i = 0; i < 10; i++) {
       Message m = rabbitTemplate.receive("QueueTemplate", 5000);
       if (m != null) {
         assertEquals("message", new String(m.getBody()));
       }
+      count++;
     }
+
+    assertEquals(10, count);
   }
 
   @Test

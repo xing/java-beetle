@@ -8,14 +8,11 @@ import com.xing.beetle.BeetleHeader;
 import com.xing.beetle.util.ExceptionSupport;
 import com.xing.beetle.util.ExceptionSupport.Function;
 import com.xing.beetle.util.RingStream;
+
 import java.io.IOException;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 public class BeetleChannel implements DefaultChannel.Decorator {
 
@@ -33,6 +30,29 @@ public class BeetleChannel implements DefaultChannel.Decorator {
   @Override
   public void basicAck(long deliveryTag, boolean multiple) throws IOException {
     tagMapping.basicAck(deliveryTag, multiple);
+  }
+
+  @Override
+  public void basicQos(int prefetchCount) throws IOException {
+    delegates
+        .streamAll()
+        .forEach((ExceptionSupport.Consumer<Channel>) ch -> ch.basicQos(prefetchCount));
+  }
+
+  @Override
+  public void basicQos(int prefetchCount, boolean global) throws IOException {
+    delegates
+        .streamAll()
+        .forEach((ExceptionSupport.Consumer<Channel>) ch -> ch.basicQos(prefetchCount, global));
+  }
+
+  @Override
+  public void basicQos(int prefetchSize, int prefetchCount, boolean global) throws IOException {
+    delegates
+        .streamAll()
+        .forEach(
+            (ExceptionSupport.Consumer<Channel>)
+                ch -> ch.basicQos(prefetchSize, prefetchCount, global));
   }
 
   @Override
