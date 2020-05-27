@@ -10,3 +10,6 @@ target/
 
 .DS_Store
 bin/
+
+.envrc
+.tool-versions
