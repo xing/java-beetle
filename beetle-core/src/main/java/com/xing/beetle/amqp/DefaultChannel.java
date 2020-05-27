@@ -2,6 +2,12 @@ package com.xing.beetle.amqp;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.IOException;
+import java.lang.System.Logger.Level;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
+
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.AMQP.Basic;
 import com.rabbitmq.client.AMQP.BasicProperties;
@@ -29,20 +35,22 @@ import com.rabbitmq.client.ReturnListener;
 import com.rabbitmq.client.ShutdownListener;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.xing.beetle.util.ExceptionSupport;
-import java.io.IOException;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
 
 public interface DefaultChannel extends Channel {
 
   interface Decorator extends DefaultChannel {
 
+    /** Type specifies the type of connection */
     enum Type {
+      /** Consumer connection */
       CONSUME,
+      /** Publisher */
       PUBLISH,
+      /** Synchronos RPC channel */
       RPC,
+      /** State */
       STATE,
+      /** Topology */
       TOPOLOGY;
     }
 
@@ -411,10 +419,15 @@ public interface DefaultChannel extends Channel {
       }
 
       @Override
-      public void handleCancelOk(String consumerTag) {}
+      public void handleCancelOk(String consumerTag) {
+        System.getLogger(getClass().getName())
+            .log(Level.DEBUG, "%s: Channel closed\n", consumerTag);
+      }
 
       @Override
-      public void handleConsumeOk(String consumerTag) {}
+      public void handleConsumeOk(String consumerTag) {
+        System.getLogger(getClass().getName()).log(Level.DEBUG, "%s: ConsumeOK\n", consumerTag);
+      }
 
       @Override
       public void handleDelivery(
@@ -426,7 +439,9 @@ public interface DefaultChannel extends Channel {
       }
 
       @Override
-      public void handleRecoverOk(String consumerTag) {}
+      public void handleRecoverOk(String consumerTag) {
+        System.getLogger(getClass().getName()).log(Level.DEBUG, "%s: RecoverOK", consumerTag);
+      }
 
       @Override
       public void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
@@ -478,6 +493,7 @@ public interface DefaultChannel extends Channel {
 
   @Override
   default void abort() throws IOException {
+    System.getLogger(getClass().getName()).log(Level.DEBUG, "aborted");
     abort(AMQP.REPLY_SUCCESS, "OK");
   }
 
@@ -761,6 +777,7 @@ public interface DefaultChannel extends Channel {
 
   @Override
   default void close() throws IOException, TimeoutException {
+    System.getLogger(getClass().getName()).log(Level.DEBUG, "Channel close");
     close(AMQP.REPLY_SUCCESS, "OK");
   }
 
@@ -884,6 +901,7 @@ public interface DefaultChannel extends Channel {
     try {
       confirms = waitForConfirms(0L);
     } catch (TimeoutException e) {
+      // ignored
     }
     return confirms;
   }
@@ -893,6 +911,7 @@ public interface DefaultChannel extends Channel {
     try {
       waitForConfirmsOrDie(0L);
     } catch (TimeoutException e) {
+      // ignored
     }
   }
 
@@ -901,6 +920,7 @@ public interface DefaultChannel extends Channel {
       throws IOException, InterruptedException, TimeoutException {
     try {
       if (!waitForConfirms(timeout)) {
+        System.getLogger(getClass().getName()).log(Level.DEBUG, "Close because of NACKS");
         close(AMQP.REPLY_SUCCESS, "NACKS RECEIVED");
         throw new IOException("nacks received");
       }

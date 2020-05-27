@@ -10,6 +10,7 @@ import java.util.stream.Stream;
 
 /**
  * RingStream provides a stream that returns a stream of elements
+ *
  * @param <E> Type of Stream elements
  */
 public class RingStream<E> implements Iterable<E>, Iterator<E> {
