@@ -47,6 +47,7 @@ class KeyValueStoreBasedDeduplicatorTest {
   void testBasicOperations() throws InterruptedException {
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
     when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
+
     RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     KeyValueStoreBasedDeduplicator deduplicator =
         new KeyValueStoreBasedDeduplicator(store, beetleAmqpConfiguration);
@@ -65,6 +66,7 @@ class KeyValueStoreBasedDeduplicatorTest {
   void testTryAcquireMutex() throws InterruptedException {
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
     when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
+
     RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     KeyValueStoreBasedDeduplicator deduplicator =
         new KeyValueStoreBasedDeduplicator(store, beetleAmqpConfiguration);
@@ -84,6 +86,7 @@ class KeyValueStoreBasedDeduplicatorTest {
     when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
     when(beetleAmqpConfiguration.getBeetleRedisStatusKeyExpiryInterval())
         .thenReturn(expiryInterval);
+
     RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     KeyValueStoreBasedDeduplicator deduplicator =
         new KeyValueStoreBasedDeduplicator(store, beetleAmqpConfiguration);
@@ -92,6 +95,7 @@ class KeyValueStoreBasedDeduplicatorTest {
     assertTrue(deduplicator.completed("messageId"));
     deduplicator.deleteKeys("messageId");
     boolean statusExists = store.get("messageId:status").isPresent();
+
     if (expiryInterval > 0) {
       assertTrue(statusExists);
     } else {

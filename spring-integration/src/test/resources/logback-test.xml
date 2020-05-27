@@ -1,5 +1,5 @@
 <configuration>
-    <appender name="logonfail" class="com.xing.testing.TestFailureLogger">
+    <appender name="logonfail" class="com.xing.testing.TestFailureLogger" >
         <encoder>
             <pattern>[%level] %logger{36} - %msg%n</pattern>
         </encoder>

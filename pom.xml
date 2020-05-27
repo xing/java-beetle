@@ -127,6 +127,7 @@
         <module>spring-integration</module>
         <module>spring-java-demo</module>
         <module>spring-kotlin-demo</module>
+        <module>test-logger</module>
     </modules>
 
     <build>
