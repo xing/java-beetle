@@ -14,6 +14,7 @@ import com.xing.beetle.BeetleHeader;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.redis.RedisDedupStoreAutoConfiguration;
 
+import com.xing.testing.TestFailureLogger;
 import org.junit.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.runner.RunWith;
@@ -32,6 +33,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.testcontainers.containers.GenericContainer;
@@ -42,6 +44,9 @@ import org.testcontainers.containers.GenericContainer;
  */
 @RunWith(SpringJUnit4ClassRunner.class)
 @ExtendWith(MockitoExtension.class)
+@TestExecutionListeners(
+    value = {TestFailureLogger.class},
+    mergeMode = TestExecutionListeners.MergeMode.MERGE_WITH_DEFAULTS)
 @SpringBootTest
 @DirtiesContext
 public class BeetleClientTest {
@@ -110,7 +115,7 @@ public class BeetleClientTest {
     int count = 0;
 
     for (int i = 0; i < 10; i++) {
-      Message m = rabbitTemplate.receive("QueueTemplate", 5000);
+      Message m = rabbitTemplate.receive("QueueTemplate", 50);
       if (m != null) {
         assertEquals("message", new String(m.getBody()));
       }
@@ -128,9 +133,8 @@ public class BeetleClientTest {
     int count = 0;
 
     for (int i = 0; i < 2; i++) {
-      Message m = rabbitTemplate.receive("QueueTemplate", 500);
+      Message m = rabbitTemplate.receive("QueueTemplate", 50);
       if (m != null) {
-        System.out.printf("%d %s\n", i, m);
         assertEquals(messageId, m.getMessageProperties().getMessageId());
         count++;
       }
