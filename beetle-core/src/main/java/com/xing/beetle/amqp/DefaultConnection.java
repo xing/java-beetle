@@ -2,6 +2,11 @@ package com.xing.beetle.amqp;
 
 import static java.util.Objects.requireNonNull;
 
+import java.io.IOException;
+import java.lang.System.Logger.Level;
+import java.net.InetAddress;
+import java.util.Map;
+
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.BlockedCallback;
 import com.rabbitmq.client.BlockedListener;
@@ -12,9 +17,6 @@ import com.rabbitmq.client.ShutdownListener;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.UnblockedCallback;
 import com.xing.beetle.util.ExceptionSupport;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.util.Map;
 
 public interface DefaultConnection extends Connection {
 
@@ -143,6 +145,7 @@ public interface DefaultConnection extends Connection {
 
   @Override
   default void abort(int timeout) {
+    System.getLogger(getClass().getName()).log(Level.DEBUG, "abort w/timeout");
     abort(AMQP.REPLY_SUCCESS, "OK", timeout);
   }
 
@@ -151,7 +154,6 @@ public interface DefaultConnection extends Connection {
     abort(closeCode, closeMessage, -1);
   }
 
-  @Override
   default BlockedListener addBlockedListener(
       BlockedCallback blockedCallback, UnblockedCallback unblockedCallback) {
     requireNonNull(blockedCallback);
@@ -180,6 +182,7 @@ public interface DefaultConnection extends Connection {
 
   @Override
   default void close(int timeout) throws IOException {
+    System.getLogger(getClass().getName()).log(Level.DEBUG, "close");
     close(AMQP.REPLY_SUCCESS, "OK", timeout);
   }
 
