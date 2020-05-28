@@ -18,8 +18,15 @@ import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.UnblockedCallback;
 import com.xing.beetle.util.ExceptionSupport;
 
+/**
+ * DefaultConnection extends the basic AMQP connection interface.
+ */
 public interface DefaultConnection extends Connection {
 
+  /**
+   * Decorator provides default implementations for one or more AMQP connections
+   * and delegates calls where appropriate.
+   */
   interface Decorator extends DefaultConnection {
 
     @Override
@@ -48,11 +55,10 @@ public interface DefaultConnection extends Connection {
     }
 
     default void delegateForEach(ExceptionSupport.Consumer<Connection> fn) {
-      delegateMap(
-          connection -> {
-            fn.accept(connection);
-            return null;
-          });
+      delegateMap(connection -> {
+        fn.accept(connection);
+        return null;
+      });
     }
 
     <R> R delegateMap(ExceptionSupport.Function<Connection, ? extends R> fn);
@@ -154,23 +160,21 @@ public interface DefaultConnection extends Connection {
     abort(closeCode, closeMessage, -1);
   }
 
-  default BlockedListener addBlockedListener(
-      BlockedCallback blockedCallback, UnblockedCallback unblockedCallback) {
+  default BlockedListener addBlockedListener(BlockedCallback blockedCallback, UnblockedCallback unblockedCallback) {
     requireNonNull(blockedCallback);
     requireNonNull(unblockedCallback);
-    BlockedListener listener =
-        new BlockedListener() {
+    BlockedListener listener = new BlockedListener() {
 
-          @Override
-          public void handleBlocked(String reason) throws IOException {
-            blockedCallback.handle(reason);
-          }
+      @Override
+      public void handleBlocked(String reason) throws IOException {
+        blockedCallback.handle(reason);
+      }
 
-          @Override
-          public void handleUnblocked() throws IOException {
-            unblockedCallback.handle();
-          }
-        };
+      @Override
+      public void handleUnblocked() throws IOException {
+        unblockedCallback.handle();
+      }
+    };
     addBlockedListener(listener);
     return listener;
   }
