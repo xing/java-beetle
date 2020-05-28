@@ -89,6 +89,7 @@
         <module>spring-java-demo</module>
         <module>spring-kotlin-demo</module>
         <module>test-logger</module>
+        <module>beetle-bom</module>
     </modules>
 
     <build>
@@ -194,6 +195,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.0.1</version>
                 <configuration>
                     <detectJavaApiLink>false</detectJavaApiLink>
                 </configuration>
