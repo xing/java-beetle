@@ -21,7 +21,7 @@ pipeline {
                     ansiColor('xterm') {
                         sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn clean test -s ${MAVEN_SETTINGS} -P ci-internal -q'
                     }
-                }
+                        }
             }
         }
 
@@ -38,13 +38,25 @@ pipeline {
                     ansiColor('xterm') {
                         sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn deploy -s ${MAVEN_SETTINGS}  -P ci-internal -q'
                     }
-                }
+                        }
             }
         }
     }
-// post {
-//     success {
-//         junit 'target/surefire-reports/**/*.xml'
-//     }
-// }
+    post {
+        success {
+            emailext recipientProviders: [developers(), brokenBuildSuspects(), requestor()],
+                subject: "SUCCESSFUL: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                body: """<p>SUCCESSFUL: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':</p>
+                    <p>Check console output at &QUOT;<a href='${env.BUILD_URL}'>${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>&QUOT;</p>"""
+            )
+        }
+
+        failure {
+            emailext recipientProviders: [developers(), brokenBuildSuspects(), requestor()],
+                subject: "FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'",
+                body: """<p>FAILED: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':</p>
+                    <p>Check console output at &QUOT;<a href='${env.BUILD_URL}'>${env.JOB_NAME} [${env.BUILD_NUMBER}]</a>&QUOT;</p>"""
+            )
+        }
+    }
 }
