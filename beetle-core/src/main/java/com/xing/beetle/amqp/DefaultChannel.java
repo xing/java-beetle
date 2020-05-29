@@ -39,8 +39,8 @@ import com.xing.beetle.util.ExceptionSupport;
 public interface DefaultChannel extends Channel {
 
   /**
-   * Decorator provides default implementations of the (Default)Channel interface
-   * delegating to the underlying channels.
+   * Decorator provides default implementations of the (Default)Channel interface delegating to the
+   * underlying channels.
    */
   interface Decorator extends DefaultChannel {
 
@@ -99,10 +99,20 @@ public interface DefaultChannel extends Channel {
     }
 
     @Override
-    default String basicConsume(String queue, boolean autoAck, String consumerTag, boolean noLocal, boolean exclusive,
-        Map<String, Object> arguments, Consumer callback) throws IOException {
-      return delegateMap(Type.CONSUME,
-          ch -> ch.basicConsume(queue, autoAck, consumerTag, noLocal, exclusive, arguments, callback));
+    default String basicConsume(
+        String queue,
+        boolean autoAck,
+        String consumerTag,
+        boolean noLocal,
+        boolean exclusive,
+        Map<String, Object> arguments,
+        Consumer callback)
+        throws IOException {
+      return delegateMap(
+          Type.CONSUME,
+          ch ->
+              ch.basicConsume(
+                  queue, autoAck, consumerTag, noLocal, exclusive, arguments, callback));
     }
 
     @Override
@@ -116,9 +126,17 @@ public interface DefaultChannel extends Channel {
     }
 
     @Override
-    default void basicPublish(String exchange, String routingKey, boolean mandatory, boolean immediate,
-        BasicProperties props, byte[] body) throws IOException {
-      delegateForEach(Type.PUBLISH, ch -> ch.basicPublish(exchange, routingKey, mandatory, immediate, props, body));
+    default void basicPublish(
+        String exchange,
+        String routingKey,
+        boolean mandatory,
+        boolean immediate,
+        BasicProperties props,
+        byte[] body)
+        throws IOException {
+      delegateForEach(
+          Type.PUBLISH,
+          ch -> ch.basicPublish(exchange, routingKey, mandatory, immediate, props, body));
     }
 
     @Override
@@ -162,36 +180,54 @@ public interface DefaultChannel extends Channel {
     }
 
     default void delegateForEach(Type type, ExceptionSupport.Consumer<Channel> fn) {
-      delegateMap(type, channel -> {
-        fn.accept(channel);
-        return null;
-      });
+      delegateMap(
+          type,
+          channel -> {
+            fn.accept(channel);
+            return null;
+          });
     }
 
     <R> R delegateMap(Type type, ExceptionSupport.Function<Channel, ? extends R> fn);
 
     @Override
-    default Exchange.BindOk exchangeBind(String destination, String source, String routingKey,
-        Map<String, Object> arguments) throws IOException {
-      return delegateMap(Type.TOPOLOGY, ch -> ch.exchangeBind(destination, source, routingKey, arguments));
+    default Exchange.BindOk exchangeBind(
+        String destination, String source, String routingKey, Map<String, Object> arguments)
+        throws IOException {
+      return delegateMap(
+          Type.TOPOLOGY, ch -> ch.exchangeBind(destination, source, routingKey, arguments));
     }
 
     @Override
-    default void exchangeBindNoWait(String destination, String source, String routingKey, Map<String, Object> arguments)
+    default void exchangeBindNoWait(
+        String destination, String source, String routingKey, Map<String, Object> arguments)
         throws IOException {
       exchangeBind(destination, source, routingKey, arguments);
     }
 
     @Override
-    default Exchange.DeclareOk exchangeDeclare(String exchange, String type, boolean durable, boolean autoDelete,
-        boolean internal, Map<String, Object> arguments) throws IOException {
-      return delegateMap(Type.TOPOLOGY,
+    default Exchange.DeclareOk exchangeDeclare(
+        String exchange,
+        String type,
+        boolean durable,
+        boolean autoDelete,
+        boolean internal,
+        Map<String, Object> arguments)
+        throws IOException {
+      return delegateMap(
+          Type.TOPOLOGY,
           ch -> ch.exchangeDeclare(exchange, type, durable, autoDelete, internal, arguments));
     }
 
     @Override
-    default void exchangeDeclareNoWait(String exchange, String type, boolean durable, boolean autoDelete,
-        boolean internal, Map<String, Object> arguments) throws IOException {
+    default void exchangeDeclareNoWait(
+        String exchange,
+        String type,
+        boolean durable,
+        boolean autoDelete,
+        boolean internal,
+        Map<String, Object> arguments)
+        throws IOException {
       exchangeDeclare(exchange, type, durable, autoDelete, internal, arguments);
     }
 
@@ -211,14 +247,17 @@ public interface DefaultChannel extends Channel {
     }
 
     @Override
-    default Exchange.UnbindOk exchangeUnbind(String destination, String source, String routingKey,
-        Map<String, Object> arguments) throws IOException {
-      return delegateMap(Type.TOPOLOGY, ch -> ch.exchangeUnbind(destination, source, routingKey, arguments));
+    default Exchange.UnbindOk exchangeUnbind(
+        String destination, String source, String routingKey, Map<String, Object> arguments)
+        throws IOException {
+      return delegateMap(
+          Type.TOPOLOGY, ch -> ch.exchangeUnbind(destination, source, routingKey, arguments));
     }
 
     @Override
-    default void exchangeUnbindNoWait(String destination, String source, String routingKey,
-        Map<String, Object> arguments) throws IOException {
+    default void exchangeUnbindNoWait(
+        String destination, String source, String routingKey, Map<String, Object> arguments)
+        throws IOException {
       exchangeUnbind(destination, source, routingKey, arguments);
     }
 
@@ -258,26 +297,39 @@ public interface DefaultChannel extends Channel {
     }
 
     @Override
-    default Queue.BindOk queueBind(String queue, String exchange, String routingKey, Map<String, Object> arguments)
+    default Queue.BindOk queueBind(
+        String queue, String exchange, String routingKey, Map<String, Object> arguments)
         throws IOException {
       return delegateMap(Type.TOPOLOGY, ch -> ch.queueBind(queue, exchange, routingKey, arguments));
     }
 
     @Override
-    default void queueBindNoWait(String queue, String exchange, String routingKey, Map<String, Object> arguments)
+    default void queueBindNoWait(
+        String queue, String exchange, String routingKey, Map<String, Object> arguments)
         throws IOException {
       queueBind(queue, exchange, routingKey, arguments);
     }
 
     @Override
-    default Queue.DeclareOk queueDeclare(String queue, boolean durable, boolean exclusive, boolean autoDelete,
-        Map<String, Object> arguments) throws IOException {
-      return delegateMap(Type.TOPOLOGY, ch -> ch.queueDeclare(queue, durable, exclusive, autoDelete, arguments));
+    default Queue.DeclareOk queueDeclare(
+        String queue,
+        boolean durable,
+        boolean exclusive,
+        boolean autoDelete,
+        Map<String, Object> arguments)
+        throws IOException {
+      return delegateMap(
+          Type.TOPOLOGY, ch -> ch.queueDeclare(queue, durable, exclusive, autoDelete, arguments));
     }
 
     @Override
-    default void queueDeclareNoWait(String queue, boolean durable, boolean exclusive, boolean autoDelete,
-        Map<String, Object> arguments) throws IOException {
+    default void queueDeclareNoWait(
+        String queue,
+        boolean durable,
+        boolean exclusive,
+        boolean autoDelete,
+        Map<String, Object> arguments)
+        throws IOException {
       queueDeclare(queue, durable, exclusive, autoDelete, arguments);
     }
 
@@ -287,12 +339,14 @@ public interface DefaultChannel extends Channel {
     }
 
     @Override
-    default Queue.DeleteOk queueDelete(String queue, boolean ifUnused, boolean ifEmpty) throws IOException {
+    default Queue.DeleteOk queueDelete(String queue, boolean ifUnused, boolean ifEmpty)
+        throws IOException {
       return delegateMap(Type.TOPOLOGY, ch -> ch.queueDelete(queue, ifUnused, ifEmpty));
     }
 
     @Override
-    default void queueDeleteNoWait(String queue, boolean ifUnused, boolean ifEmpty) throws IOException {
+    default void queueDeleteNoWait(String queue, boolean ifUnused, boolean ifEmpty)
+        throws IOException {
       queueDelete(queue, ifUnused, ifEmpty);
     }
 
@@ -302,9 +356,11 @@ public interface DefaultChannel extends Channel {
     }
 
     @Override
-    default Queue.UnbindOk queueUnbind(String queue, String exchange, String routingKey, Map<String, Object> arguments)
+    default Queue.UnbindOk queueUnbind(
+        String queue, String exchange, String routingKey, Map<String, Object> arguments)
         throws IOException {
-      return delegateMap(Type.TOPOLOGY, ch -> ch.queueUnbind(queue, exchange, routingKey, arguments));
+      return delegateMap(
+          Type.TOPOLOGY, ch -> ch.queueUnbind(queue, exchange, routingKey, arguments));
     }
 
     @Override
@@ -353,7 +409,9 @@ public interface DefaultChannel extends Channel {
     }
   }
 
-  static Consumer consumerOf(DeliverCallback deliver, CancelCallback cancel,
+  static Consumer consumerOf(
+      DeliverCallback deliver,
+      CancelCallback cancel,
       ConsumerShutdownSignalCallback shutdownSignal) {
     return new Consumer() {
 
@@ -366,7 +424,8 @@ public interface DefaultChannel extends Channel {
 
       @Override
       public void handleCancelOk(String consumerTag) {
-        System.getLogger(getClass().getName()).log(Level.DEBUG, "%s: Channel closed\n", consumerTag);
+        System.getLogger(getClass().getName())
+            .log(Level.DEBUG, "%s: Channel closed\n", consumerTag);
       }
 
       @Override
@@ -375,7 +434,8 @@ public interface DefaultChannel extends Channel {
       }
 
       @Override
-      public void handleDelivery(String consumerTag, Envelope envelope, BasicProperties properties, byte[] body)
+      public void handleDelivery(
+          String consumerTag, Envelope envelope, BasicProperties properties, byte[] body)
           throws IOException {
         if (deliver != null) {
           deliver.handle(consumerTag, new Delivery(envelope, properties, body));
@@ -396,7 +456,8 @@ public interface DefaultChannel extends Channel {
     };
   }
 
-  static Consumer mappingConsumer(Consumer delegate, Channel channel, MsgDeliveryTagMapping tagMapping) {
+  static Consumer mappingConsumer(
+      Consumer delegate, Channel channel, MsgDeliveryTagMapping tagMapping) {
     return new Consumer() {
 
       @Override
@@ -415,7 +476,8 @@ public interface DefaultChannel extends Channel {
       }
 
       @Override
-      public void handleDelivery(String consumerTag, Envelope envelope, BasicProperties properties, byte[] body)
+      public void handleDelivery(
+          String consumerTag, Envelope envelope, BasicProperties properties, byte[] body)
           throws IOException {
         envelope = tagMapping.mapEnvelope(channel, envelope);
         delegate.handleDelivery(consumerTag, envelope, properties, body);
@@ -440,29 +502,33 @@ public interface DefaultChannel extends Channel {
   }
 
   @Override
-  default ConfirmListener addConfirmListener(ConfirmCallback ackCallback, ConfirmCallback nackCallback) {
+  default ConfirmListener addConfirmListener(
+      ConfirmCallback ackCallback, ConfirmCallback nackCallback) {
     requireNonNull(ackCallback);
     requireNonNull(nackCallback);
-    ConfirmListener listener = new ConfirmListener() {
+    ConfirmListener listener =
+        new ConfirmListener() {
 
-      @Override
-      public void handleAck(long deliveryTag, boolean multiple) throws IOException {
-        ackCallback.handle(deliveryTag, multiple);
-      }
+          @Override
+          public void handleAck(long deliveryTag, boolean multiple) throws IOException {
+            ackCallback.handle(deliveryTag, multiple);
+          }
 
-      @Override
-      public void handleNack(long deliveryTag, boolean multiple) throws IOException {
-        nackCallback.handle(deliveryTag, multiple);
-      }
-    };
+          @Override
+          public void handleNack(long deliveryTag, boolean multiple) throws IOException {
+            nackCallback.handle(deliveryTag, multiple);
+          }
+        };
     addConfirmListener(listener);
     return listener;
   }
 
   @Override
   default ReturnListener addReturnListener(ReturnCallback returnCallback) {
-    ReturnListener listener = (replyCode, replyText, exchange, routingKey, properties, body) -> returnCallback
-        .handle(new Return(replyCode, replyText, exchange, routingKey, properties, body));
+    ReturnListener listener =
+        (replyCode, replyText, exchange, routingKey, properties, body) ->
+            returnCallback.handle(
+                new Return(replyCode, replyText, exchange, routingKey, properties, body));
     addReturnListener(listener);
     return listener;
   }
@@ -473,90 +539,188 @@ public interface DefaultChannel extends Channel {
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, DeliverCallback deliver, CancelCallback cancel)
+  default String basicConsume(
+      String queue, boolean autoAck, DeliverCallback deliver, CancelCallback cancel)
       throws IOException {
     return basicConsume(queue, autoAck, "", consumerOf(deliver, cancel, null));
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, DeliverCallback deliver, CancelCallback cancel,
-      ConsumerShutdownSignalCallback shutdownSignal) throws IOException {
+  default String basicConsume(
+      String queue,
+      boolean autoAck,
+      DeliverCallback deliver,
+      CancelCallback cancel,
+      ConsumerShutdownSignalCallback shutdownSignal)
+      throws IOException {
     return basicConsume(queue, autoAck, "", consumerOf(deliver, cancel, shutdownSignal));
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, DeliverCallback deliver,
-      ConsumerShutdownSignalCallback shutdownSignal) throws IOException {
+  default String basicConsume(
+      String queue,
+      boolean autoAck,
+      DeliverCallback deliver,
+      ConsumerShutdownSignalCallback shutdownSignal)
+      throws IOException {
     return basicConsume(queue, autoAck, "", consumerOf(deliver, null, shutdownSignal));
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, Map<String, Object> arguments, Consumer callback)
+  default String basicConsume(
+      String queue, boolean autoAck, Map<String, Object> arguments, Consumer callback)
       throws IOException {
     return basicConsume(queue, autoAck, "", false, false, arguments, callback);
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, Map<String, Object> arguments, DeliverCallback deliver,
-      CancelCallback cancel) throws IOException {
-    return basicConsume(queue, autoAck, "", false, false, arguments, consumerOf(deliver, cancel, null));
+  default String basicConsume(
+      String queue,
+      boolean autoAck,
+      Map<String, Object> arguments,
+      DeliverCallback deliver,
+      CancelCallback cancel)
+      throws IOException {
+    return basicConsume(
+        queue, autoAck, "", false, false, arguments, consumerOf(deliver, cancel, null));
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, Map<String, Object> arguments, DeliverCallback deliver,
-      CancelCallback cancel, ConsumerShutdownSignalCallback shutdownSignal) throws IOException {
-    return basicConsume(queue, autoAck, "", false, false, arguments, consumerOf(deliver, cancel, shutdownSignal));
+  default String basicConsume(
+      String queue,
+      boolean autoAck,
+      Map<String, Object> arguments,
+      DeliverCallback deliver,
+      CancelCallback cancel,
+      ConsumerShutdownSignalCallback shutdownSignal)
+      throws IOException {
+    return basicConsume(
+        queue, autoAck, "", false, false, arguments, consumerOf(deliver, cancel, shutdownSignal));
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, Map<String, Object> arguments, DeliverCallback deliver,
-      ConsumerShutdownSignalCallback shutdownSignal) throws IOException {
-    return basicConsume(queue, autoAck, "", false, false, arguments, consumerOf(deliver, null, shutdownSignal));
+  default String basicConsume(
+      String queue,
+      boolean autoAck,
+      Map<String, Object> arguments,
+      DeliverCallback deliver,
+      ConsumerShutdownSignalCallback shutdownSignal)
+      throws IOException {
+    return basicConsume(
+        queue, autoAck, "", false, false, arguments, consumerOf(deliver, null, shutdownSignal));
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, String consumerTag, boolean noLocal, boolean exclusive,
-      Map<String, Object> arguments, DeliverCallback deliver, CancelCallback cancel) throws IOException {
-    return basicConsume(queue, autoAck, consumerTag, noLocal, exclusive, arguments, consumerOf(deliver, cancel, null));
+  default String basicConsume(
+      String queue,
+      boolean autoAck,
+      String consumerTag,
+      boolean noLocal,
+      boolean exclusive,
+      Map<String, Object> arguments,
+      DeliverCallback deliver,
+      CancelCallback cancel)
+      throws IOException {
+    return basicConsume(
+        queue,
+        autoAck,
+        consumerTag,
+        noLocal,
+        exclusive,
+        arguments,
+        consumerOf(deliver, cancel, null));
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, String consumerTag, boolean noLocal, boolean exclusive,
-      Map<String, Object> arguments, DeliverCallback deliver, CancelCallback cancel,
-      ConsumerShutdownSignalCallback shutdownSignal) throws IOException {
-    return basicConsume(queue, autoAck, consumerTag, noLocal, exclusive, arguments,
+  default String basicConsume(
+      String queue,
+      boolean autoAck,
+      String consumerTag,
+      boolean noLocal,
+      boolean exclusive,
+      Map<String, Object> arguments,
+      DeliverCallback deliver,
+      CancelCallback cancel,
+      ConsumerShutdownSignalCallback shutdownSignal)
+      throws IOException {
+    return basicConsume(
+        queue,
+        autoAck,
+        consumerTag,
+        noLocal,
+        exclusive,
+        arguments,
         consumerOf(deliver, cancel, shutdownSignal));
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, String consumerTag, boolean noLocal, boolean exclusive,
-      Map<String, Object> arguments, DeliverCallback deliver, ConsumerShutdownSignalCallback shutdownSignal)
+  default String basicConsume(
+      String queue,
+      boolean autoAck,
+      String consumerTag,
+      boolean noLocal,
+      boolean exclusive,
+      Map<String, Object> arguments,
+      DeliverCallback deliver,
+      ConsumerShutdownSignalCallback shutdownSignal)
       throws IOException {
-    return basicConsume(queue, autoAck, consumerTag, noLocal, exclusive, arguments,
+    return basicConsume(
+        queue,
+        autoAck,
+        consumerTag,
+        noLocal,
+        exclusive,
+        arguments,
         consumerOf(deliver, null, shutdownSignal));
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, String consumerTag, Consumer callback) throws IOException {
+  default String basicConsume(String queue, boolean autoAck, String consumerTag, Consumer callback)
+      throws IOException {
     return basicConsume(queue, autoAck, consumerTag, false, false, null, callback);
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, String consumerTag, DeliverCallback deliver,
-      CancelCallback cancel) throws IOException {
-    return basicConsume(queue, autoAck, consumerTag, false, false, null, consumerOf(deliver, cancel, null));
+  default String basicConsume(
+      String queue,
+      boolean autoAck,
+      String consumerTag,
+      DeliverCallback deliver,
+      CancelCallback cancel)
+      throws IOException {
+    return basicConsume(
+        queue, autoAck, consumerTag, false, false, null, consumerOf(deliver, cancel, null));
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, String consumerTag, DeliverCallback deliver,
-      CancelCallback cancel, ConsumerShutdownSignalCallback shutdownSignal) throws IOException {
-    return basicConsume(queue, autoAck, consumerTag, false, false, null, consumerOf(deliver, cancel, shutdownSignal));
+  default String basicConsume(
+      String queue,
+      boolean autoAck,
+      String consumerTag,
+      DeliverCallback deliver,
+      CancelCallback cancel,
+      ConsumerShutdownSignalCallback shutdownSignal)
+      throws IOException {
+    return basicConsume(
+        queue,
+        autoAck,
+        consumerTag,
+        false,
+        false,
+        null,
+        consumerOf(deliver, cancel, shutdownSignal));
   }
 
   @Override
-  default String basicConsume(String queue, boolean autoAck, String consumerTag, DeliverCallback deliver,
-      ConsumerShutdownSignalCallback shutdownSignal) throws IOException {
-    return basicConsume(queue, autoAck, consumerTag, false, false, null, consumerOf(deliver, null, shutdownSignal));
+  default String basicConsume(
+      String queue,
+      boolean autoAck,
+      String consumerTag,
+      DeliverCallback deliver,
+      ConsumerShutdownSignalCallback shutdownSignal)
+      throws IOException {
+    return basicConsume(
+        queue, autoAck, consumerTag, false, false, null, consumerOf(deliver, null, shutdownSignal));
   }
 
   @Override
@@ -565,29 +729,37 @@ public interface DefaultChannel extends Channel {
   }
 
   @Override
-  default String basicConsume(String queue, DeliverCallback deliver, CancelCallback cancel) throws IOException {
+  default String basicConsume(String queue, DeliverCallback deliver, CancelCallback cancel)
+      throws IOException {
     return basicConsume(queue, consumerOf(deliver, cancel, null));
   }
 
   @Override
-  default String basicConsume(String queue, DeliverCallback deliver, CancelCallback cancel,
-      ConsumerShutdownSignalCallback shutdownSignal) throws IOException {
+  default String basicConsume(
+      String queue,
+      DeliverCallback deliver,
+      CancelCallback cancel,
+      ConsumerShutdownSignalCallback shutdownSignal)
+      throws IOException {
     return basicConsume(queue, consumerOf(deliver, cancel, shutdownSignal));
   }
 
   @Override
-  default String basicConsume(String queue, DeliverCallback deliver, ConsumerShutdownSignalCallback shutdownSignal)
+  default String basicConsume(
+      String queue, DeliverCallback deliver, ConsumerShutdownSignalCallback shutdownSignal)
       throws IOException {
     return basicConsume(queue, consumerOf(deliver, null, shutdownSignal));
   }
 
   @Override
-  default void basicPublish(String exchange, String routingKey, BasicProperties props, byte[] body) throws IOException {
+  default void basicPublish(String exchange, String routingKey, BasicProperties props, byte[] body)
+      throws IOException {
     basicPublish(exchange, routingKey, false, props, body);
   }
 
   @Override
-  default void basicPublish(String exchange, String routingKey, boolean mandatory, BasicProperties props, byte[] body)
+  default void basicPublish(
+      String exchange, String routingKey, boolean mandatory, BasicProperties props, byte[] body)
       throws IOException {
     basicPublish(exchange, routingKey, mandatory, false, props, body);
   }
@@ -614,30 +786,43 @@ public interface DefaultChannel extends Channel {
   }
 
   @Override
-  default Exchange.BindOk exchangeBind(String destination, String source, String routingKey) throws IOException {
+  default Exchange.BindOk exchangeBind(String destination, String source, String routingKey)
+      throws IOException {
     return exchangeBind(destination, source, routingKey, null);
   }
 
   @Override
-  default Exchange.DeclareOk exchangeDeclare(String exchange, BuiltinExchangeType type) throws IOException {
+  default Exchange.DeclareOk exchangeDeclare(String exchange, BuiltinExchangeType type)
+      throws IOException {
     return exchangeDeclare(exchange, type.getType());
   }
 
   @Override
-  default Exchange.DeclareOk exchangeDeclare(String exchange, BuiltinExchangeType type, boolean durable)
-      throws IOException {
+  default Exchange.DeclareOk exchangeDeclare(
+      String exchange, BuiltinExchangeType type, boolean durable) throws IOException {
     return exchangeDeclare(exchange, type.getType(), durable);
   }
 
   @Override
-  default Exchange.DeclareOk exchangeDeclare(String exchange, BuiltinExchangeType type, boolean durable,
-      boolean autoDelete, boolean internal, Map<String, Object> arguments) throws IOException {
+  default Exchange.DeclareOk exchangeDeclare(
+      String exchange,
+      BuiltinExchangeType type,
+      boolean durable,
+      boolean autoDelete,
+      boolean internal,
+      Map<String, Object> arguments)
+      throws IOException {
     return exchangeDeclare(exchange, type.getType(), durable, autoDelete, internal, arguments);
   }
 
   @Override
-  default Exchange.DeclareOk exchangeDeclare(String exchange, BuiltinExchangeType type, boolean durable,
-      boolean autoDelete, Map<String, Object> arguments) throws IOException {
+  default Exchange.DeclareOk exchangeDeclare(
+      String exchange,
+      BuiltinExchangeType type,
+      boolean durable,
+      boolean autoDelete,
+      Map<String, Object> arguments)
+      throws IOException {
     return exchangeDeclare(exchange, type.getType(), durable, autoDelete, arguments);
   }
 
@@ -647,19 +832,31 @@ public interface DefaultChannel extends Channel {
   }
 
   @Override
-  default Exchange.DeclareOk exchangeDeclare(String exchange, String type, boolean durable) throws IOException {
+  default Exchange.DeclareOk exchangeDeclare(String exchange, String type, boolean durable)
+      throws IOException {
     return exchangeDeclare(exchange, type, durable, false, null);
   }
 
   @Override
-  default Exchange.DeclareOk exchangeDeclare(String exchange, String type, boolean durable, boolean autoDelete,
-      Map<String, Object> arguments) throws IOException {
+  default Exchange.DeclareOk exchangeDeclare(
+      String exchange,
+      String type,
+      boolean durable,
+      boolean autoDelete,
+      Map<String, Object> arguments)
+      throws IOException {
     return exchangeDeclare(exchange, type, durable, autoDelete, false, arguments);
   }
 
   @Override
-  default void exchangeDeclareNoWait(String exchange, BuiltinExchangeType type, boolean durable, boolean autoDelete,
-      boolean internal, Map<String, Object> arguments) throws IOException {
+  default void exchangeDeclareNoWait(
+      String exchange,
+      BuiltinExchangeType type,
+      boolean durable,
+      boolean autoDelete,
+      boolean internal,
+      Map<String, Object> arguments)
+      throws IOException {
     exchangeDeclareNoWait(exchange, type.getType(), durable, autoDelete, internal, arguments);
   }
 
@@ -669,7 +866,8 @@ public interface DefaultChannel extends Channel {
   }
 
   @Override
-  default Exchange.UnbindOk exchangeUnbind(String destination, String source, String routingKey) throws IOException {
+  default Exchange.UnbindOk exchangeUnbind(String destination, String source, String routingKey)
+      throws IOException {
     return exchangeUnbind(destination, source, routingKey, null);
   }
 
@@ -680,7 +878,8 @@ public interface DefaultChannel extends Channel {
   }
 
   @Override
-  default Queue.BindOk queueBind(String queue, String exchange, String routingKey) throws IOException {
+  default Queue.BindOk queueBind(String queue, String exchange, String routingKey)
+      throws IOException {
     return queueBind(queue, exchange, routingKey, null);
   }
 
@@ -695,7 +894,8 @@ public interface DefaultChannel extends Channel {
   }
 
   @Override
-  default Queue.UnbindOk queueUnbind(String queue, String exchange, String routingKey) throws IOException {
+  default Queue.UnbindOk queueUnbind(String queue, String exchange, String routingKey)
+      throws IOException {
     return queueUnbind(queue, exchange, routingKey, null);
   }
 
@@ -720,7 +920,8 @@ public interface DefaultChannel extends Channel {
   }
 
   @Override
-  default void waitForConfirmsOrDie(long timeout) throws IOException, InterruptedException, TimeoutException {
+  default void waitForConfirmsOrDie(long timeout)
+      throws IOException, InterruptedException, TimeoutException {
     try {
       if (!waitForConfirms(timeout)) {
         System.getLogger(getClass().getName()).log(Level.DEBUG, "Close because of NACKS");

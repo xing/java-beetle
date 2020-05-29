@@ -17,10 +17,7 @@ import com.xing.beetle.util.ExceptionSupport.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * BeetleConnection aggregates connections to one or more brokers to one virtual
- * connection.
- */
+/** BeetleConnection aggregates connections to one or more brokers to one virtual connection. */
 public class BeetleConnection implements DefaultConnection.Decorator, ShutdownListener {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(BeetleConnection.class);
@@ -48,7 +45,10 @@ public class BeetleConnection implements DefaultConnection.Decorator, ShutdownLi
   public Channel createChannel(int channelNumber) throws IOException {
     List<Channel> channels = new ArrayList<>();
     for (Connection connection : delegates) {
-      channels.add(channelNumber >= 0 ? connection.createChannel(channelNumber) : connection.createChannel());
+      channels.add(
+          channelNumber >= 0
+              ? connection.createChannel(channelNumber)
+              : connection.createChannel());
     }
     return new BeetleChannel(channels);
   }
@@ -71,12 +71,18 @@ public class BeetleConnection implements DefaultConnection.Decorator, ShutdownLi
       if (cause.isInitiatedByApplication()) {
         LOGGER.debug("Connection {} closed because of {}", connection, cause.getReason());
       } else {
-        LOGGER.warn("Connection to the broker at {}:{} lost, reconnecting in 10 seconds. Reason: {}",
-            connection.getAddress(), connection.getPort(), cause.getReason());
+        LOGGER.warn(
+            "Connection to the broker at {}:{} lost, reconnecting in 10 seconds. Reason: {}",
+            connection.getAddress(),
+            connection.getPort(),
+            cause.getReason());
       }
     } else {
       Channel channel = (Channel) cause.getReference();
-      LOGGER.info("AQMP channel shutdown {} because of {}. Doing nothing about it.", channel, cause.getReason());
+      LOGGER.info(
+          "AQMP channel shutdown {} because of {}. Doing nothing about it.",
+          channel,
+          cause.getReason());
     }
   }
 }

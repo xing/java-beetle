@@ -28,7 +28,8 @@ public class BeetleConnectionFactory extends ConnectionFactory {
 
   private Supplier<RecoverableConnection> connection(
       ExecutorService executor, AddressResolver resolver, String clientProvidedName) {
-    return () -> (RecoverableConnection) super.newConnection(executor, resolver, clientProvidedName);
+    return () ->
+        (RecoverableConnection) super.newConnection(executor, resolver, clientProvidedName);
   }
 
   @Override
