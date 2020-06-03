@@ -192,16 +192,16 @@ public class BeetleClientWithDeadLetteringTest {
       when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
       when(beetleAmqpConfiguration.getBeetleServers()).thenReturn(beetleServers);
       when(beetleAmqpConfiguration.getSystemName()).thenReturn("system");
-      when(beetleAmqpConfiguration.getHandlerTimeout()).thenReturn(1L);
+      when(beetleAmqpConfiguration.getHandlerTimeoutSeconds()).thenReturn(1L);
       when(beetleAmqpConfiguration.getMutexExpiration()).thenReturn(2);
       when(beetleAmqpConfiguration.getExceptionLimit()).thenReturn(3L);
       when(beetleAmqpConfiguration.getMaxHandlerExecutionAttempts()).thenReturn(3L);
-      when(beetleAmqpConfiguration.getBeetleRedisStatusKeyExpiryInterval()).thenReturn(0);
-      when(beetleAmqpConfiguration.getHandlerExecutionAttemptsDelay()).thenReturn(1);
+      when(beetleAmqpConfiguration.getBeetleRedisStatusKeyExpiryIntervalSeconds()).thenReturn(0);
+      when(beetleAmqpConfiguration.getHandlerExecutionAttemptsDelaySeconds()).thenReturn(1);
       when(beetleAmqpConfiguration.getMaxhandlerExecutionAttemptsDelay()).thenReturn(2);
-      when(beetleAmqpConfiguration.getDeadLetteringMsgTtl()).thenReturn(10);
+      when(beetleAmqpConfiguration.getDeadLetteringMsgTtlMs()).thenReturn(10);
       when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(true);
-      when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
+      when(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds()).thenReturn(3);
 
       when(beetleAmqpConfiguration.getBeetlePolicyExchangeName()).thenReturn("beetle-policies");
       when(beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName())

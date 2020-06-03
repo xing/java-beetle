@@ -35,13 +35,13 @@ public class BeetleAmqpConfiguration {
   private String beetleAdditionalSubscriptionServers = "";
 
   /**
-   * defines how long message tombstones are kept in the deduplication store. This setting helps
-   * avoiding duplicate handler executions cause for example by hard application crashes. Setting
-   * this to a large value can bring down the Redis deduplication store. When 0, status key will
-   * never expire.
+   * (seconds )defines how long message tombstones are kept in the deduplication store. This setting
+   * helps avoiding duplicate handler executions cause for example by hard application crashes.
+   * Setting this to a large value can bring down the Redis deduplication store. When 0, status key
+   * will never expire.
    */
   @Value("${beetle.redis_status_key_expiry_interval:0}")
-  private int beetleRedisStatusKeyExpiryInterval = 0;
+  private int beetleRedisStatusKeyExpiryIntervalSeconds = 0;
 
   /**
    * policy_exchange_name is the name of the exchange on which to publish messages to set up queue
@@ -66,7 +66,7 @@ public class BeetleAmqpConfiguration {
    * time it takes to auto-switch redis and the smallest handler timeout.
    */
   @Value("${beetle.redis_failover_timeout:180}")
-  private int redisFailoverTimeout = 180;
+  private int redisFailoverTimeoutSeconds = 180;
 
   /**
    * In contrast to RabbitMQ 2.x, RabbitMQ 3.x preserves message order when requeing a message. This
@@ -96,7 +96,7 @@ public class BeetleAmqpConfiguration {
    * enabled, before it is returned to the original queue
    */
   @Value("${beetle.dead_lettering_msg_ttl:1000}")
-  private int deadLetteringMsgTtl = 1000; // 1 second
+  private int deadLetteringMsgTtlMs = 1000; // 1 second
 
   /** the AMQP user to use when connecting to the AMQP servers (defaults to "guest") */
   @Value("${beetle.user:guest}")
@@ -108,7 +108,7 @@ public class BeetleAmqpConfiguration {
 
   /** forcefully abort a running handler after this many seconds. */
   @Value("${beetle.handler_timeout:600}")
-  private int handlerTimeout = 600;
+  private int handlerTimeoutSeconds = 600;
 
   /** how many times we should try to run a handler before giving up the handler execution */
   @Value("${beetle.handler_execution_attempts:600}")
@@ -116,15 +116,15 @@ public class BeetleAmqpConfiguration {
 
   /** how many seconds we should wait before retrying handler execution */
   @Value("${beetle.handler_execution_attempts_delay:10}")
-  private int handlerExecutionAttemptsDelay = 10; // seconds
+  private int handlerExecutionAttemptsDelaySeconds = 10; // seconds
 
   /** how many exceptions should be tolerated before giving up the handler execution */
   @Value("${beetle.exception_limit:0}")
   private int exceptionLimit = 0;
 
-  /** default lifetime of messages in seconds */
+  /** lifetime of messages in seconds */
   @Value("${beetle.ttl}")
-  private int messageLifetime = 24 * 60 * 60;
+  private int messageLifetimeSeconds = 24 * 60 * 60;
 
   public String getBeetleRedisServer() {
     return beetleRedisServer;
@@ -138,8 +138,8 @@ public class BeetleAmqpConfiguration {
     return beetleAdditionalSubscriptionServers;
   }
 
-  public int getBeetleRedisStatusKeyExpiryInterval() {
-    return beetleRedisStatusKeyExpiryInterval;
+  public int getBeetleRedisStatusKeyExpiryIntervalSeconds() {
+    return beetleRedisStatusKeyExpiryIntervalSeconds;
   }
 
   public String getSystemName() {
@@ -147,31 +147,31 @@ public class BeetleAmqpConfiguration {
   }
 
   public int getMutexExpiration() {
-    return 2 * handlerTimeout;
+    return 2 * handlerTimeoutSeconds;
   }
 
   public int getMaxhandlerExecutionAttemptsDelay() {
-    return 2 * handlerExecutionAttemptsDelay;
+    return 2 * handlerExecutionAttemptsDelaySeconds;
   }
 
   public long getMaxHandlerExecutionAttempts() {
     return maxHandlerExecutionAttempts;
   }
 
-  public long getHandlerTimeout() {
-    return handlerTimeout;
+  public long getHandlerTimeoutSeconds() {
+    return handlerTimeoutSeconds;
   }
 
   public long getExceptionLimit() {
     return exceptionLimit;
   }
 
-  public int getHandlerExecutionAttemptsDelay() {
-    return handlerExecutionAttemptsDelay;
+  public int getHandlerExecutionAttemptsDelaySeconds() {
+    return handlerExecutionAttemptsDelaySeconds;
   }
 
-  public int getDeadLetteringMsgTtl() {
-    return deadLetteringMsgTtl;
+  public int getDeadLetteringMsgTtlMs() {
+    return deadLetteringMsgTtlMs;
   }
 
   public String getBeetlePolicyExchangeName() {
@@ -194,19 +194,19 @@ public class BeetleAmqpConfiguration {
     return lazyQueuesEnabled;
   }
 
-  public int getRedisFailoverTimeout() {
-    return redisFailoverTimeout;
+  public int getRedisFailoverTimeoutSeconds() {
+    return redisFailoverTimeoutSeconds;
   }
 
-  void setRedisFailoverTimeout(int redisFailoverTimeout) {
-    this.redisFailoverTimeout = redisFailoverTimeout;
+  void setRedisFailoverTimeoutSeconds(int redisFailoverTimeoutSeconds) {
+    this.redisFailoverTimeoutSeconds = redisFailoverTimeoutSeconds;
   }
 
-  public int getMessageLifetime() {
-    return messageLifetime;
+  public int getMessageLifetimeSeconds() {
+    return messageLifetimeSeconds;
   }
 
-  public void setMessageLifetime(int messageLifetime) {
-    this.messageLifetime = messageLifetime;
+  public void setMessageLifetimeSeconds(int messageLifetimeSeconds) {
+    this.messageLifetimeSeconds = messageLifetimeSeconds;
   }
 }

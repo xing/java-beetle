@@ -18,7 +18,7 @@ public class RedisDedupStore implements KeyValueStore {
 
   RedisDedupStore(BeetleAmqpConfiguration beetleAmqpConfiguration) {
     this.redis = new Redis(beetleAmqpConfiguration);
-    this.failover = new Failover(beetleAmqpConfiguration.getRedisFailoverTimeout(), 1);
+    this.failover = new Failover(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds(), 1);
   }
 
   @Override
