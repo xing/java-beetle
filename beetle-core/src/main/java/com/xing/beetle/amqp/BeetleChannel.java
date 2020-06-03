@@ -1,14 +1,5 @@
 package com.xing.beetle.amqp;
 
-import java.io.IOException;
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-
 import com.rabbitmq.client.AMQP.BasicProperties;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Consumer;
@@ -18,6 +9,11 @@ import com.xing.beetle.util.ExceptionSupport;
 import com.xing.beetle.util.ExceptionSupport.Function;
 import com.xing.beetle.util.RingStream;
 
+import java.io.IOException;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
+import java.util.*;
+
 /** BeetleChannel wraps one or more actual AMQP channels for consumption by a message processor. */
 public class BeetleChannel implements DefaultChannel.Decorator {
 
@@ -25,10 +21,12 @@ public class BeetleChannel implements DefaultChannel.Decorator {
   private static final int FLAG_REDUNDANT = 1;
 
   private final RingStream<Channel> delegates;
+  private final BeetleAmqpConfiguration configuration;
   private final MsgDeliveryTagMapping tagMapping;
 
-  BeetleChannel(List<Channel> channels) {
+  BeetleChannel(List<Channel> channels, BeetleAmqpConfiguration configuration) {
     this.delegates = new RingStream<>(channels.toArray(new Channel[channels.size()]));
+    this.configuration = configuration;
     this.tagMapping = new MsgDeliveryTagMapping();
   }
 
@@ -120,24 +118,26 @@ public class BeetleChannel implements DefaultChannel.Decorator {
       byte[] body)
       throws IOException {
 
-    int redundancy = 1;
+    if (props == null) {
+      props = new BasicProperties();
+      Map<String, Object> headers = new HashMap<>();
+      props = props.builder().headers(headers).build();
+    }
 
-    if (props != null && props.getHeaders() != null) {
-      redundancy =
-          (int) props.getHeaders().getOrDefault(BeetleHeader.PUBLISH_REDUNDANCY, redundancy);
-      if (redundancy > 1 && props.getMessageId() == null) {
-        props = props.builder().messageId(UUID.randomUUID().toString()).build();
-      }
+    int redundancy = (int) props.getHeaders().getOrDefault(BeetleHeader.PUBLISH_REDUNDANCY, 1);
+    if (redundancy > 1 && props.getMessageId() == null) {
+      props = props.builder().messageId(UUID.randomUUID().toString()).build();
     }
 
     BasicProperties properties;
-    if (props != null) {
-      Map<String, Object> headers = new HashMap<>(props.getHeaders());
-      headers.put("flags", redundancy > 1 ? FLAG_REDUNDANT : 0);
-      properties = props.builder().headers(headers).build();
-    } else {
-      properties = null;
+    Map<String, Object> headers = new HashMap<>(props.getHeaders());
+    headers.put("flags", redundancy > 1 ? FLAG_REDUNDANT : 0);
+    if (!headers.containsKey(BeetleHeader.EXPIRES_AT)) {
+      headers.put(
+          BeetleHeader.EXPIRES_AT,
+          System.currentTimeMillis() + configuration.getMessageLifetimeSeconds() * 1000);
     }
+    properties = props.builder().headers(headers).build();
 
     long sent =
         delegates
@@ -158,7 +158,7 @@ public class BeetleChannel implements DefaultChannel.Decorator {
               + " times. Expected was a redundancy of "
               + redundancy
               + ". Message Header:"
-              + props);
+              + properties);
     }
   }
 
@@ -196,6 +196,7 @@ public class BeetleChannel implements DefaultChannel.Decorator {
       byte[] body) {
     try {
       channel.basicPublish(exchange, routingKey, mandatory, immediate, props, body);
+      System.out.println("sent " + channel.hashCode() + " " + props.getMessageId());
       return true;
     } catch (Exception e) {
       LOGGER.log(

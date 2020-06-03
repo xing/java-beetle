@@ -10,6 +10,7 @@ import java.util.stream.Stream;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.amqp.BeetleConnection;
 
 import org.junit.jupiter.api.DisplayName;
@@ -32,7 +33,8 @@ class BeetleConnectionIT extends BaseBeetleIT {
 
     Stream<Connection> connections = createConnections(factory, containers);
     BeetleConnection beetleConnection =
-        new BeetleConnection(connections.collect(Collectors.toList()));
+        new BeetleConnection(
+            connections.collect(Collectors.toList()), new BeetleAmqpConfiguration());
     Channel channel = beetleConnection.createChannel();
 
     String queue = String.format("%d-%s-%s", containers, mode, strategy);
@@ -60,7 +62,8 @@ class BeetleConnectionIT extends BaseBeetleIT {
     ConnectionFactory factory = new ConnectionFactory();
     Stream<Connection> connections = createConnections(factory, containers);
     BeetleConnection beetleConnection =
-        new BeetleConnection(connections.collect(Collectors.toList()));
+        new BeetleConnection(
+            connections.collect(Collectors.toList()), new BeetleAmqpConfiguration());
     Channel channel = beetleConnection.createChannel();
     String queue = String.format("%d-%s-%s", containers, mode, strategy);
 
