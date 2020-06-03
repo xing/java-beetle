@@ -123,7 +123,7 @@ public class BeetleAmqpConfiguration {
   private int exceptionLimit = 0;
 
   /** lifetime of messages in seconds */
-  @Value("${beetle.ttl}")
+  @Value("${beetle.ttl:86400}")
   private int messageLifetimeSeconds = 24 * 60 * 60;
 
   public String getBeetleRedisServer() {
