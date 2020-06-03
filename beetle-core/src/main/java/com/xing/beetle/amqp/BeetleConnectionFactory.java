@@ -61,7 +61,7 @@ public class BeetleConnectionFactory extends ConnectionFactory {
                 c -> new RequeueAtEndConnection(c, beetleAmqpConfiguration, invertRequeueParameter))
             .map(MultiPlexingConnection::new)
             .collect(Collectors.toList());
-    return new BeetleConnection(connections);
+    return new BeetleConnection(connections, beetleAmqpConfiguration);
   }
 
   public void setConnectionEstablishingExecutor(RetryExecutor connectionEstablishExecutor) {

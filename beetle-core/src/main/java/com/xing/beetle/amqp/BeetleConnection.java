@@ -23,6 +23,7 @@ public class BeetleConnection implements DefaultConnection.Decorator, ShutdownLi
   private static final Logger LOGGER = LoggerFactory.getLogger(BeetleConnection.class);
 
   private final List<? extends Connection> delegates;
+  private final BeetleAmqpConfiguration configuration;
   private final Set<ShutdownListener> shutdownListeners;
 
   /**
@@ -30,8 +31,9 @@ public class BeetleConnection implements DefaultConnection.Decorator, ShutdownLi
    *
    * @param connections Wrapped AMQP connections.
    */
-  public BeetleConnection(List<Connection> connections) {
+  public BeetleConnection(List<Connection> connections, BeetleAmqpConfiguration configuration) {
     this.delegates = new ArrayList<>(connections);
+    this.configuration = configuration;
     this.shutdownListeners = new HashSet<>();
     connections.forEach(c -> c.addShutdownListener(this));
   }
@@ -50,7 +52,7 @@ public class BeetleConnection implements DefaultConnection.Decorator, ShutdownLi
               ? connection.createChannel(channelNumber)
               : connection.createChannel());
     }
-    return new BeetleChannel(channels);
+    return new BeetleChannel(channels, configuration);
   }
 
   @Override
