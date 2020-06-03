@@ -38,7 +38,7 @@ class AmqpConfiguration {
     )
 
     companion object {
-        const val MY_QUEUE = "myQueue"
+        const val MY_QUEUE = "kotlinQueue"
     }
 }
 
