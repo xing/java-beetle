@@ -202,6 +202,7 @@ public class BeetleClientWithDeadLetteringTest {
       when(beetleAmqpConfiguration.getDeadLetteringMsgTtlMs()).thenReturn(10);
       when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(true);
       when(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds()).thenReturn(3);
+      when(beetleAmqpConfiguration.getMessageLifetimeSeconds()).thenReturn(10000);
 
       when(beetleAmqpConfiguration.getBeetlePolicyExchangeName()).thenReturn("beetle-policies");
       when(beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName())
