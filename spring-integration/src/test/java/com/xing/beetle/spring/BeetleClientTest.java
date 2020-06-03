@@ -125,24 +125,6 @@ public class BeetleClientTest {
     assertEquals(10, count);
   }
 
-  @Test
-  public void testRedundantTemplate() {
-    String messageId = UUID.randomUUID().toString();
-    sendRedundantMessage("QueueTemplate", 2, messageId);
-
-    int count = 0;
-
-    for (int i = 0; i < 2; i++) {
-      Message m = rabbitTemplate.receive("QueueTemplate", 50);
-      if (m != null) {
-        assertEquals(messageId, m.getMessageProperties().getMessageId());
-        count++;
-      }
-    }
-
-    assertEquals(1, count);
-  }
-
   public void waitForMessageDelivery(int millis) {
     try {
       Thread.sleep(millis);
