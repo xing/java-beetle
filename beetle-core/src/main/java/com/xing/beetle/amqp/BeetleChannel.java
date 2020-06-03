@@ -196,7 +196,6 @@ public class BeetleChannel implements DefaultChannel.Decorator {
       byte[] body) {
     try {
       channel.basicPublish(exchange, routingKey, mandatory, immediate, props, body);
-      System.out.println("sent " + channel.hashCode() + " " + props.getMessageId());
       return true;
     } catch (Exception e) {
       LOGGER.log(
