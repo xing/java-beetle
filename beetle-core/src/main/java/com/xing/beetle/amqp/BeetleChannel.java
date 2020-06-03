@@ -134,7 +134,8 @@ public class BeetleChannel implements DefaultChannel.Decorator {
     headers.put("flags", redundancy > 1 ? FLAG_REDUNDANT : 0);
     if (!headers.containsKey(BeetleHeader.EXPIRES_AT)) {
       headers.put(
-          BeetleHeader.EXPIRES_AT, System.currentTimeMillis() + configuration.getMessageLifetime());
+          BeetleHeader.EXPIRES_AT,
+          System.currentTimeMillis() + configuration.getMessageLifetimeSeconds() * 1000);
     }
     properties = props.builder().headers(headers).build();
 
