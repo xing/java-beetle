@@ -87,14 +87,14 @@ class RedisDedupStoreTest {
     int timeout = 1;
 
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
-    when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(timeout);
+    when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
 
     RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     store.putIfAbsentTtl("keyTTL", new KeyValueStore.Value("ttl"), timeout);
 
     assertTrue(store.get("keyTTL").isPresent());
 
-    Thread.sleep(TimeUnit.SECONDS.toMillis(timeout));
+    Thread.sleep(TimeUnit.SECONDS.toMillis(timeout) + 10);
     assertFalse(store.get("keyTTL").isPresent());
   }
 
