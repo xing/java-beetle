@@ -184,7 +184,7 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
       if (beetleAmqpConfiguration.isDeadLetteringEnabled()) {
         arguments = configureOriginal(arguments, queue);
         Map<String, Object> deadLetterArgs =
-            configureDeadLetter(queue, beetleAmqpConfiguration.getDeadLetteringMsgTtl());
+            configureDeadLetter(queue, beetleAmqpConfiguration.getDeadLetteringMsgTtlMs());
         AMQP.Queue.DeclareOk ok =
             delegate.queueDeclare(
                 queue + DEAD_LETTER_SUFFIX, durable, exclusive, autoDelete, deadLetterArgs);
@@ -211,7 +211,7 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
       payload.setBindings(bindings);
       payload.setDead_lettering(beetleAmqpConfiguration.isDeadLetteringEnabled());
       payload.setLazy(beetleAmqpConfiguration.isLazyQueuesEnabled());
-      payload.setMessage_ttl(beetleAmqpConfiguration.getDeadLetteringMsgTtl());
+      payload.setMessage_ttl(beetleAmqpConfiguration.getDeadLetteringMsgTtlMs());
 
       log.debug(
           "Beetle: publishing policy options on {}: {}",

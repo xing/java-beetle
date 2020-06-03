@@ -58,7 +58,7 @@ class RedisDedupStoreTest {
   @Test
   void testBasicOperations() {
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
-    when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
+    when(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds()).thenReturn(3);
     RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     assertEquals("0", store.putIfAbsent("key", new KeyValueStore.Value("0")).getAsString());
     assertEquals(1, store.increase("key"));
@@ -71,7 +71,7 @@ class RedisDedupStoreTest {
   @Test
   void testMultiKeyDeletion() {
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
-    when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
+    when(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds()).thenReturn(3);
     RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     store.put("key3", new KeyValueStore.Value("3"));
     store.put("key4", new KeyValueStore.Value("4"));
@@ -87,7 +87,7 @@ class RedisDedupStoreTest {
     int timeout = 1;
 
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
-    when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
+    when(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds()).thenReturn(3);
 
     RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     store.putIfAbsentTtl("keyTTL", new KeyValueStore.Value("ttl"), timeout);
@@ -101,7 +101,7 @@ class RedisDedupStoreTest {
   @Test
   void testPutIfAbsent() {
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(redisServer);
-    when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
+    when(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds()).thenReturn(3);
     RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     KeyValueStore.Value value = store.putIfAbsent("key", new KeyValueStore.Value("value"));
     assertEquals("value", value.getAsString());
@@ -117,7 +117,7 @@ class RedisDedupStoreTest {
     GenericContainer localRedis = startRedisContainer();
     String localRedisServer = getRedisAddress(localRedis);
     when(beetleAmqpConfiguration.getBeetleRedisServer()).thenReturn(localRedisServer);
-    when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
+    when(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds()).thenReturn(3);
     RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     assertEquals(1, store.increase("key"));
     localRedis.stop();
@@ -147,7 +147,7 @@ class RedisDedupStoreTest {
 
     when(beetleAmqpConfiguration.getBeetleRedisServer())
         .thenReturn(redisServerConfigFile.toAbsolutePath().toString());
-    when(beetleAmqpConfiguration.getRedisFailoverTimeout()).thenReturn(3);
+    when(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds()).thenReturn(3);
 
     RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
     assertEquals(1, store.increase("key"));
