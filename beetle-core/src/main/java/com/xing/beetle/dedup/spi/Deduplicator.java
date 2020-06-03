@@ -112,7 +112,7 @@ public interface Deduplicator {
                   message,
                   listener,
                   adapter,
-                  Duration.ofSeconds(getBeetleAmqpConfiguration().getHandlerTimeout()));
+                  Duration.ofSeconds(getBeetleAmqpConfiguration().getHandlerTimeoutSeconds()));
               complete(key);
               cleanUp(message, adapter);
             } catch (Throwable throwable) {
@@ -188,6 +188,7 @@ public interface Deduplicator {
     return (int)
         Math.min(
             getBeetleAmqpConfiguration().getMaxhandlerExecutionAttemptsDelay(),
-            getBeetleAmqpConfiguration().getHandlerExecutionAttemptsDelay() * Math.pow(2, attempt));
+            getBeetleAmqpConfiguration().getHandlerExecutionAttemptsDelaySeconds()
+                * Math.pow(2, attempt));
   }
 }
