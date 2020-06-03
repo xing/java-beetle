@@ -1,6 +1,5 @@
 package com.xing.beetle.demo;
 
-import java.util.UUID;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageProperties;
@@ -12,8 +11,12 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
+import java.util.UUID;
+
 @SpringBootApplication
 public class Application {
+
+  private static final String queue = "javaQueue";
 
   public static void main(String[] args) throws InterruptedException {
     ConfigurableApplicationContext context = SpringApplication.run(Application.class, args);
@@ -23,11 +26,11 @@ public class Application {
     Message message = new Message(new byte[0], props);
 
     for (int i = 0; i < 40; i++) {
-      template.send("myQueue", message);
+      template.send(queue, message);
     }
 
     for (int i = 0; i < 4; i++) {
-      template.convertAndSend("myQueue", "hello world");
+      template.convertAndSend(queue, "hello world");
     }
 
     Thread.sleep(2000);
@@ -37,7 +40,7 @@ public class Application {
   @RabbitListener(
       bindings =
           @QueueBinding(
-              value = @Queue(value = "myQueue", durable = "false"),
+              value = @Queue(value = queue, durable = "false"),
               exchange = @Exchange(value = "auto.exch", ignoreDeclarationExceptions = "true"),
               key = "orderRoutingKey"),
       ackMode = "AUTO")
