@@ -122,6 +122,10 @@ public class BeetleAmqpConfiguration {
   @Value("${beetle.exception_limit:0}")
   private int exceptionLimit = 0;
 
+  /** default lifetime of messages in seconds */
+  @Value("${beetle.ttl}")
+  private int messageLifetime = 24 * 60 * 60;
+
   public String getBeetleRedisServer() {
     return beetleRedisServer;
   }
@@ -196,5 +200,13 @@ public class BeetleAmqpConfiguration {
 
   void setRedisFailoverTimeout(int redisFailoverTimeout) {
     this.redisFailoverTimeout = redisFailoverTimeout;
+  }
+
+  public int getMessageLifetime() {
+    return messageLifetime;
+  }
+
+  public void setMessageLifetime(int messageLifetime) {
+    this.messageLifetime = messageLifetime;
   }
 }
