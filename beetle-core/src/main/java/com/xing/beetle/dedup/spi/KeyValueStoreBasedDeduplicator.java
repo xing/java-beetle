@@ -45,7 +45,7 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
     if (store.putIfAbsentTtl(
         key(messageId, STATUS),
         new Value("incomplete"),
-        beetleAmqpConfig.getBeetleRedisStatusKeyExpiryInterval())) {
+        beetleAmqpConfig.getBeetleRedisStatusKeyExpiryIntervalSeconds())) {
       return false;
     } else {
       return store
@@ -87,7 +87,7 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
   @Override
   public void deleteKeys(String messageId) {
     Stream<String> suffixStream =
-        (beetleAmqpConfig.getBeetleRedisStatusKeyExpiryInterval() > 0)
+        (beetleAmqpConfig.getBeetleRedisStatusKeyExpiryIntervalSeconds() > 0)
             ? Arrays.stream(keySuffixes).filter(s -> !s.equals(STATUS))
             : Arrays.stream(keySuffixes);
     store.delete(suffixStream.map(s -> key(messageId, s)).toArray(String[]::new));

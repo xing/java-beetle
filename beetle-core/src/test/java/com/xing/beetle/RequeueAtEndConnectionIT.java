@@ -52,7 +52,7 @@ class RequeueAtEndConnectionIT {
     when(beetleAmqpConfiguration.getBeetleServers())
         .thenReturn(container.getContainerIpAddress() + ":" + container.getAmqpPort());
     if (requeueDelay >= 0) {
-      when(beetleAmqpConfiguration.getDeadLetteringMsgTtl()).thenReturn(requeueDelay);
+      when(beetleAmqpConfiguration.getDeadLetteringMsgTtlMs()).thenReturn(requeueDelay);
       when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(true);
     } else {
       when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(false);
@@ -89,14 +89,14 @@ class RequeueAtEndConnectionIT {
   BeetleAmqpConfiguration beetleAmqpConfiguration() {
     BeetleAmqpConfiguration beetleAmqpConfiguration = Mockito.mock(BeetleAmqpConfiguration.class);
 
-    when(beetleAmqpConfiguration.getHandlerTimeout()).thenReturn(1L);
+    when(beetleAmqpConfiguration.getHandlerTimeoutSeconds()).thenReturn(1L);
     when(beetleAmqpConfiguration.getMutexExpiration()).thenReturn(2);
     when(beetleAmqpConfiguration.getExceptionLimit()).thenReturn(3L);
     when(beetleAmqpConfiguration.getMaxHandlerExecutionAttempts()).thenReturn(3L);
-    when(beetleAmqpConfiguration.getBeetleRedisStatusKeyExpiryInterval()).thenReturn(0);
-    when(beetleAmqpConfiguration.getHandlerExecutionAttemptsDelay()).thenReturn(1);
+    when(beetleAmqpConfiguration.getBeetleRedisStatusKeyExpiryIntervalSeconds()).thenReturn(0);
+    when(beetleAmqpConfiguration.getHandlerExecutionAttemptsDelaySeconds()).thenReturn(1);
     when(beetleAmqpConfiguration.getMaxhandlerExecutionAttemptsDelay()).thenReturn(2);
-    when(beetleAmqpConfiguration.getDeadLetteringMsgTtl()).thenReturn(10);
+    when(beetleAmqpConfiguration.getDeadLetteringMsgTtlMs()).thenReturn(10);
 
     when(beetleAmqpConfiguration.getBeetlePolicyExchangeName()).thenReturn("beetle-policies");
     when(beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName())
