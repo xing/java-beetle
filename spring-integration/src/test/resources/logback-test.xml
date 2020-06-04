@@ -7,9 +7,11 @@
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>[%level] %logger - %ex{short} %.160msg%n</pattern>
+            <pattern>[%level] %logger - %ex{short} %msg%n</pattern>
         </encoder>
     </appender>
+
+    <logger name="org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer" level="WARN" />
 
     <root level="info">
         <appender-ref ref="STDOUT" />
