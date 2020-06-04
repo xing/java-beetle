@@ -1,6 +1,9 @@
 package com.xing.beetle.spring;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.concurrent.*;
+import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -15,58 +18,15 @@ public class RecordingMessageHandler {
   void assertCounts(
       String messageId, long expResult, long expDeadLetter, long expRedelivered, long timeout) {
     CompletableFuture<Long> resultCheck =
-        CompletableFuture.supplyAsync(
-            () -> {
-              long c = 0;
-              for (long i = 0; i < timeout; i += 50) {
-                c = result.stream().filter(s -> s.equals(messageId)).count();
-                if (c == expResult) {
-                  return c;
-                }
-                try {
-                  Thread.sleep(50);
-                } catch (InterruptedException e) {
-                  return c;
-                }
-              }
-              return c;
-            });
+        CompletableFuture.supplyAsync(countEventually(result, messageId, expResult, timeout));
 
     CompletableFuture<Long> deadLetterCheck =
         CompletableFuture.supplyAsync(
-            () -> {
-              long c = 0;
-              for (long i = 0; i < timeout; i += 50) {
-                c = deadLettered.stream().filter(s -> s.equals(messageId)).count();
-                if (c == expDeadLetter) {
-                  return c;
-                }
-                try {
-                  Thread.sleep(50);
-                } catch (InterruptedException e) {
-                  return c;
-                }
-              }
-              return c;
-            });
+            countEventually(deadLettered, messageId, expDeadLetter, timeout));
 
     CompletableFuture<Long> redeliverCheck =
         CompletableFuture.supplyAsync(
-            () -> {
-              long c = 0;
-              for (long i = 0; i < timeout; i += 50) {
-                c = redelivered.stream().filter(s -> s.equals(messageId)).count();
-                if (c == expRedelivered) {
-                  return c;
-                }
-                try {
-                  Thread.sleep(50);
-                } catch (InterruptedException e) {
-                  return c;
-                }
-              }
-              return c;
-            });
+            countEventually(redelivered, messageId, expRedelivered, timeout));
 
     CompletableFuture<Void> combinedFuture =
         CompletableFuture.allOf(resultCheck, redeliverCheck, deadLetterCheck);
@@ -80,5 +40,35 @@ public class RecordingMessageHandler {
     } catch (InterruptedException | TimeoutException | ExecutionException e) {
       fail(e);
     }
+  }
+
+  /**
+   * filters the list for the expected message ID, counts the occurrences and compares it to the
+   * expected count until it matches or the timeout is reached.
+   *
+   * @param messageList list with message IDs
+   * @param messageId ID to look for
+   * @param expResult expected number of occurrences
+   * @param timeout maximum numbe rof milliseconds to retry in total
+   * @return final count
+   */
+  @NotNull
+  private Supplier<Long> countEventually(
+      CopyOnWriteArrayList<String> messageList, String messageId, long expResult, long timeout) {
+    return () -> {
+      long c = 0;
+      for (long i = 0; i < timeout; i += 50) {
+        c = messageList.stream().filter(s -> s.equals(messageId)).count();
+        if (c == expResult) {
+          return c;
+        }
+        try {
+          Thread.sleep(50);
+        } catch (InterruptedException e) {
+          return c;
+        }
+      }
+      return c;
+    };
   }
 }
