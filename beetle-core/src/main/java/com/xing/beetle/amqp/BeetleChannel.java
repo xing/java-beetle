@@ -10,6 +10,7 @@ import com.xing.beetle.util.RingStream;
 import java.io.IOException;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
+import java.time.Instant;
 import java.util.*;
 
 /** BeetleChannel wraps one or more actual AMQP channels for consumption by a message processor. */
@@ -136,7 +137,7 @@ public class BeetleChannel implements DefaultChannel.Decorator {
     if (!headers.containsKey(BeetleHeader.EXPIRES_AT)) {
       headers.put(
           BeetleHeader.EXPIRES_AT,
-          System.currentTimeMillis() + configuration.getMessageLifetimeSeconds() * 1000);
+          Instant.now().getEpochSecond() + configuration.getMessageLifetimeSeconds());
     }
     properties = props.builder().headers(headers).build();
 

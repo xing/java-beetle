@@ -7,6 +7,7 @@ import com.xing.beetle.util.ExceptionSupport;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -151,8 +152,10 @@ public interface Deduplicator {
   }
 
   private <M> boolean isExpired(M message, MessageAdapter<M> adapter) {
+    // expires_at is a unix timestamp (so in seconds)
     long expiresAt = adapter.expiresAt(message);
-    return expiresAt < System.currentTimeMillis();
+    if (expiresAt <= 0) return false;
+    return expiresAt < Instant.now().getEpochSecond();
   }
 
   private <M> void handleException(
