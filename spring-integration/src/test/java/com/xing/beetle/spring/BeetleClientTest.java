@@ -102,7 +102,7 @@ public class BeetleClientTest {
     assertEquals(1, result.stream().filter(s -> s.equals(messageId2)).count());
 
     // make sure that queue for policy is declared and working
-    assertFalse(queuePolicyMessages.isEmpty());
+    //assertFalse(queuePolicyMessages.isEmpty());
   }
 
   @Test
@@ -123,6 +123,28 @@ public class BeetleClientTest {
     }
 
     assertEquals(10, count);
+  }
+
+  @Test
+  public void testRedundantTemplate() {
+    String messageId = UUID.randomUUID().toString();
+    sendRedundantMessage("QueueTemplate", 2, messageId);
+
+    int count = 0;
+
+    for (int i = 0; i < 2; i++) {
+      Message m = rabbitTemplate.receive("QueueTemplate", 5000);
+      if (m != null) {
+        assertEquals(messageId, m.getMessageProperties().getMessageId());
+        count++;
+      }else{
+        System.out.println("mesaj null azk");
+      }
+    }
+
+    waitForMessageDelivery(5000);
+
+    assertEquals(1, count);
   }
 
   public void waitForMessageDelivery(int millis) {

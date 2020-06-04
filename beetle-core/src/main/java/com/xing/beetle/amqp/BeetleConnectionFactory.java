@@ -13,6 +13,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.rabbitmq.client.ListAddressResolver;
 import com.rabbitmq.client.RecoverableConnection;
+import com.xing.beetle.dedup.spi.Deduplicator;
 import com.xing.beetle.util.ExceptionSupport.Supplier;
 import com.xing.beetle.util.RetryExecutor;
 
@@ -21,9 +22,11 @@ public class BeetleConnectionFactory extends ConnectionFactory {
   private RetryExecutor connectionEstablishingExecutor = RetryExecutor.SYNCHRONOUS;
   private boolean invertRequeueParameter = false;
   private BeetleAmqpConfiguration beetleAmqpConfiguration;
+  private Deduplicator deduplicator;
 
-  public BeetleConnectionFactory(BeetleAmqpConfiguration beetleAmqpConfiguration) {
+  public BeetleConnectionFactory(BeetleAmqpConfiguration beetleAmqpConfiguration, Deduplicator deduplicator) {
     this.beetleAmqpConfiguration = beetleAmqpConfiguration;
+    this.deduplicator = deduplicator;
   }
 
   private Supplier<RecoverableConnection> connection(
@@ -59,7 +62,7 @@ public class BeetleConnectionFactory extends ConnectionFactory {
             .map(RetryableConnection::new)
             .map(
                 c -> new RequeueAtEndConnection(c, beetleAmqpConfiguration, invertRequeueParameter))
-            .map(MultiPlexingConnection::new)
+            .map(delegate -> new MultiPlexingConnection(delegate, deduplicator, isInvertRequeueParameter()))
             .collect(Collectors.toList());
     return new BeetleConnection(connections, beetleAmqpConfiguration);
   }
