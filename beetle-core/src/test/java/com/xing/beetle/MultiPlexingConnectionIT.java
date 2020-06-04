@@ -1,5 +1,6 @@
 package com.xing.beetle;
 
+import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConnectionFactory;
 import com.xing.beetle.amqp.MultiPlexingConnection;
@@ -43,8 +44,15 @@ public class MultiPlexingConnectionIT {
       channel.basicPublish("", queue, null, new byte[] {i});
     }
 
-    int messageCount = mode.readAck(channel, queue, strategy, NUMBER_OF_MESSAGES);
-    Assertions.assertEquals(NUMBER_OF_MESSAGES, messageCount);
+    int readMessageCount = mode.readAck(channel, queue, strategy, NUMBER_OF_MESSAGES);
+    Assertions.assertEquals(NUMBER_OF_MESSAGES, readMessageCount);
+
+    for (byte i = 0; i < NUMBER_OF_MESSAGES; i++) {
+      channel.basicPublish("", queue, null, new byte[] {i});
+    }
+
+    AMQP.Queue.PurgeOk purgeOk = channel.queuePurge(queue);
+    Assertions.assertEquals(NUMBER_OF_MESSAGES, purgeOk.getMessageCount());
 
     channel.close();
     channel = connection.createChannel();
