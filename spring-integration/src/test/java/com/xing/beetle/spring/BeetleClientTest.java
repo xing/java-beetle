@@ -159,7 +159,7 @@ public class BeetleClientTest {
   public void firstTimeoutThenSucceed() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithTimeoutThenSucceed", 2, messageId);
-    waitForMessageDelivery(4000);
+    waitForMessageDelivery(8000);
     assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
@@ -167,7 +167,7 @@ public class BeetleClientTest {
   public void firstThrowExceptionThenHandle() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithErrorThenSucceed", 2, messageId);
-    waitForMessageDelivery(2000);
+    waitForMessageDelivery(8000);
     assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
