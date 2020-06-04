@@ -5,6 +5,7 @@ import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.util.ExceptionSupport;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -86,7 +87,9 @@ public interface Deduplicator {
           listener,
           String.format("Beetle: ignored completed message %s", adapter.keyOf(message)));
     } else {
+      System.out.println("acquiring mutex for" + key);
       if (tryAcquireMutex(key, getBeetleAmqpConfiguration().getMutexExpiration())) {
+        System.out.println("mutex acquired for" + key);
         if (completed(key)) {
           dropMessage(
               message,
@@ -95,6 +98,11 @@ public interface Deduplicator {
               String.format("Beetle: ignored completed message %s", adapter.keyOf(message)));
         } else if (delayed(key)) {
           adapter.requeue(message);
+          try {
+            listener.onRequeued(message);
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
         } else {
           long attempt = incrementAttempts(key);
           if (attempt > getBeetleAmqpConfiguration().getMaxHandlerExecutionAttempts()) {
@@ -119,11 +127,18 @@ public interface Deduplicator {
               handleException(message, adapter, listener, attempt, throwable);
             } finally {
               releaseMutex(key);
+              System.out.println("MUTEX RELEASED for" + key);
             }
           }
         }
       } else {
+        System.out.println("MUTEX NOT ACQUIRED for" + key);
         adapter.requeue(message);
+        try {
+          listener.onRequeued(message);
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
       }
     }
   }

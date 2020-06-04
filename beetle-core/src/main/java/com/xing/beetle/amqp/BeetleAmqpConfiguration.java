@@ -209,4 +209,8 @@ public class BeetleAmqpConfiguration {
   public void setMessageLifetimeSeconds(int messageLifetimeSeconds) {
     this.messageLifetimeSeconds = messageLifetimeSeconds;
   }
+
+  public void setBeetleRedisServer(String beetleRedisServer) {
+    this.beetleRedisServer = beetleRedisServer;
+  }
 }
