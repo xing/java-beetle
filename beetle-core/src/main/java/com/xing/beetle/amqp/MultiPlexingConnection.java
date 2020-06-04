@@ -72,6 +72,11 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
     }
 
     @Override
+    public AMQP.Queue.PurgeOk queuePurge(String queue) throws IOException {
+      return publisher.queuePurge(queue);
+    }
+
+    @Override
     public String basicConsume(
         String queue,
         boolean autoAck,
