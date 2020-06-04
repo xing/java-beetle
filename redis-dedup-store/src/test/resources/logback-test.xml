@@ -5,7 +5,13 @@
         </encoder>
     </appender>
 
-    <root level="TRACE">
-        <appender-ref ref="logonfail" />
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>[%level] %logger - %ex{short} %.160msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="info">
+        <appender-ref ref="STDOUT" />
     </root>
 </configuration>
