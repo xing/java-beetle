@@ -29,7 +29,7 @@ public class Assertions {
                 }
               }
             })
-        .run();
+        .start();
 
     if (l.await(timeout, TimeUnit.MILLISECONDS)) {
       assertEquals(a.size(), len);
