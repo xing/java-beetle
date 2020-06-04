@@ -87,7 +87,7 @@ public class BeetleClientWithDeadLetteringTest {
     waitForMessageDelivery(8000);
     // exception limit is 3
     assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
-    // assertEquals(0, redelivered.stream().filter(s -> s.equals(messageId)).count());
+    assertEquals(0, redelivered.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
   }
 
@@ -98,7 +98,7 @@ public class BeetleClientWithDeadLetteringTest {
     waitForMessageDelivery(8000);
     // exception limit is 3
     assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
-    // assertEquals(0, redelivered.stream().filter(s -> s.equals(messageId)).count());
+    assertEquals(0, redelivered.stream().filter(s -> s.equals(messageId)).count());
     assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
 
     // make sure that queue for policy is declared and working
@@ -126,9 +126,11 @@ public class BeetleClientWithDeadLetteringTest {
     @RabbitListener(queues = "QueueWithErrorDL")
     public void handleWithErrorDeadLettered(Message message) {
       if (message.getMessageProperties().getHeader("x-death") != null) {
+        System.out.printf("deadlettered: %s\n", message.getMessageProperties().getMessageId());
         deadLettered.add(message.getMessageProperties().getMessageId());
       }
       if (message.getMessageProperties().isRedelivered()) {
+        System.out.printf("redelivered: %s\n", message.getMessageProperties().getMessageId());
         redelivered.add(message.getMessageProperties().getMessageId());
       }
       result.add(message.getMessageProperties().getMessageId());
@@ -139,9 +141,11 @@ public class BeetleClientWithDeadLetteringTest {
     @RabbitListener(queues = "QueueWithTimeoutDL")
     public void handleWithTimeoutDeadLettered(Message message) throws InterruptedException {
       if (message.getMessageProperties().getHeader("x-death") != null) {
+        System.out.printf("deadlettered: %s\n", message.getMessageProperties().getMessageId());
         deadLettered.add(message.getMessageProperties().getMessageId());
       }
       if (message.getMessageProperties().isRedelivered()) {
+        System.out.printf("redelivered: %s\n", message.getMessageProperties().getMessageId());
         redelivered.add(message.getMessageProperties().getMessageId());
       }
       result.add(message.getMessageProperties().getMessageId());
