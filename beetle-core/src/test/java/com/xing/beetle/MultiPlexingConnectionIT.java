@@ -2,8 +2,10 @@ package com.xing.beetle;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConnectionFactory;
+import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.amqp.MultiPlexingConnection;
 
+import com.xing.beetle.dedup.spi.Deduplicator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -33,7 +35,62 @@ public class MultiPlexingConnectionIT {
     factory.setHost(container.getContainerIpAddress());
     factory.setPort(container.getAmqpPort());
 
-    MultiPlexingConnection connection = new MultiPlexingConnection(factory.newConnection());
+    MultiPlexingConnection connection = new MultiPlexingConnection(factory.newConnection(), new Deduplicator() {
+      @Override
+      public boolean tryAcquireMutex(String messageId, int secondsToExpire) {
+        return false;
+      }
+
+      @Override
+      public void releaseMutex(String messageId) {
+
+      }
+
+      @Override
+      public void complete(String messageId) {
+
+      }
+
+      @Override
+      public boolean completed(String messageId) {
+        return false;
+      }
+
+      @Override
+      public boolean delayed(String messageId) {
+        return false;
+      }
+
+      @Override
+      public void setDelay(String messageId, long timestamp) {
+
+      }
+
+      @Override
+      public long incrementAttempts(String messageId) {
+        return 0;
+      }
+
+      @Override
+      public long incrementExceptions(String messageId) {
+        return 0;
+      }
+
+      @Override
+      public long incrementAckCount(String messageId) {
+        return 0;
+      }
+
+      @Override
+      public void deleteKeys(String messageId) {
+
+      }
+
+      @Override
+      public BeetleAmqpConfiguration getBeetleAmqpConfiguration() {
+        return null;
+      }
+    }, true);
     Channel channel = connection.createChannel();
 
     String queue = String.format("%s-%s-%s", QUEUE, mode, strategy);

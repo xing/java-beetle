@@ -31,7 +31,7 @@ class MsgDeliveryTagMappingTest {
   @Test
   void basicAck() {
     when(envelope.getDeliveryTag()).thenReturn(40L);
-    Envelope e = map.mapEnvelope(channel, envelope);
+    Envelope e = map.envelopeWithPseudoDeliveryTag(channel, envelope);
     assertNotEquals(40L, e.getDeliveryTag());
     assertDoesNotThrow(() -> map.basicAck(e.getDeliveryTag(), false));
     assertDoesNotThrow(() -> verify(channel).basicAck(40L, false));
@@ -40,7 +40,7 @@ class MsgDeliveryTagMappingTest {
   @Test
   void basicNack() {
     when(envelope.getDeliveryTag()).thenReturn(41L);
-    Envelope e = map.mapEnvelope(channel, envelope);
+    Envelope e = map.envelopeWithPseudoDeliveryTag(channel, envelope);
     assertNotEquals(41L, e.getDeliveryTag());
     assertDoesNotThrow(() -> map.basicNack(e.getDeliveryTag(), false, false));
     assertDoesNotThrow(() -> verify(channel).basicNack(41L, false, false));
@@ -49,7 +49,7 @@ class MsgDeliveryTagMappingTest {
   @Test
   void basicReject() {
     when(envelope.getDeliveryTag()).thenReturn(43L);
-    Envelope e = map.mapEnvelope(channel, envelope);
+    Envelope e = map.envelopeWithPseudoDeliveryTag(channel, envelope);
     assertNotEquals(43L, e.getDeliveryTag());
     assertDoesNotThrow(() -> map.basicReject(e.getDeliveryTag(), false));
     assertDoesNotThrow(() -> verify(channel).basicReject(43L, false));
@@ -63,14 +63,14 @@ class MsgDeliveryTagMappingTest {
   @Test
   void mapEnvelope() {
     when(envelope.getDeliveryTag()).thenReturn(42L);
-    Envelope e = map.mapEnvelope(channel, envelope);
+    Envelope e = map.envelopeWithPseudoDeliveryTag(channel, envelope);
     assertNotEquals(42L, e.getDeliveryTag());
   }
 
   @Test
   void mapResponse() {
     when(response.getEnvelope().getDeliveryTag()).thenReturn(44L);
-    GetResponse r = map.mapResponse(channel, response);
+    GetResponse r = map.responseWithPseudoDeliveryTag(channel, response);
     assertNotEquals(44L, r.getEnvelope().getDeliveryTag());
     assertDoesNotThrow(() -> map.basicAck(r.getEnvelope().getDeliveryTag(), false));
     assertDoesNotThrow(() -> verify(channel).basicAck(44L, false));
