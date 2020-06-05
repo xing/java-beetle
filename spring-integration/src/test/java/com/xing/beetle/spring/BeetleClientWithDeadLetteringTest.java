@@ -14,6 +14,8 @@ import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
@@ -163,13 +165,8 @@ public class BeetleClientWithDeadLetteringTest {
   @ConditionalOnProperty(value = "test.deadLetterEnabled", havingValue = "true")
   @EnableRabbit
   @EnableTransactionManagement
-  @ComponentScan(
-      basePackageClasses = {
-        RedisDedupStoreAutoConfiguration.class,
-        BeetleAutoConfiguration.class,
-        BeetleListenerInterceptor.class,
-        CustomizableConnectionFactoryBean.class
-      })
+  @SpringBootConfiguration
+  @EnableAutoConfiguration
   public static class EnableRabbitConfig {
 
     @Bean
