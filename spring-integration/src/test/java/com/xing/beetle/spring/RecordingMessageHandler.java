@@ -49,7 +49,7 @@ public class RecordingMessageHandler {
    * @param messageList list with message IDs
    * @param messageId ID to look for
    * @param expResult expected number of occurrences
-   * @param timeout maximum numbe rof milliseconds to retry in total
+   * @param timeout maximum number of milliseconds to retry in total
    * @return final count
    */
   @NotNull
