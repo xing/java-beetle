@@ -3,7 +3,7 @@
 	<parent>
 		<groupId>com.xing.beetle</groupId>
 		<artifactId>beetle-parent</artifactId>
-		<version>1.3-SNAPSHOT</version>
+		<version>1.4-SNAPSHOT</version>
 	</parent>
 	<artifactId>beetle-core</artifactId>
 	<dependencies>

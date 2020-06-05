@@ -14,6 +14,8 @@ import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
@@ -27,11 +29,10 @@ import org.testcontainers.containers.GenericContainer;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.when;
 
@@ -74,21 +75,13 @@ public class BeetleClientWithDeadLetteringTest {
     System.setProperty("test.deadLetterEnabled", "true");
   }
 
-  private static final CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
-  private static final CopyOnWriteArrayList<String> redelivered = new CopyOnWriteArrayList<>();
-  private static final CopyOnWriteArrayList<String> deadLettered = new CopyOnWriteArrayList<>();
-  private static final CopyOnWriteArrayList<String> queuePolicyMessages =
-      new CopyOnWriteArrayList<>();
-
   @Test
   public void throwExceptionExceedExceptionLimitWithDeadLettering() throws InterruptedException {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithErrorDL", 2, messageId);
     waitForMessageDelivery(8000);
     // exception limit is 3
-    assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
-    // assertEquals(0, redelivered.stream().filter(s -> s.equals(messageId)).count());
-    assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
+    service.assertCounts(messageId, 3, 1, 0, 10000);
   }
 
   @Test
@@ -97,12 +90,10 @@ public class BeetleClientWithDeadLetteringTest {
     sendRedundantMessage("QueueWithTimeoutDL", 2, messageId);
     waitForMessageDelivery(8000);
     // exception limit is 3
-    assertEquals(1, deadLettered.stream().filter(s -> s.equals(messageId)).count());
-    // assertEquals(0, redelivered.stream().filter(s -> s.equals(messageId)).count());
-    assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
+    service.assertCounts(messageId, 3, 1, 0, 10000);
 
     // make sure that queue for policy is declared and working
-    assertFalse(queuePolicyMessages.isEmpty());
+    assertFalse(service.queuePolicyMessages.isEmpty());
   }
 
   private void sendRedundantMessage(String routingKey, int redundancy, String messageId) {
@@ -121,14 +112,22 @@ public class BeetleClientWithDeadLetteringTest {
     }
   }
 
-  public static class MessageHandlingService {
+  public static class MessageHandlingService extends RecordingMessageHandler {
 
     @RabbitListener(queues = "QueueWithErrorDL")
     public void handleWithErrorDeadLettered(Message message) {
       if (message.getMessageProperties().getHeader("x-death") != null) {
+        log.log(
+            System.Logger.Level.DEBUG,
+            "deadlettered: %s\n",
+            message.getMessageProperties().getMessageId());
         deadLettered.add(message.getMessageProperties().getMessageId());
       }
       if (message.getMessageProperties().isRedelivered()) {
+        log.log(
+            System.Logger.Level.DEBUG,
+            "redelivered: %s\n",
+            message.getMessageProperties().getMessageId());
         redelivered.add(message.getMessageProperties().getMessageId());
       }
       result.add(message.getMessageProperties().getMessageId());
@@ -139,9 +138,17 @@ public class BeetleClientWithDeadLetteringTest {
     @RabbitListener(queues = "QueueWithTimeoutDL")
     public void handleWithTimeoutDeadLettered(Message message) throws InterruptedException {
       if (message.getMessageProperties().getHeader("x-death") != null) {
+        log.log(
+            System.Logger.Level.DEBUG,
+            "deadlettered: %s\n",
+            message.getMessageProperties().getMessageId());
         deadLettered.add(message.getMessageProperties().getMessageId());
       }
       if (message.getMessageProperties().isRedelivered()) {
+        log.log(
+            System.Logger.Level.DEBUG,
+            "redelivered: %s\n",
+            message.getMessageProperties().getMessageId());
         redelivered.add(message.getMessageProperties().getMessageId());
       }
       result.add(message.getMessageProperties().getMessageId());
@@ -158,13 +165,8 @@ public class BeetleClientWithDeadLetteringTest {
   @ConditionalOnProperty(value = "test.deadLetterEnabled", havingValue = "true")
   @EnableRabbit
   @EnableTransactionManagement
-  @ComponentScan(
-      basePackageClasses = {
-        RedisDedupStoreAutoConfiguration.class,
-        BeetleAutoConfiguration.class,
-        BeetleListenerInterceptor.class,
-        CustomizableConnectionFactoryBean.class
-      })
+  @SpringBootConfiguration
+  @EnableAutoConfiguration
   public static class EnableRabbitConfig {
 
     @Bean
