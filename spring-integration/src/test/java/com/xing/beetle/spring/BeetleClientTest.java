@@ -1,12 +1,11 @@
 package com.xing.beetle.spring;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -96,13 +95,10 @@ public class BeetleClientTest {
     String messageId2 = UUID.randomUUID().toString();
     sendRedundantMessage("QueueSucceed", 2, messageId2);
 
-    waitForMessageDelivery(2000);
-
-    assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
-    assertEquals(1, result.stream().filter(s -> s.equals(messageId2)).count());
-
+    service.assertCounts(messageId, 1, 0, 0, 10000);
+    service.assertCounts(messageId2, 1, 0, 0, 10000);
     // make sure that queue for policy is declared and working
-    assertFalse(queuePolicyMessages.isEmpty());
+    assertFalse(service.queuePolicyMessages.isEmpty());
   }
 
   @Test
@@ -139,45 +135,32 @@ public class BeetleClientTest {
     sendRedundantMessage("QueueWithError", 2, messageId);
     waitForMessageDelivery(8000);
     // exception limit is 3
-    assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
-    assertEquals(0, deadLettered.stream().filter(s -> s.equals(messageId)).count());
-    // assertEquals(1, redelivered.stream().filter(s -> s.equals(messageId)).count());
+    service.assertCounts(messageId, 3, 0, 1, 10000);
   }
 
   @Test
   public void timeoutExceedExceptionLimit() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithTimeout", 2, messageId);
-    waitForMessageDelivery(8000);
     // exception limit is 3
-    assertEquals(3, result.stream().filter(s -> s.equals(messageId)).count());
-    assertEquals(0, deadLettered.stream().filter(s -> s.equals(messageId)).count());
-    // assertEquals(1, redelivered.stream().filter(s -> s.equals(messageId)).count());
+    service.assertCounts(messageId, 3, 0, 1, 10000);
   }
 
   @Test
   public void firstTimeoutThenSucceed() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithTimeoutThenSucceed", 2, messageId);
-    waitForMessageDelivery(4000);
-    assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
+    service.assertCounts(messageId, 1, 0, 0, 10000);
   }
 
   @Test
   public void firstThrowExceptionThenHandle() {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithErrorThenSucceed", 2, messageId);
-    waitForMessageDelivery(2000);
-    assertEquals(1, result.stream().filter(s -> s.equals(messageId)).count());
+    service.assertCounts(messageId, 1, 0, 0, 10000);
   }
 
-  private static final CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
-  private static final CopyOnWriteArrayList<String> redelivered = new CopyOnWriteArrayList<>();
-  private static final CopyOnWriteArrayList<String> deadLettered = new CopyOnWriteArrayList<>();
-  private static final CopyOnWriteArrayList<String> queuePolicyMessages =
-      new CopyOnWriteArrayList<>();
-
-  public static class MessageHandlingService {
+  public static class MessageHandlingService extends RecordingMessageHandler {
 
     @RabbitListener(queues = "QueueSucceed")
     public void handle(Message message) {
@@ -202,6 +185,7 @@ public class BeetleClientTest {
 
     @RabbitListener(queues = "QueueWithError")
     public void handleWithError(Message message) {
+      log.log(System.Logger.Level.DEBUG, message.getMessageProperties());
       if (message.getMessageProperties().isRedelivered()) {
         redelivered.add(message.getMessageProperties().getMessageId());
       }
@@ -215,6 +199,7 @@ public class BeetleClientTest {
 
     @RabbitListener(queues = "QueueWithTimeout")
     public void handleWithTimeout(Message message) throws InterruptedException {
+      log.log(System.Logger.Level.DEBUG, message.getMessageProperties());
       if (message.getMessageProperties().isRedelivered()) {
         redelivered.add(message.getMessageProperties().getMessageId());
       }
