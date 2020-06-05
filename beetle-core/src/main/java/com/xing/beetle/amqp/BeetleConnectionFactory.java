@@ -24,7 +24,8 @@ public class BeetleConnectionFactory extends ConnectionFactory {
   private BeetleAmqpConfiguration beetleAmqpConfiguration;
   private Deduplicator deduplicator;
 
-  public BeetleConnectionFactory(BeetleAmqpConfiguration beetleAmqpConfiguration, Deduplicator deduplicator) {
+  public BeetleConnectionFactory(
+      BeetleAmqpConfiguration beetleAmqpConfiguration, Deduplicator deduplicator) {
     this.beetleAmqpConfiguration = beetleAmqpConfiguration;
     this.deduplicator = deduplicator;
   }
@@ -62,7 +63,9 @@ public class BeetleConnectionFactory extends ConnectionFactory {
             .map(RetryableConnection::new)
             .map(
                 c -> new RequeueAtEndConnection(c, beetleAmqpConfiguration, invertRequeueParameter))
-            .map(delegate -> new MultiPlexingConnection(delegate, deduplicator, isInvertRequeueParameter()))
+            .map(
+                delegate ->
+                    new MultiPlexingConnection(delegate, deduplicator, isInvertRequeueParameter()))
             .collect(Collectors.toList());
     return new BeetleConnection(connections, beetleAmqpConfiguration);
   }

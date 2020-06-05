@@ -36,5 +36,4 @@ public interface MessageListener<M> {
   }
 
   void onMessage(M message) throws Throwable;
-
 }
