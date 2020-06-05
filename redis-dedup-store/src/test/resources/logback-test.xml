@@ -5,7 +5,15 @@
         </encoder>
     </appender>
 
-    <root level="TRACE">
-        <appender-ref ref="logonfail" />
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>[%level] %logger - %ex{short} %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer" level="WARN" />
+
+    <root level="info">
+        <appender-ref ref="STDOUT" />
     </root>
 </configuration>
