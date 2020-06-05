@@ -70,8 +70,6 @@ public class BeetleChannel implements DefaultChannel.Decorator {
     String tag =
         consumerTag == null || consumerTag.isEmpty() ? UUID.randomUUID().toString() : consumerTag;
 
-
-
     boolean all =
         delegates
             .streamAll()

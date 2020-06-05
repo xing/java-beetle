@@ -36,62 +36,58 @@ public class MultiPlexingConnectionIT {
     factory.setHost(container.getContainerIpAddress());
     factory.setPort(container.getAmqpPort());
 
-    MultiPlexingConnection connection = new MultiPlexingConnection(factory.newConnection(), new Deduplicator() {
-      @Override
-      public boolean tryAcquireMutex(String messageId, int secondsToExpire) {
-        return false;
-      }
+    MultiPlexingConnection connection =
+        new MultiPlexingConnection(
+            factory.newConnection(),
+            new Deduplicator() {
+              @Override
+              public boolean tryAcquireMutex(String messageId, int secondsToExpire) {
+                return false;
+              }
 
-      @Override
-      public void releaseMutex(String messageId) {
+              @Override
+              public void releaseMutex(String messageId) {}
 
-      }
+              @Override
+              public void complete(String messageId) {}
 
-      @Override
-      public void complete(String messageId) {
+              @Override
+              public boolean completed(String messageId) {
+                return false;
+              }
 
-      }
+              @Override
+              public boolean delayed(String messageId) {
+                return false;
+              }
 
-      @Override
-      public boolean completed(String messageId) {
-        return false;
-      }
+              @Override
+              public void setDelay(String messageId, long timestamp) {}
 
-      @Override
-      public boolean delayed(String messageId) {
-        return false;
-      }
+              @Override
+              public long incrementAttempts(String messageId) {
+                return 0;
+              }
 
-      @Override
-      public void setDelay(String messageId, long timestamp) {
+              @Override
+              public long incrementExceptions(String messageId) {
+                return 0;
+              }
 
-      }
+              @Override
+              public long incrementAckCount(String messageId) {
+                return 0;
+              }
 
-      @Override
-      public long incrementAttempts(String messageId) {
-        return 0;
-      }
+              @Override
+              public void deleteKeys(String messageId) {}
 
-      @Override
-      public long incrementExceptions(String messageId) {
-        return 0;
-      }
-
-      @Override
-      public long incrementAckCount(String messageId) {
-        return 0;
-      }
-
-      @Override
-      public void deleteKeys(String messageId) {
-
-      }
-
-      @Override
-      public BeetleAmqpConfiguration getBeetleAmqpConfiguration() {
-        return null;
-      }
-    }, true);
+              @Override
+              public BeetleAmqpConfiguration getBeetleAmqpConfiguration() {
+                return null;
+              }
+            },
+            true);
     Channel channel = connection.createChannel();
 
     String queue = String.format("%s-%s-%s", QUEUE, mode, strategy);
