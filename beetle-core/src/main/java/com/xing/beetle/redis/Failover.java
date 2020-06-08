@@ -1,4 +1,4 @@
-package redis;
+package com.xing.beetle.redis;
 
 import com.xing.beetle.util.ExceptionSupport;
 import com.xing.beetle.util.RetryExecutor;

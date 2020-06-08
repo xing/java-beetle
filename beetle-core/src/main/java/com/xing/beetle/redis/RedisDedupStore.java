@@ -1,4 +1,4 @@
-package redis;
+package com.xing.beetle.redis;
 
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore;

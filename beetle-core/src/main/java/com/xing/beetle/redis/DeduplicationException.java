@@ -1,4 +1,4 @@
-package redis;
+package com.xing.beetle.redis;
 
 class DeduplicationException extends RuntimeException {
 
