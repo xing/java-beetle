@@ -1,17 +1,7 @@
 package com.xing.beetle.spring;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
 import com.xing.beetle.BeetleHeader;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
-
 import com.xing.testing.TestFailureLogger;
 import org.junit.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +26,15 @@ import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.testcontainers.containers.GenericContainer;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.Mockito.when;
 
 /**
  * Full blown beetle client test with spring integration (RabbitListener) and deduplication (with
@@ -143,7 +142,7 @@ public class BeetleClientTest {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithTimeout", 2, messageId);
     // exception limit is 3
-    service.assertCounts(messageId, 3, 0, 1, 15000);
+    service.assertCounts(messageId, 3, 0, 1, 10000);
   }
 
   @Test
@@ -199,7 +198,6 @@ public class BeetleClientTest {
 
     @RabbitListener(queues = "QueueWithTimeout")
     public void handleWithTimeout(Message message) throws InterruptedException {
-      long start = System.currentTimeMillis();
       log.log(System.Logger.Level.DEBUG, message.getMessageProperties());
       if (message.getMessageProperties().isRedelivered()) {
         redelivered.add(message.getMessageProperties().getMessageId());
@@ -209,10 +207,6 @@ public class BeetleClientTest {
       }
       result.add(message.getMessageProperties().getMessageId());
       Thread.sleep(1100);
-      System.out.println(
-          Thread.currentThread().getId()
-              + " handleWithTimeout took "
-              + (System.currentTimeMillis() - start));
     }
 
     @RabbitListener(queues = "QueueWithTimeoutThenSucceed")
@@ -292,7 +286,7 @@ public class BeetleClientTest {
       when(beetleAmqpConfiguration.getDeadLetteringMsgTtlMs()).thenReturn(100);
       when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(false);
       when(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds()).thenReturn(3);
-      when(beetleAmqpConfiguration.getMessageLifetimeSeconds()).thenReturn(1000000);
+      when(beetleAmqpConfiguration.getMessageLifetimeSeconds()).thenReturn(10000);
 
       when(beetleAmqpConfiguration.getBeetlePolicyExchangeName()).thenReturn("beetle-policies");
       when(beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName())
