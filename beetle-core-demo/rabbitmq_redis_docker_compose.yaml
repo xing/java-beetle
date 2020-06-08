@@ -1,0 +1,21 @@
+version: "3"
+
+services:
+
+  rabbitmq1:
+    image: rabbitmq
+    command: rabbitmq-server
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  rabbitmq2:
+    image: rabbitmq
+    command: rabbitmq-server
+    ports:
+      - "5673:5672"
+      - "15673:15672"
+  redis:
+    image: "redis:alpine"
+    command: redis-server
+    ports:
+      - "6379:6379"
