@@ -9,7 +9,7 @@ import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.amqp.BeetleConnectionFactory;
 import com.xing.beetle.dedup.spi.Deduplicator;
 import com.xing.beetle.dedup.spi.KeyValueStoreBasedDeduplicator;
-import redis.RedisDedupStore;
+import com.xing.beetle.redis.RedisDedupStore;
 
 import java.io.IOException;
 import java.util.ArrayList;
