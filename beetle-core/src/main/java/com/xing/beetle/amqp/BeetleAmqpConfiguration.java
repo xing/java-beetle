@@ -209,4 +209,81 @@ public class BeetleAmqpConfiguration {
   public void setMessageLifetimeSeconds(int messageLifetimeSeconds) {
     this.messageLifetimeSeconds = messageLifetimeSeconds;
   }
+
+  public void setSystemName(String systemName) {
+    this.systemName = systemName;
+  }
+
+  public void setBeetleRedisServer(String beetleRedisServer) {
+    this.beetleRedisServer = beetleRedisServer;
+  }
+
+  public void setBeetleServers(String beetleServers) {
+    this.beetleServers = beetleServers;
+  }
+
+  public void setBeetleAdditionalSubscriptionServers(String beetleAdditionalSubscriptionServers) {
+    this.beetleAdditionalSubscriptionServers = beetleAdditionalSubscriptionServers;
+  }
+
+  public void setBeetleRedisStatusKeyExpiryIntervalSeconds(
+      int beetleRedisStatusKeyExpiryIntervalSeconds) {
+    this.beetleRedisStatusKeyExpiryIntervalSeconds = beetleRedisStatusKeyExpiryIntervalSeconds;
+  }
+
+  public void setBeetlePolicyExchangeName(String beetlePolicyExchangeName) {
+    this.beetlePolicyExchangeName = beetlePolicyExchangeName;
+  }
+
+  public void setBeetlePolicyUpdatesQueueName(String beetlePolicyUpdatesQueueName) {
+    this.beetlePolicyUpdatesQueueName = beetlePolicyUpdatesQueueName;
+  }
+
+  public void setBeetlePolicyUpdatesRoutingKey(String beetlePolicyUpdatesRoutingKey) {
+    this.beetlePolicyUpdatesRoutingKey = beetlePolicyUpdatesRoutingKey;
+  }
+
+  public void setDeadLetteringEnabled(boolean deadLetteringEnabled) {
+    this.deadLetteringEnabled = deadLetteringEnabled;
+  }
+
+  public void setLazyQueuesEnabled(boolean lazyQueuesEnabled) {
+    this.lazyQueuesEnabled = lazyQueuesEnabled;
+  }
+
+  public void setDeadLetteringMsgTtlMs(int deadLetteringMsgTtlMs) {
+    this.deadLetteringMsgTtlMs = deadLetteringMsgTtlMs;
+  }
+
+  public String getUser() {
+    return user;
+  }
+
+  public void setUser(String user) {
+    this.user = user;
+  }
+
+  public String getPassword() {
+    return password;
+  }
+
+  public void setPassword(String password) {
+    this.password = password;
+  }
+
+  public void setHandlerTimeoutSeconds(int handlerTimeoutSeconds) {
+    this.handlerTimeoutSeconds = handlerTimeoutSeconds;
+  }
+
+  public void setMaxHandlerExecutionAttempts(int maxHandlerExecutionAttempts) {
+    this.maxHandlerExecutionAttempts = maxHandlerExecutionAttempts;
+  }
+
+  public void setHandlerExecutionAttemptsDelaySeconds(int handlerExecutionAttemptsDelaySeconds) {
+    this.handlerExecutionAttemptsDelaySeconds = handlerExecutionAttemptsDelaySeconds;
+  }
+
+  public void setExceptionLimit(int exceptionLimit) {
+    this.exceptionLimit = exceptionLimit;
+  }
 }

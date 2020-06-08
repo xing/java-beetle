@@ -1,18 +1,7 @@
 package com.xing.beetle.spring;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.when;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
 import com.xing.beetle.BeetleHeader;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
-import com.xing.beetle.redis.RedisDedupStoreAutoConfiguration;
-
 import com.xing.testing.TestFailureLogger;
 import org.junit.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,11 +16,9 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.test.annotation.DirtiesContext;
@@ -39,6 +26,15 @@ import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.testcontainers.containers.GenericContainer;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.mockito.Mockito.when;
 
 /**
  * Full blown beetle client test with spring integration (RabbitListener) and deduplication (with
