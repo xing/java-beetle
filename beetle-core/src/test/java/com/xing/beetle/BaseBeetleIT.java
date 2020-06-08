@@ -1,20 +1,18 @@
 package com.xing.beetle;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.function.IntFunction;
-import java.util.stream.Stream;
-
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Address;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import com.xing.beetle.amqp.BeetleConnectionFactory;
 import com.xing.beetle.util.ExceptionSupport;
-
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.util.Arrays;
+import java.util.Map;
+import java.util.function.IntFunction;
+import java.util.stream.Stream;
 
 @Testcontainers
 class BaseBeetleIT {
@@ -34,12 +32,6 @@ class BaseBeetleIT {
   private static Address addressOf(RabbitMQContainer container) {
     String amqpUrl = container.getAmqpUrl();
     return Address.parseAddress(amqpUrl.substring(7));
-  }
-
-  static Connection createConnection(BeetleConnectionFactory factory, int count) throws Exception {
-    Address[] addresses =
-        Arrays.stream(rmq, 0, count).map(BaseBeetleIT::addressOf).toArray(Address[]::new);
-    return factory.newConnection(addresses);
   }
 
   static Stream<Connection> createConnections(ConnectionFactory factory, int count)
