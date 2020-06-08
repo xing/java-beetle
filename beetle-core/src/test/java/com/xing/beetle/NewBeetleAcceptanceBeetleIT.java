@@ -12,7 +12,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import redis.RedisDedupStore;
+import com.xing.beetle.redis.RedisDedupStore;
 
 import java.util.ArrayList;
 import java.util.Arrays;
