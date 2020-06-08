@@ -110,21 +110,25 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
           new Consumer() {
             @Override
             public void handleConsumeOk(String consumerTag) {
+              System.out.println("handle consume ok");
               callback.handleConsumeOk(consumerTag);
             }
 
             @Override
             public void handleCancelOk(String consumerTag) {
+              System.out.println("handle cancel ok");
               callback.handleCancelOk(consumerTag);
             }
 
             @Override
             public void handleCancel(String consumerTag) throws IOException {
+              System.out.println("handle cancel");
               callback.handleCancel(consumerTag);
             }
 
             @Override
             public void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
+              System.out.println("handle shut down");
               callback.handleShutdownSignal(consumerTag, sig);
             }
 
@@ -180,11 +184,9 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
                       }
                     };
 
-                Interruptable<Delivery> interruptable =
-                    new Interruptable<>(dedup_handle_delivery_called);
 
                 System.out.println(Thread.currentThread().getId() + " dedup called thread ");
-                deduplicator.handle(message, beetleMessageAdaptor, interruptable);
+                deduplicator.handle(message, beetleMessageAdaptor, dedup_handle_delivery_called);
 
               } else {
                 callback.handleDelivery(consumerTag, envelope, properties, body);
