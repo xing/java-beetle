@@ -1,6 +1,7 @@
 package com.xing.beetle.amqp;
 
 import com.rabbitmq.client.*;
+import com.xing.beetle.dedup.spi.Deduplicator;
 import com.xing.beetle.util.ExceptionSupport.Supplier;
 import com.xing.beetle.util.RetryExecutor;
 
@@ -11,15 +12,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-
-import com.rabbitmq.client.Address;
-import com.rabbitmq.client.AddressResolver;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.ListAddressResolver;
-import com.rabbitmq.client.RecoverableConnection;
-import com.xing.beetle.util.ExceptionSupport.Supplier;
-import com.xing.beetle.util.RetryExecutor;
 
 public class BeetleConnectionFactory extends ConnectionFactory {
 
