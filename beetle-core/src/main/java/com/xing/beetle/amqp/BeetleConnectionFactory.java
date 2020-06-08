@@ -1,29 +1,30 @@
 package com.xing.beetle.amqp;
 
+import com.rabbitmq.client.*;
+import com.xing.beetle.util.ExceptionSupport.Supplier;
+import com.xing.beetle.util.RetryExecutor;
+
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-import com.rabbitmq.client.Address;
-import com.rabbitmq.client.AddressResolver;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.ListAddressResolver;
-import com.rabbitmq.client.RecoverableConnection;
-import com.xing.beetle.util.ExceptionSupport.Supplier;
-import com.xing.beetle.util.RetryExecutor;
-
 public class BeetleConnectionFactory extends ConnectionFactory {
 
   private RetryExecutor connectionEstablishingExecutor = RetryExecutor.SYNCHRONOUS;
   private boolean invertRequeueParameter = false;
   private BeetleAmqpConfiguration beetleAmqpConfiguration;
+  private ListAddressResolver listAddressResolver;
 
   public BeetleConnectionFactory(BeetleAmqpConfiguration beetleAmqpConfiguration) {
     this.beetleAmqpConfiguration = beetleAmqpConfiguration;
+    String[] addresses = beetleAmqpConfiguration.getBeetleServers().split(",");
+    List<Address> parsedAddresses =
+        Arrays.stream(addresses).map(Address::parseAddress).collect(Collectors.toList());
+    this.listAddressResolver = new ListAddressResolver(parsedAddresses);
   }
 
   private Supplier<RecoverableConnection> connection(
@@ -34,7 +35,7 @@ public class BeetleConnectionFactory extends ConnectionFactory {
 
   @Override
   protected AddressResolver createAddressResolver(List<Address> addresses) {
-    return new ListAddressResolver(addresses);
+    return listAddressResolver;
   }
 
   public RetryExecutor getConnectionEstablishingExecutor() {
