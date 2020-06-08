@@ -143,7 +143,7 @@ public class BeetleClientTest {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithTimeout", 2, messageId);
     // exception limit is 3
-    service.assertCounts(messageId, 3, 0, 1, 10000);
+    service.assertCounts(messageId, 3, 0, 1, 15000);
   }
 
   @Test
@@ -199,6 +199,7 @@ public class BeetleClientTest {
 
     @RabbitListener(queues = "QueueWithTimeout")
     public void handleWithTimeout(Message message) throws InterruptedException {
+      long start = System.currentTimeMillis();
       log.log(System.Logger.Level.DEBUG, message.getMessageProperties());
       if (message.getMessageProperties().isRedelivered()) {
         redelivered.add(message.getMessageProperties().getMessageId());
@@ -208,6 +209,10 @@ public class BeetleClientTest {
       }
       result.add(message.getMessageProperties().getMessageId());
       Thread.sleep(1100);
+      System.out.println(
+          Thread.currentThread().getId()
+              + " handleWithTimeout took "
+              + (System.currentTimeMillis() - start));
     }
 
     @RabbitListener(queues = "QueueWithTimeoutThenSucceed")
@@ -287,7 +292,7 @@ public class BeetleClientTest {
       when(beetleAmqpConfiguration.getDeadLetteringMsgTtlMs()).thenReturn(100);
       when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(false);
       when(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds()).thenReturn(3);
-      when(beetleAmqpConfiguration.getMessageLifetimeSeconds()).thenReturn(10000);
+      when(beetleAmqpConfiguration.getMessageLifetimeSeconds()).thenReturn(1000000);
 
       when(beetleAmqpConfiguration.getBeetlePolicyExchangeName()).thenReturn("beetle-policies");
       when(beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName())

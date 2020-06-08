@@ -57,13 +57,19 @@ public interface Deduplicator {
       M message, MessageListener<M> listener, MessageAdapter<M> adapter, Duration timeout) {
     Interruptable<M> interruptable = new Interruptable<>(listener);
     // Schedule an interruption for the execution of the handler when the timeout is expired
+    System.out.println("Timeout :" + timeout.toMillis());
     CompletableFuture.delayedExecutor(timeout.toMillis(), TimeUnit.MILLISECONDS)
         .execute(interruptable::interruptTimedOutAndRethrow);
     // actually run the handler, i.e handle the message
     try {
+      long start = System.currentTimeMillis();
+      System.out.println("On message started: " + start);
       interruptable.onMessage(message);
+      System.out.println("On message finished in: " + (System.currentTimeMillis() - start));
     } catch (Throwable throwable) {
+      System.out.println("Throwable thrown...");
       if (throwable.getCause() != null && throwable.getCause() instanceof InterruptedException) {
+        System.out.println("Throwable thrown... timeout");
         listener.onFailure(
             message,
             String.format("Beetle: message handling timed out for %s", adapter.keyOf(message)));

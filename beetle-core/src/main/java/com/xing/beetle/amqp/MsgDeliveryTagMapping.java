@@ -62,8 +62,13 @@ public class MsgDeliveryTagMapping {
     public void handleDelivery(
         String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
         throws IOException {
+      long start = System.currentTimeMillis();
       envelope = envelopeWithPseudoDeliveryTag(channel, envelope);
       delegate.handleDelivery(consumerTag, envelope, properties, body);
+      System.out.println(
+          Thread.currentThread().getId()
+              + " handleDelivery took mesg tag mapping"
+              + (System.currentTimeMillis() - start));
     }
 
     @Override
