@@ -46,7 +46,7 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
   }
 
   @ParameterizedTest(name = "Brokers={0}")
-  @ValueSource(ints = {1, 2})
+  @ValueSource(ints = {2})
   void testRedundantPublishWithoutDeduplication(int containers) throws Exception {
     BeetleAmqpConfiguration beetleAmqpConfiguration = new BeetleAmqpConfiguration();
     beetleAmqpConfiguration.setBeetleRedisServer(redisServer);
@@ -55,25 +55,29 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
             beetleAmqpConfiguration,
             new KeyValueStoreBasedDeduplicator(
                 new RedisDedupStore(beetleAmqpConfiguration), beetleAmqpConfiguration));
-    factory.setInvertRequeueParameter(true);
+    factory.setInvertRequeueParameter(false);
     Connection connection = createConnection(factory, containers);
     Channel channel = connection.createChannel();
     String queue = String.format("nodedup-%d", containers);
 
     channel.queueDeclare(queue, false, false, false, null);
-    channel.basicPublish("", queue, REDUNDANT.apply(1), "test1".getBytes());
+    // channel.basicPublish("", queue, REDUNDANT.apply(1), "test1".getBytes());
 
     List<Delivery> messages = new ArrayList<>();
     channel.basicConsume(queue, true, (tag, msg) -> messages.add(msg), System.out::println);
 
-    assertEventualLength(messages, 1, 500);
-    messages.clear();
+    // assertEventualLength(messages, 1, 500);
+    // messages.clear();
 
     channel.basicPublish("", queue, REDUNDANT.apply(2), "test2".getBytes());
+    // channel.basicPublish("", queue, REDUNDANT.apply(2), "test3".getBytes());
 
-    assertEventualLength(messages, 1, 500);
+    Thread.sleep(18000);
 
-    System.out.println("*******************");
+    // channel.basicCancel(consumerTag);
+
+    System.out.println(messages.size());
+    assertEventualLength(messages, 1, 8000);
   }
 
   //  BeetleAmqpConfiguration beetleAmqpConfiguration() {

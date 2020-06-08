@@ -1,6 +1,7 @@
 package com.xing.beetle.amqp;
 
 import com.rabbitmq.client.*;
+import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.dedup.spi.Deduplicator;
 import com.xing.beetle.util.ExceptionSupport;
@@ -136,12 +137,14 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
             public void handleDelivery(
                 String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
                 throws IOException {
+
+              // try {
               // callback.handleDelivery(consumerTag, envelope, properties, body);
 
-              System.out.println("handle delivery called");
+              System.out.println("handle delivery called " + properties.getMessageId());
               BeetleMessageAdaptor beetleMessageAdaptor =
                   new BeetleMessageAdaptor(
-                      consumerTags.get(consumerTag), autoAck, rejectAndRequeue);
+                      consumerTags.get(consumerTag), !autoAck, rejectAndRequeue);
               Delivery message = new Delivery(envelope, properties, body);
               if (beetleMessageAdaptor.keyOf(message) != null) {
 
@@ -149,19 +152,40 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
                     new MessageListener<>() {
                       @Override
                       public void onMessage(Delivery message) throws Throwable {
+                        long start = System.currentTimeMillis();
                         callback.handleDelivery(consumerTag, envelope, properties, body);
-                        System.out.println("dedup handle delivery called");
+                        System.out.println(
+                            "dedup handle delivery called for "
+                                + message.getProperties().getMessageId());
+                        System.out.println(
+                            Thread.currentThread().getId()
+                                + " on message took "
+                                + (System.currentTimeMillis() - start));
                       }
 
                       @Override
                       public void onRequeued(Delivery message) throws IOException {
                         System.out.println("onRequeued called");
                         // callback.handleDelivery(consumerTag, null, null, null);
-                        callback.handleConsumeOk(consumerTag);
+                        // callback.handleConsumeOk(consumerTag);
+                      }
+
+                      @Override
+                      public void onDropped(Delivery message, String reason) {
+                        System.out.println(
+                            "onDropped called "
+                                + message.getEnvelope().getDeliveryTag()
+                                + " "
+                                + reason);
                       }
                     };
 
-                deduplicator.handle(message, beetleMessageAdaptor, dedup_handle_delivery_called);
+                Interruptable<Delivery> interruptable =
+                    new Interruptable<>(dedup_handle_delivery_called);
+
+                System.out.println(Thread.currentThread().getId() + " dedup called thread ");
+                deduplicator.handle(message, beetleMessageAdaptor, interruptable);
+
               } else {
                 callback.handleDelivery(consumerTag, envelope, properties, body);
               }
