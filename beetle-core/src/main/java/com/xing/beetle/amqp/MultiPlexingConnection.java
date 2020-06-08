@@ -1,7 +1,6 @@
 package com.xing.beetle.amqp;
 
 import com.rabbitmq.client.*;
-import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.dedup.spi.Deduplicator;
 import com.xing.beetle.util.ExceptionSupport;
@@ -183,7 +182,6 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
                                 + reason);
                       }
                     };
-
 
                 System.out.println(Thread.currentThread().getId() + " dedup called thread ");
                 deduplicator.handle(message, beetleMessageAdaptor, dedup_handle_delivery_called);
