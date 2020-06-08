@@ -1,6 +1,14 @@
 Changelog
 =========
 
+Version 1.0.5 (08.06.2020)
+--------------------------
+
+Changes:
+
+* add setters for BeetleAmqpConfiguration.
+* add a sample app demonstrating use of Java Beetle Client without Spring configuration.
+
 Version 1.0.4 (05.06.2020)
 --------------------------
 
