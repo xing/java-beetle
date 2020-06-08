@@ -2,7 +2,6 @@ package com.xing.beetle.spring;
 
 import com.xing.beetle.BeetleHeader;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
-import com.xing.beetle.redis.RedisDedupStoreAutoConfiguration;
 import org.junit.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.runner.RunWith;
@@ -19,7 +18,6 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.test.annotation.DirtiesContext;
