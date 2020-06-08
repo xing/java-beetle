@@ -122,7 +122,6 @@
 
     <modules>
         <module>beetle-core</module>
-        <module>redis-dedup-store</module>
         <module>spring-integration</module>
         <module>spring-java-demo</module>
         <module>spring-kotlin-demo</module>
