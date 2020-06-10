@@ -13,8 +13,6 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
-import static java.util.Objects.requireNonNull;
-
 /**
  * MsgDeliveryTagMapping maps external delivery tags from (possibly) multiple AMQP channels to a
  * contiguous list of synthetic delivery tags that are presented to the wrapped plain AMQP Consumer.
@@ -27,59 +25,6 @@ public class MsgDeliveryTagMapping {
   private interface MsgResponse {
     Void apply(MsgResult msgResult, boolean multiple, boolean requeue, Predicate<Channel> when)
         throws IOException;
-  }
-
-  /**
-   * MappingConsumer wraps a plain Consumer to support consuming messages from multiple channels
-   * without conflicting deliveryTags.
-   */
-  private class MappingConsumer implements Consumer {
-
-    private final Consumer delegate;
-    private final Channel channel;
-
-    MappingConsumer(Consumer delegate, Channel channel) {
-      this.delegate = requireNonNull(delegate);
-      this.channel = requireNonNull(channel);
-    }
-
-    @Override
-    public void handleCancel(String consumerTag) throws IOException {
-      delegate.handleCancel(consumerTag);
-    }
-
-    @Override
-    public void handleCancelOk(String consumerTag) {
-      delegate.handleCancelOk(consumerTag);
-    }
-
-    @Override
-    public void handleConsumeOk(String consumerTag) {
-      delegate.handleConsumeOk(consumerTag);
-    }
-
-    @Override
-    public void handleDelivery(
-        String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
-        throws IOException {
-      long start = System.currentTimeMillis();
-      envelope = envelopeWithPseudoDeliveryTag(channel, envelope);
-      delegate.handleDelivery(consumerTag, envelope, properties, body);
-      System.out.println(
-          Thread.currentThread().getId()
-              + " handleDelivery took mesg tag mapping"
-              + (System.currentTimeMillis() - start));
-    }
-
-    @Override
-    public void handleRecoverOk(String consumerTag) {
-      delegate.handleRecoverOk(consumerTag);
-    }
-
-    @Override
-    public void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
-      delegate.handleShutdownSignal(consumerTag, sig);
-    }
   }
 
   /**
@@ -188,7 +133,7 @@ public class MsgDeliveryTagMapping {
   }
 
   Consumer createConsumerDecorator(Consumer delegate, Channel channel) {
-    return new MappingConsumer(delegate, channel);
+    return new MappingConsumer(this, delegate, channel);
   }
 
   private void eachChannelOnce(

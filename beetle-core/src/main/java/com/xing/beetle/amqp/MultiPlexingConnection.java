@@ -109,25 +109,21 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
           new Consumer() {
             @Override
             public void handleConsumeOk(String consumerTag) {
-              System.out.println("handle consume ok");
               callback.handleConsumeOk(consumerTag);
             }
 
             @Override
             public void handleCancelOk(String consumerTag) {
-              System.out.println("handle cancel ok");
               callback.handleCancelOk(consumerTag);
             }
 
             @Override
             public void handleCancel(String consumerTag) throws IOException {
-              System.out.println("handle cancel");
               callback.handleCancel(consumerTag);
             }
 
             @Override
             public void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
-              System.out.println("handle shut down");
               callback.handleShutdownSignal(consumerTag, sig);
             }
 
@@ -141,65 +137,44 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
                 String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
                 throws IOException {
 
-              // try {
-              // callback.handleDelivery(consumerTag, envelope, properties, body);
+              if (callback instanceof MappingConsumer) {
+                MappingConsumer mappingConsumer = (MappingConsumer) callback;
+                Consumer consumer = mappingConsumer.getDelegate();
+                if (consumer.getClass().getName().contains(DefaultChannel.class.getName())) {
+                  // beetle client have the full control
+                  BeetleMessageAdaptor beetleMessageAdaptor =
+                      new BeetleMessageAdaptor(
+                          consumerTags.get(consumerTag), autoAck == true, rejectAndRequeue);
 
-              System.out.println("handle delivery called " + properties.getMessageId());
-              BeetleMessageAdaptor beetleMessageAdaptor =
-                  new BeetleMessageAdaptor(
-                      consumerTags.get(consumerTag), !autoAck, rejectAndRequeue);
-              Delivery message = new Delivery(envelope, properties, body);
-              if (beetleMessageAdaptor.keyOf(message) != null) {
+                  Delivery message = new Delivery(envelope, properties, body);
+                  if (beetleMessageAdaptor.keyOf(message) != null) {
 
-                MessageListener<Delivery> dedup_handle_delivery_called =
-                    new MessageListener<>() {
-                      @Override
-                      public void onMessage(Delivery message) throws Throwable {
-                        long start = System.currentTimeMillis();
-                        callback.handleDelivery(consumerTag, envelope, properties, body);
-                        System.out.println(
-                            "dedup handle delivery called for "
-                                + message.getProperties().getMessageId());
-                        System.out.println(
-                            Thread.currentThread().getId()
-                                + " on message took "
-                                + (System.currentTimeMillis() - start));
-                      }
+                    MessageListener<Delivery> dedup_handle_delivery_called =
+                        new MessageListener<>() {
+                          @Override
+                          public void onMessage(Delivery message) throws Throwable {
+                            callback.handleDelivery(consumerTag, envelope, properties, body);
+                          }
+                        };
 
-                      @Override
-                      public void onRequeued(Delivery message) throws IOException {
-                        System.out.println("onRequeued called");
-                        // callback.handleDelivery(consumerTag, null, null, null);
-                        // callback.handleConsumeOk(consumerTag);
-                      }
-
-                      @Override
-                      public void onDropped(Delivery message, String reason) {
-                        System.out.println(
-                            "onDropped called "
-                                + message.getEnvelope().getDeliveryTag()
-                                + " "
-                                + reason);
-                      }
-                    };
-
-                System.out.println(Thread.currentThread().getId() + " dedup called thread ");
-                deduplicator.handle(message, beetleMessageAdaptor, dedup_handle_delivery_called);
-
-              } else {
-                callback.handleDelivery(consumerTag, envelope, properties, body);
+                    deduplicator.handle(
+                        message, beetleMessageAdaptor, dedup_handle_delivery_called);
+                    return;
+                  }
+                }
               }
+              callback.handleDelivery(consumerTag, envelope, properties, body);
             }
           };
 
       Consumer consumer = callBackForAll;
-      if (!autoAck) {
-        consumer = tagMapping.createConsumerDecorator(callBackForAll, channel);
-      }
+      // if (!autoAck) {
+      consumer = tagMapping.createConsumerDecorator(callBackForAll, channel);
+      // }
       setDefaultConsumer(consumer);
 
       return channel.basicConsume(
-          queue, autoAck, consumerTag, noLocal, exclusive, arguments, consumer);
+          queue, false, consumerTag, noLocal, exclusive, arguments, consumer);
     }
 
     @Override
@@ -320,18 +295,18 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
 
   private final Connection delegate;
   private final Deduplicator deduplicator;
-  private final boolean rejectAndRequeue;
+  private final boolean deadLetteringEnabled;
 
   public MultiPlexingConnection(
-      Connection delegate, Deduplicator deduplicator, boolean rejectAndRequeue) {
+      Connection delegate, Deduplicator deduplicator, boolean deadLetteringEnabled) {
     this.delegate = requireNonNull(delegate);
     this.deduplicator = deduplicator;
-    this.rejectAndRequeue = rejectAndRequeue;
+    this.deadLetteringEnabled = deadLetteringEnabled;
   }
 
   @Override
   public Channel createChannel(int channelNumber) throws IOException {
-    return new MultiPlexingChannel(delegate, channelNumber, deduplicator, rejectAndRequeue);
+    return new MultiPlexingChannel(delegate, channelNumber, deduplicator, deadLetteringEnabled);
   }
 
   @Override

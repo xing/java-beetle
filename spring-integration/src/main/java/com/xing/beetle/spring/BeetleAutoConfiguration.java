@@ -140,7 +140,7 @@ public class BeetleAutoConfiguration {
       BeetleListenerInterceptor interceptor) {
     DirectRabbitListenerContainerFactory factory = new DirectRabbitListenerContainerFactory();
     configurer.configure(factory, connectionFactory);
-    // addAdvices(factory, interceptor);
+    addAdvices(factory, interceptor);
     return factory;
   }
 
@@ -156,7 +156,7 @@ public class BeetleAutoConfiguration {
       BeetleListenerInterceptor interceptor) {
     SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
     configurer.configure(factory, connectionFactory);
-    // addAdvices(factory, interceptor);
+    addAdvices(factory, interceptor);
     return factory;
   }
 
