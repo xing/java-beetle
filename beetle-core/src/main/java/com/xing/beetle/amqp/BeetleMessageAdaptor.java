@@ -12,21 +12,20 @@ import static java.util.Objects.requireNonNull;
 public class BeetleMessageAdaptor implements MessageAdapter<Delivery> {
 
   private final Channel channel;
-  private final boolean isAutoAck;
-  private final boolean rejectAndRequeue;
+  private final boolean needToAck;
+  private final boolean deadLetteringEnabled;
   private static final int FLAG_REDUNDANT = 1;
 
-  BeetleMessageAdaptor(Channel channel, boolean isAutoAck, boolean rejectAndRequeue) {
+  BeetleMessageAdaptor(Channel channel, boolean needToAck, boolean deadLetteringEnabled) {
     this.channel = requireNonNull(channel);
-    this.isAutoAck = isAutoAck;
-    this.rejectAndRequeue = rejectAndRequeue;
+    this.needToAck = needToAck;
+    this.deadLetteringEnabled = deadLetteringEnabled;
   }
 
   @Override
   public void drop(Delivery message) {
-    if (isAutoAck) {
+    if (needToAck) {
       try {
-        System.out.println("acking " + message.getProperties().getMessageId());
         channel.basicAck(message.getEnvelope().getDeliveryTag(), false);
       } catch (IOException e) {
         ExceptionSupport.sneakyThrow(e);
@@ -70,14 +69,12 @@ public class BeetleMessageAdaptor implements MessageAdapter<Delivery> {
 
   @Override
   public void requeue(Delivery message) {
-    System.out.println(message + " requeued");
-    // if (isAutoAck) {
-    try {
-      System.out.println("rejecting " + message.getProperties().getMessageId());
-      channel.basicReject(message.getEnvelope().getDeliveryTag(), true);
-    } catch (IOException e) {
-      ExceptionSupport.sneakyThrow(e);
+    if (needToAck) {
+      try {
+        channel.basicReject(message.getEnvelope().getDeliveryTag(), true);
+      } catch (IOException e) {
+        ExceptionSupport.sneakyThrow(e);
+      }
     }
   }
-  // }
 }
