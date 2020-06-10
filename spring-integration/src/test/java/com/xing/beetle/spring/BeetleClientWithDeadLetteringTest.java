@@ -2,6 +2,7 @@ package com.xing.beetle.spring;
 
 import com.xing.beetle.BeetleHeader;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
+import com.xing.beetle.amqp.BeetleConnectionFactory;
 import org.junit.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.runner.RunWith;
@@ -46,6 +47,7 @@ public class BeetleClientWithDeadLetteringTest {
 
   @Autowired private RabbitTemplate rabbitTemplate;
   @Autowired private MessageHandlingService service;
+  @Autowired private BeetleConnectionFactory factory;
 
   private static String beetleServers;
   private static String redisServer;
@@ -75,11 +77,13 @@ public class BeetleClientWithDeadLetteringTest {
 
   @Test
   public void throwExceptionExceedExceptionLimitWithDeadLettering() throws InterruptedException {
+
+    factory.setInvertRequeueParameter(true);
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithErrorDL", 2, messageId);
     waitForMessageDelivery(8000);
     // exception limit is 3
-    service.assertCounts(messageId, 3, 1, 0, 10000);
+    service.assertCounts(messageId, 3, 2, 0, 10000);
   }
 
   @Test
@@ -88,7 +92,7 @@ public class BeetleClientWithDeadLetteringTest {
     sendRedundantMessage("QueueWithTimeoutDL", 2, messageId);
     waitForMessageDelivery(8000);
     // exception limit is 3
-    service.assertCounts(messageId, 3, 1, 0, 10000);
+    service.assertCounts(messageId, 3, 2, 0, 10000);
 
     // make sure that queue for policy is declared and working
     assertFalse(service.queuePolicyMessages.isEmpty());

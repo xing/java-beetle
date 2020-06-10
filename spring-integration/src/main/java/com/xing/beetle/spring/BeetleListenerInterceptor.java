@@ -121,7 +121,7 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
   private MessageAdapter<Message> adapter(Channel channel, Message message) {
     String queue = message.getMessageProperties().getConsumerQueue();
     AcknowledgeMode mode = acknowledgeModes.getOrDefault(queue, AcknowledgeMode.AUTO);
-    return new SpringMessageAdaptor(channel, mode == AcknowledgeMode.MANUAL, rejectAndRequeue);
+    return new SpringMessageAdaptor(channel, mode == AcknowledgeMode.AUTO, rejectAndRequeue);
   }
 
   @Override

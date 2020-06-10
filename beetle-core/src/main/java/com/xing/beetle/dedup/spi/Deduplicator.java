@@ -1,6 +1,7 @@
 package com.xing.beetle.dedup.spi;
 
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
+import com.xing.beetle.amqp.BeetleMessageAdaptor;
 import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.util.ExceptionSupport;
@@ -57,19 +58,15 @@ public interface Deduplicator {
       M message, MessageListener<M> listener, MessageAdapter<M> adapter, Duration timeout) {
     Interruptable<M> interruptable = new Interruptable<>(listener);
     // Schedule an interruption for the execution of the handler when the timeout is expired
-    System.out.println("Timeout :" + timeout.toMillis());
     CompletableFuture.delayedExecutor(timeout.toMillis(), TimeUnit.MILLISECONDS)
         .execute(interruptable::interruptTimedOutAndRethrow);
     // actually run the handler, i.e handle the message
     try {
-      long start = System.currentTimeMillis();
-      System.out.println("On message started: " + start);
       interruptable.onMessage(message);
-      System.out.println("On message finished in: " + (System.currentTimeMillis() - start));
     } catch (Throwable throwable) {
-      System.out.println("Throwable thrown...");
-      if (throwable.getCause() != null && throwable.getCause() instanceof InterruptedException) {
-        System.out.println("Throwable thrown... timeout");
+      if (throwable instanceof InterruptedException
+          || (throwable.getCause() != null
+              && throwable.getCause() instanceof InterruptedException)) {
         listener.onFailure(
             message,
             String.format("Beetle: message handling timed out for %s", adapter.keyOf(message)));
@@ -94,9 +91,7 @@ public interface Deduplicator {
           listener,
           String.format("Beetle: ignored completed message %s", adapter.keyOf(message)));
     } else {
-      System.out.println("acquiring mutex for" + key);
       if (tryAcquireMutex(key, getBeetleAmqpConfiguration().getMutexExpiration())) {
-        System.out.println("mutex acquired for" + key);
         if (completed(key)) {
           dropMessage(
               message,
@@ -134,12 +129,10 @@ public interface Deduplicator {
               handleException(message, adapter, listener, attempt, throwable);
             } finally {
               releaseMutex(key);
-              System.out.println("MUTEX RELEASED for" + key);
             }
           }
         }
       } else {
-        System.out.println("MUTEX NOT ACQUIRED for" + key);
         adapter.requeue(message);
         try {
           listener.onRequeued(message);
@@ -180,10 +173,13 @@ public interface Deduplicator {
               "Beetle: reached the handler exceptions limit: %d on %s",
               getBeetleAmqpConfiguration().getExceptionLimit(), adapter.keyOf(message)));
     } else {
-      setDelay(adapter.keyOf(message), System.currentTimeMillis() + nextDelay(attempt));
+      setDelay(adapter.keyOf(message), System.currentTimeMillis() + nextDelay(attempt) * 100);
       adapter.requeue(message);
-      // let Spring know about the exception so that it rejects the message
-      ExceptionSupport.sneakyThrow(throwable);
+
+      if (!(adapter instanceof BeetleMessageAdaptor)) {
+        // let Spring know about the exception so that it rejects the message
+        ExceptionSupport.sneakyThrow(throwable);
+      }
     }
   }
 
