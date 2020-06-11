@@ -17,13 +17,11 @@ public interface MessageListener<M> {
   }
 
   default Logger logger() {
+    String loggerName = getClass().getName();
     String canonical = getClass().getCanonicalName();
-    String loggerName = "";
     if (canonical != null) {
       int offset = canonical.indexOf("$$Lambda$");
       loggerName = offset > 0 ? canonical.substring(0, offset) : canonical;
-    } else {
-      loggerName = getClass().getName();
     }
     return System.getLogger(loggerName);
   }

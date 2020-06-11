@@ -142,23 +142,27 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
                 Consumer consumer = mappingConsumer.getDelegate();
                 if (consumer.getClass().getName().contains(DefaultChannel.class.getName())) {
                   // beetle client have the full control
-                  BeetleMessageAdaptor beetleMessageAdaptor =
-                      new BeetleMessageAdaptor(
-                          consumerTags.get(consumerTag), autoAck == true, rejectAndRequeue);
+                  BeetleMessageAdapter beetleMessageAdapter =
+                      new BeetleMessageAdapter(
+                          consumerTags.get(consumerTag), autoAck, rejectAndRequeue);
 
                   Delivery message = new Delivery(envelope, properties, body);
-                  if (beetleMessageAdaptor.keyOf(message) != null) {
+                  if (beetleMessageAdapter.keyOf(message) != null) {
 
                     MessageListener<Delivery> dedup_handle_delivery_called =
                         new MessageListener<>() {
                           @Override
-                          public void onMessage(Delivery message) throws Throwable {
-                            callback.handleDelivery(consumerTag, envelope, properties, body);
+                          public void onMessage(Delivery delivery) throws Throwable {
+                            callback.handleDelivery(
+                                consumerTag,
+                                delivery.getEnvelope(),
+                                delivery.getProperties(),
+                                delivery.getBody());
                           }
                         };
 
                     deduplicator.handle(
-                        message, beetleMessageAdaptor, dedup_handle_delivery_called);
+                        message, beetleMessageAdapter, dedup_handle_delivery_called);
                     return;
                   }
                 }
@@ -167,10 +171,8 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
             }
           };
 
-      Consumer consumer = callBackForAll;
-      // if (!autoAck) {
-      consumer = tagMapping.createConsumerDecorator(callBackForAll, channel);
-      // }
+      Consumer consumer = tagMapping.createConsumerDecorator(callBackForAll, channel);
+      ;
       setDefaultConsumer(consumer);
 
       return channel.basicConsume(
