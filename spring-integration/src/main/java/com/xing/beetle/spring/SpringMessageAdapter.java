@@ -1,32 +1,32 @@
-package com.xing.beetle.amqp;
+package com.xing.beetle.spring;
 
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Delivery;
 import com.xing.beetle.dedup.spi.MessageAdapter;
 import com.xing.beetle.util.ExceptionSupport;
+import org.springframework.amqp.core.Message;
 
 import java.io.IOException;
 
 import static java.util.Objects.requireNonNull;
 
-public class BeetleMessageAdaptor implements MessageAdapter<Delivery> {
+class SpringMessageAdapter implements MessageAdapter<Message> {
 
   private final Channel channel;
   private final boolean needToAck;
-  private final boolean deadLetteringEnabled;
+  private final boolean rejectAndRequeue;
   private static final int FLAG_REDUNDANT = 1;
 
-  BeetleMessageAdaptor(Channel channel, boolean needToAck, boolean deadLetteringEnabled) {
+  SpringMessageAdapter(Channel channel, boolean needToAck, boolean rejectAndRequeue) {
     this.channel = requireNonNull(channel);
     this.needToAck = needToAck;
-    this.deadLetteringEnabled = deadLetteringEnabled;
+    this.rejectAndRequeue = rejectAndRequeue;
   }
 
   @Override
-  public void drop(Delivery message) {
+  public void drop(Message message) {
     if (needToAck) {
       try {
-        channel.basicAck(message.getEnvelope().getDeliveryTag(), false);
+        channel.basicAck(message.getMessageProperties().getDeliveryTag(), false);
       } catch (IOException e) {
         ExceptionSupport.sneakyThrow(e);
       }
@@ -34,13 +34,13 @@ public class BeetleMessageAdaptor implements MessageAdapter<Delivery> {
   }
 
   @Override
-  public String keyOf(Delivery message) {
-    return message.getProperties().getMessageId();
+  public String keyOf(Message message) {
+    return message.getMessageProperties().getMessageId();
   }
 
   @Override
-  public long expiresAt(Delivery message) {
-    Object expiresAt = message.getProperties().getHeaders().get("expires_at");
+  public long expiresAt(Message message) {
+    Object expiresAt = message.getMessageProperties().getHeader("expires_at");
     if (expiresAt == null) {
       return Long.MAX_VALUE;
     } else if (expiresAt instanceof Number) {
@@ -54,8 +54,8 @@ public class BeetleMessageAdaptor implements MessageAdapter<Delivery> {
   }
 
   @Override
-  public boolean isRedundant(Delivery message) {
-    Object flags = message.getProperties().getHeaders().get("flags");
+  public boolean isRedundant(Message message) {
+    Object flags = message.getMessageProperties().getHeader("flags");
     if (flags == null) {
       return false;
     } else if (flags instanceof Number) {
@@ -68,10 +68,10 @@ public class BeetleMessageAdaptor implements MessageAdapter<Delivery> {
   }
 
   @Override
-  public void requeue(Delivery message) {
+  public void requeue(Message message) {
     if (needToAck) {
       try {
-        channel.basicReject(message.getEnvelope().getDeliveryTag(), true);
+        channel.basicReject(message.getMessageProperties().getDeliveryTag(), rejectAndRequeue);
       } catch (IOException e) {
         ExceptionSupport.sneakyThrow(e);
       }
