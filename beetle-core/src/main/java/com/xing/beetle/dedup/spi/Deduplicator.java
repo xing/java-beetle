@@ -1,7 +1,7 @@
 package com.xing.beetle.dedup.spi;
 
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
-import com.xing.beetle.amqp.BeetleMessageAdaptor;
+import com.xing.beetle.amqp.BeetleMessageAdapter;
 import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.util.ExceptionSupport;
@@ -176,7 +176,7 @@ public interface Deduplicator {
       setDelay(adapter.keyOf(message), System.currentTimeMillis() + nextDelay(attempt) * 100);
       adapter.requeue(message);
 
-      if (!(adapter instanceof BeetleMessageAdaptor)) {
+      if (!(adapter instanceof BeetleMessageAdapter)) {
         // let Spring know about the exception so that it rejects the message
         ExceptionSupport.sneakyThrow(throwable);
       }
