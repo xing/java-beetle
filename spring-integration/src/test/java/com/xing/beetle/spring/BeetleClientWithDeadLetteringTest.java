@@ -83,7 +83,7 @@ public class BeetleClientWithDeadLetteringTest {
     sendRedundantMessage("QueueWithErrorDL", 2, messageId);
     waitForMessageDelivery(8000);
     // exception limit is 3
-    service.assertCounts(messageId, 3, 2, 0, 10000);
+    service.assertCounts(messageId, 3, 2, 0, 15000);
   }
 
   @Test
@@ -92,7 +92,7 @@ public class BeetleClientWithDeadLetteringTest {
     sendRedundantMessage("QueueWithTimeoutDL", 2, messageId);
     waitForMessageDelivery(8000);
     // exception limit is 3
-    service.assertCounts(messageId, 3, 2, 0, 10000);
+    service.assertCounts(messageId, 3, 2, 0, 15000);
 
     // make sure that queue for policy is declared and working
     assertFalse(service.queuePolicyMessages.isEmpty());
