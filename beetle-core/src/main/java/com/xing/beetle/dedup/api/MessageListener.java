@@ -1,5 +1,8 @@
 package com.xing.beetle.dedup.api;
 
+import com.rabbitmq.client.Delivery;
+import org.springframework.amqp.core.Message;
+
 import java.io.IOException;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
@@ -31,6 +34,18 @@ public interface MessageListener<M> {
   }
 
   default void onRequeued(M message) throws IOException {
+    if (message instanceof Message) {
+      Message m = (Message) message;
+      logger().log(Level.WARNING, m.getMessageProperties().getMessageId() + " requeued");
+      return;
+    }
+
+    if (message instanceof Delivery) {
+      Delivery m = (Delivery) message;
+      logger().log(Level.WARNING, m.getProperties().getMessageId() + " requeued");
+      return;
+    }
+
     logger().log(Level.WARNING, message + " requeued");
   }
 
