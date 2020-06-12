@@ -33,13 +33,13 @@ public class RecordingMessageHandler {
     try {
       combinedFuture.get(timeout, TimeUnit.MILLISECONDS);
 
-      assertEquals(expResult, resultCheck.getNow(-1L));
-      assertEquals(expDeadLetter, deadLetterCheck.getNow(-1L));
-      assertEquals(expRedelivered, redeliverCheck.getNow(-1L));
+      assertEquals(expResult, resultCheck.getNow(0L));
+      assertEquals(expDeadLetter, deadLetterCheck.getNow(0L));
+      assertEquals(expRedelivered, redeliverCheck.getNow(0L));
     } catch (InterruptedException | TimeoutException | ExecutionException e) {
-      assertEquals(expResult, resultCheck.getNow(-1L));
-      assertEquals(expDeadLetter, deadLetterCheck.getNow(-1L));
-      assertEquals(expRedelivered, redeliverCheck.getNow(-1L));
+      assertEquals(expResult, resultCheck.getNow(0L));
+      assertEquals(expDeadLetter, deadLetterCheck.getNow(0L));
+      assertEquals(expRedelivered, redeliverCheck.getNow(0L));
       // fail(e);
     }
   }
