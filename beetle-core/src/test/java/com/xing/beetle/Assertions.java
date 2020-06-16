@@ -1,10 +1,10 @@
 package com.xing.beetle;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class Assertions {
 
@@ -32,11 +32,11 @@ public class Assertions {
         .start();
 
     if (l.await(timeout, TimeUnit.MILLISECONDS)) {
-      assertEquals(a.size(), len);
+      assertEquals(len, a.size());
       return;
     }
 
     l.countDown();
-    assertEquals(a.size(), len);
+    assertEquals(len, a.size());
   }
 }

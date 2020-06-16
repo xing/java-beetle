@@ -1,6 +1,9 @@
 package com.xing.beetle.amqp;
 
 import com.rabbitmq.client.*;
+import com.xing.beetle.dedup.spi.Deduplicator;
+import com.xing.beetle.dedup.spi.KeyValueStoreBasedDeduplicator;
+import com.xing.beetle.redis.RedisDedupStore;
 import com.xing.beetle.util.ExceptionSupport.Supplier;
 import com.xing.beetle.util.RetryExecutor;
 
@@ -17,14 +20,24 @@ public class BeetleConnectionFactory extends ConnectionFactory {
   private RetryExecutor connectionEstablishingExecutor = RetryExecutor.SYNCHRONOUS;
   private boolean invertRequeueParameter = false;
   private BeetleAmqpConfiguration beetleAmqpConfiguration;
+  private Deduplicator deduplicator;
   private ListAddressResolver listAddressResolver;
 
-  public BeetleConnectionFactory(BeetleAmqpConfiguration beetleAmqpConfiguration) {
+  public BeetleConnectionFactory(
+      BeetleAmqpConfiguration beetleAmqpConfiguration, Deduplicator deduplicator) {
     this.beetleAmqpConfiguration = beetleAmqpConfiguration;
+    this.deduplicator = deduplicator;
     String[] addresses = beetleAmqpConfiguration.getBeetleServers().split(",");
     List<Address> parsedAddresses =
         Arrays.stream(addresses).map(Address::parseAddress).collect(Collectors.toList());
     this.listAddressResolver = new ListAddressResolver(parsedAddresses);
+  }
+
+  public BeetleConnectionFactory(BeetleAmqpConfiguration beetleAmqpConfiguration) {
+    this(
+        beetleAmqpConfiguration,
+        new KeyValueStoreBasedDeduplicator(
+            new RedisDedupStore(beetleAmqpConfiguration), beetleAmqpConfiguration));
   }
 
   private Supplier<RecoverableConnection> connection(
@@ -60,7 +73,9 @@ public class BeetleConnectionFactory extends ConnectionFactory {
             .map(RetryableConnection::new)
             .map(
                 c -> new RequeueAtEndConnection(c, beetleAmqpConfiguration, invertRequeueParameter))
-            .map(MultiPlexingConnection::new)
+            .map(
+                delegate ->
+                    new MultiPlexingConnection(delegate, deduplicator, isInvertRequeueParameter()))
             .collect(Collectors.toList());
     return new BeetleConnection(connections, beetleAmqpConfiguration);
   }

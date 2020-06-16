@@ -479,7 +479,7 @@ public interface DefaultChannel extends Channel {
       public void handleDelivery(
           String consumerTag, Envelope envelope, BasicProperties properties, byte[] body)
           throws IOException {
-        envelope = tagMapping.mapEnvelope(channel, envelope);
+        envelope = tagMapping.envelopeWithPseudoDeliveryTag(channel, envelope);
         delegate.handleDelivery(consumerTag, envelope, properties, body);
       }
 

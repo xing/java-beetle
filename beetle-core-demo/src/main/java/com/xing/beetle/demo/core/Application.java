@@ -7,6 +7,9 @@ import com.rabbitmq.client.Delivery;
 import com.xing.beetle.BeetleHeader;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.amqp.BeetleConnectionFactory;
+import com.xing.beetle.dedup.spi.Deduplicator;
+import com.xing.beetle.dedup.spi.KeyValueStoreBasedDeduplicator;
+import com.xing.beetle.redis.RedisDedupStore;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,8 +28,15 @@ public class Application {
 
     BeetleAmqpConfiguration beetleAmqpConfiguration = new BeetleAmqpConfiguration();
     beetleAmqpConfiguration.setBeetleServers("localhost:5673,localhost:5672");
+    beetleAmqpConfiguration.setBeetleRedisServer("localhost:6379");
 
-    BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration);
+    RedisDedupStore store = new RedisDedupStore(beetleAmqpConfiguration);
+    Deduplicator keyValueStoreBasedDeduplicator =
+        new KeyValueStoreBasedDeduplicator(store, beetleAmqpConfiguration);
+    BeetleConnectionFactory factory =
+        new BeetleConnectionFactory(beetleAmqpConfiguration, keyValueStoreBasedDeduplicator);
+    factory.setInvertRequeueParameter(false);
+
     Connection connection = factory.newConnection();
     Channel channel = connection.createChannel();
     String queue = "queue-beetle-core-demo";
@@ -44,8 +54,7 @@ public class Application {
 
     Thread.sleep(2000);
 
-    // For the time being, the result must be 2, since there is no  deduplication involved
-    // We are working on deduplication without need for @RabbitListener
+    // result  must be 1.
     System.out.println(messages.size());
 
     connection.close();

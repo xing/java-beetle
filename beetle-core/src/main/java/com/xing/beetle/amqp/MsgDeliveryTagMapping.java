@@ -1,6 +1,7 @@
 package com.xing.beetle.amqp;
 
 import com.rabbitmq.client.*;
+
 import static com.xing.beetle.util.ExceptionSupport.BiConsumer;
 
 import java.io.IOException;
@@ -11,8 +12,6 @@ import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * MsgDeliveryTagMapping maps external delivery tags from (possibly) multiple AMQP channels to a
@@ -26,54 +25,6 @@ public class MsgDeliveryTagMapping {
   private interface MsgResponse {
     Void apply(MsgResult msgResult, boolean multiple, boolean requeue, Predicate<Channel> when)
         throws IOException;
-  }
-
-  /**
-   * MappingConsumer wraps a plain Consumer to support consuming messages from multiple channels
-   * without conflicting deliveryTags.
-   */
-  private class MappingConsumer implements Consumer {
-
-    private final Consumer delegate;
-    private final Channel channel;
-
-    MappingConsumer(Consumer delegate, Channel channel) {
-      this.delegate = requireNonNull(delegate);
-      this.channel = requireNonNull(channel);
-    }
-
-    @Override
-    public void handleCancel(String consumerTag) throws IOException {
-      delegate.handleCancel(consumerTag);
-    }
-
-    @Override
-    public void handleCancelOk(String consumerTag) {
-      delegate.handleCancelOk(consumerTag);
-    }
-
-    @Override
-    public void handleConsumeOk(String consumerTag) {
-      delegate.handleConsumeOk(consumerTag);
-    }
-
-    @Override
-    public void handleDelivery(
-        String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body)
-        throws IOException {
-      envelope = mapEnvelope(channel, envelope);
-      delegate.handleDelivery(consumerTag, envelope, properties, body);
-    }
-
-    @Override
-    public void handleRecoverOk(String consumerTag) {
-      delegate.handleRecoverOk(consumerTag);
-    }
-
-    @Override
-    public void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
-      delegate.handleShutdownSignal(consumerTag, sig);
-    }
   }
 
   /**
@@ -182,7 +133,7 @@ public class MsgDeliveryTagMapping {
   }
 
   Consumer createConsumerDecorator(Consumer delegate, Channel channel) {
-    return new MappingConsumer(delegate, channel);
+    return new MappingConsumer(this, delegate, channel);
   }
 
   private void eachChannelOnce(
@@ -211,10 +162,10 @@ public class MsgDeliveryTagMapping {
    */
   private long mapDelivery(Channel channel, long deliveryTag) {
     long tag = deliveryTagGenerator.incrementAndGet();
-    deliveryTags.put(
-        tag,
+    MsgResponse msgResponse =
         (msgResult, multiple, requeue, when) ->
-            when.test(channel) ? msgResult.invoke(channel, deliveryTag, multiple, requeue) : null);
+            when.test(channel) ? msgResult.invoke(channel, deliveryTag, multiple, requeue) : null;
+    deliveryTags.put(tag, msgResponse);
     return tag;
   }
 
@@ -226,7 +177,7 @@ public class MsgDeliveryTagMapping {
    * @param envelope real message envelope
    * @return local envelope
    */
-  Envelope mapEnvelope(Channel channel, Envelope envelope) {
+  Envelope envelopeWithPseudoDeliveryTag(Channel channel, Envelope envelope) {
     long tag = mapDelivery(channel, envelope.getDeliveryTag());
     return new Envelope(
         tag, envelope.isRedeliver(), envelope.getExchange(), envelope.getRoutingKey());
@@ -240,9 +191,9 @@ public class MsgDeliveryTagMapping {
    * @return local response
    * @see GetResponse
    */
-  GetResponse mapResponse(Channel channel, GetResponse response) {
+  GetResponse responseWithPseudoDeliveryTag(Channel channel, GetResponse response) {
     if (response != null) {
-      Envelope envelope = mapEnvelope(channel, response.getEnvelope());
+      Envelope envelope = envelopeWithPseudoDeliveryTag(channel, response.getEnvelope());
       return new GetResponse(
           envelope, response.getProps(), response.getBody(), response.getMessageCount());
     } else {
