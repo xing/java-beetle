@@ -46,6 +46,7 @@ public class Interruptable<M> implements MessageListener<M> {
     try {
       current = Thread.currentThread();
       delegate.onMessage(message);
+
     } finally {
       current = null;
     }

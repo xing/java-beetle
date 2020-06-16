@@ -1,10 +1,12 @@
 package com.xing.beetle.dedup.spi;
 
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
+import com.xing.beetle.amqp.BeetleMessageAdapter;
 import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.util.ExceptionSupport;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
@@ -62,7 +64,9 @@ public interface Deduplicator {
     try {
       interruptable.onMessage(message);
     } catch (Throwable throwable) {
-      if (throwable.getCause() != null && throwable.getCause() instanceof InterruptedException) {
+      if (throwable instanceof InterruptedException
+          || (throwable.getCause() != null
+              && throwable.getCause() instanceof InterruptedException)) {
         listener.onFailure(
             message,
             String.format("Beetle: message handling timed out for %s", adapter.keyOf(message)));
@@ -96,6 +100,11 @@ public interface Deduplicator {
               String.format("Beetle: ignored completed message %s", adapter.keyOf(message)));
         } else if (delayed(key)) {
           adapter.requeue(message);
+          try {
+            listener.onRequeued(message);
+          } catch (IOException e) {
+            e.printStackTrace();
+          }
         } else {
           long attempt = incrementAttempts(key);
           if (attempt > getBeetleAmqpConfiguration().getMaxHandlerExecutionAttempts()) {
@@ -125,6 +134,11 @@ public interface Deduplicator {
         }
       } else {
         adapter.requeue(message);
+        try {
+          listener.onRequeued(message);
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
       }
     }
   }
@@ -159,10 +173,13 @@ public interface Deduplicator {
               "Beetle: reached the handler exceptions limit: %d on %s",
               getBeetleAmqpConfiguration().getExceptionLimit(), adapter.keyOf(message)));
     } else {
-      setDelay(adapter.keyOf(message), System.currentTimeMillis() + nextDelay(attempt));
+      setDelay(adapter.keyOf(message), System.currentTimeMillis() + nextDelay(attempt) * 100);
       adapter.requeue(message);
-      // let Spring know about the exception so that it rejects the message
-      ExceptionSupport.sneakyThrow(throwable);
+
+      if (!(adapter instanceof BeetleMessageAdapter)) {
+        // let Spring know about the exception so that it rejects the message
+        ExceptionSupport.sneakyThrow(throwable);
+      }
     }
   }
 

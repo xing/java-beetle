@@ -1,9 +1,7 @@
 package com.xing.beetle.amqp;
 
+import com.rabbitmq.client.*;
 import com.rabbitmq.client.AMQP.BasicProperties;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Consumer;
-import com.rabbitmq.client.GetResponse;
 import com.xing.beetle.BeetleHeader;
 import com.xing.beetle.util.ExceptionSupport;
 import com.xing.beetle.util.ExceptionSupport.Function;
@@ -71,6 +69,7 @@ public class BeetleChannel implements DefaultChannel.Decorator {
       throws IOException {
     String tag =
         consumerTag == null || consumerTag.isEmpty() ? UUID.randomUUID().toString() : consumerTag;
+
     boolean all =
         delegates
             .streamAll()
@@ -98,7 +97,7 @@ public class BeetleChannel implements DefaultChannel.Decorator {
         .streamAll()
         .map(
             (ExceptionSupport.Function<Channel, GetResponse>)
-                ch -> tagMapping.mapResponse(ch, ch.basicGet(queue, autoAck)))
+                ch -> tagMapping.responseWithPseudoDeliveryTag(ch, ch.basicGet(queue, autoAck)))
         .filter(Objects::nonNull)
         .findAny()
         .orElse(null);
