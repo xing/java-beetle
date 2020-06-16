@@ -173,7 +173,7 @@ public interface Deduplicator {
               "Beetle: reached the handler exceptions limit: %d on %s",
               getBeetleAmqpConfiguration().getExceptionLimit(), adapter.keyOf(message)));
     } else {
-      setDelay(adapter.keyOf(message), System.currentTimeMillis() + nextDelay(attempt) * 100);
+      setDelay(adapter.keyOf(message), System.currentTimeMillis() + nextDelay(attempt) * 1000);
       adapter.requeue(message);
 
       if (!(adapter instanceof BeetleMessageAdapter)) {
