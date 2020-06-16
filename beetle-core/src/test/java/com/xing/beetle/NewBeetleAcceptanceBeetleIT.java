@@ -79,6 +79,7 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     beetleAmqpConfiguration.setDeadLetteringMsgTtlMs(1000);
 
     BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration);
+    // if this is not set failed messages will not requeued
     factory.setInvertRequeueParameter(true);
 
     Connection connection = factory.newConnection();
@@ -111,9 +112,10 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
       throws Exception {
     BeetleAmqpConfiguration beetleAmqpConfiguration = beetleAmqpConfiguration(containers);
     beetleAmqpConfiguration.setDeadLetteringEnabled(true);
-    beetleAmqpConfiguration.setDeadLetteringMsgTtlMs(1000);
+    beetleAmqpConfiguration.setDeadLetteringMsgTtlMs(100);
 
     BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration);
+    // if this is not set failed messages will not requeued
     factory.setInvertRequeueParameter(true);
 
     Connection connection = factory.newConnection();
@@ -152,7 +154,8 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     beetleAmqpConfiguration.setDeadLetteringMsgTtlMs(1000);
 
     BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration);
-    factory.setInvertRequeueParameter(false);
+    // if this is not set failed messages will not requeued
+    factory.setInvertRequeueParameter(true);
 
     Connection connection = factory.newConnection();
     Channel channel = connection.createChannel();
@@ -190,7 +193,8 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     beetleAmqpConfiguration.setDeadLetteringMsgTtlMs(1000);
 
     BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration);
-    factory.setInvertRequeueParameter(false);
+    // if this is not set failed messages will not requeued
+    factory.setInvertRequeueParameter(true);
 
     Connection connection = factory.newConnection();
     Channel channel = connection.createChannel();
@@ -229,6 +233,7 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     beetleAmqpConfiguration.setBeetleRedisServer(redisServer);
     beetleAmqpConfiguration.setHandlerTimeoutSeconds(1);
     beetleAmqpConfiguration.setMaxHandlerExecutionAttempts(3);
+    beetleAmqpConfiguration.setHandlerExecutionAttemptsDelaySeconds(1);
     beetleAmqpConfiguration.setExceptionLimit(3);
 
     return beetleAmqpConfiguration;
