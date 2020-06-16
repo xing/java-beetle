@@ -13,13 +13,13 @@ public class BeetleMessageAdapter implements MessageAdapter<Delivery> {
 
   private final Channel channel;
   private final boolean needToAck;
-  private final boolean deadLetteringEnabled;
+  private final boolean rejectAndRequeue;
   private static final int FLAG_REDUNDANT = 1;
 
-  BeetleMessageAdapter(Channel channel, boolean needToAck, boolean deadLetteringEnabled) {
+  BeetleMessageAdapter(Channel channel, boolean needToAck, boolean rejectAndRequeue) {
     this.channel = requireNonNull(channel);
     this.needToAck = needToAck;
-    this.deadLetteringEnabled = deadLetteringEnabled;
+    this.rejectAndRequeue = rejectAndRequeue;
   }
 
   @Override
@@ -71,7 +71,7 @@ public class BeetleMessageAdapter implements MessageAdapter<Delivery> {
   public void requeue(Delivery message) {
     if (needToAck) {
       try {
-        channel.basicReject(message.getEnvelope().getDeliveryTag(), !deadLetteringEnabled);
+        channel.basicReject(message.getEnvelope().getDeliveryTag(), rejectAndRequeue);
       } catch (IOException e) {
         ExceptionSupport.sneakyThrow(e);
       }

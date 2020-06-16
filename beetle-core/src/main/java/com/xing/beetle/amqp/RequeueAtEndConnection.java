@@ -120,6 +120,7 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
           delegate.basicReject(deliveryTag, false);
         } else {
           // silently drop the message by accepting
+          log.warn("message with delivery tag silently dropped " + deliveryTag);
           delegate.basicAck(deliveryTag, false);
         }
       } else {
