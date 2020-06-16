@@ -117,12 +117,15 @@ public class RequeueAtEndConnection implements DefaultConnection.Decorator {
       if (deadLettered) {
         if (requeue) {
           // reject to dead letter queue
+          log.debug("Message with delivery tag {} requeued to dead letter queue", deliveryTag);
           delegate.basicReject(deliveryTag, false);
         } else {
           // silently drop the message by accepting
+          log.debug("Message with delivery tag {} silently dropped ", deliveryTag);
           delegate.basicAck(deliveryTag, false);
         }
       } else {
+        log.debug("Message with delivery tag {} rejected with requeue {}", deliveryTag, requeue);
         delegate.basicReject(deliveryTag, requeue);
       }
     }
