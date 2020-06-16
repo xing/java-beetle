@@ -134,7 +134,7 @@ public class BeetleClientTest {
     sendRedundantMessage("QueueWithError", 2, messageId);
     waitForMessageDelivery(8000);
     // exception limit is 3
-    service.assertCounts(messageId, 3, 0, 1, 10000);
+    service.assertCounts(messageId, 3, 0, 2, 10000);
   }
 
   @Test
@@ -142,7 +142,7 @@ public class BeetleClientTest {
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithTimeout", 2, messageId);
     // exception limit is 3
-    service.assertCounts(messageId, 3, 0, 1, 10000);
+    service.assertCounts(messageId, 3, 0, 2, 20000);
   }
 
   @Test
@@ -286,7 +286,7 @@ public class BeetleClientTest {
       when(beetleAmqpConfiguration.getDeadLetteringMsgTtlMs()).thenReturn(100);
       when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(false);
       when(beetleAmqpConfiguration.getRedisFailoverTimeoutSeconds()).thenReturn(3);
-      when(beetleAmqpConfiguration.getMessageLifetimeSeconds()).thenReturn(10000);
+      when(beetleAmqpConfiguration.getMessageLifetimeSeconds()).thenReturn(5000);
 
       when(beetleAmqpConfiguration.getBeetlePolicyExchangeName()).thenReturn("beetle-policies");
       when(beetleAmqpConfiguration.getBeetlePolicyUpdatesQueueName())

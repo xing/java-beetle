@@ -6,7 +6,6 @@ import java.util.concurrent.*;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
 
 public class RecordingMessageHandler {
   protected final System.Logger log = System.getLogger(getClass().getName());
@@ -34,11 +33,14 @@ public class RecordingMessageHandler {
     try {
       combinedFuture.get(timeout, TimeUnit.MILLISECONDS);
 
-      assertEquals(expResult, resultCheck.getNow(-1L));
-      assertEquals(expDeadLetter, deadLetterCheck.getNow(-1L));
-      assertEquals(expRedelivered, redeliverCheck.getNow(-1L));
+      assertEquals(expResult, resultCheck.getNow(0L));
+      assertEquals(expDeadLetter, deadLetterCheck.getNow(0L));
+      assertEquals(expRedelivered, redeliverCheck.getNow(0L));
     } catch (InterruptedException | TimeoutException | ExecutionException e) {
-      fail(e);
+      assertEquals(expResult, resultCheck.getNow(0L));
+      assertEquals(expDeadLetter, deadLetterCheck.getNow(0L));
+      assertEquals(expRedelivered, redeliverCheck.getNow(0L));
+      // fail(e);
     }
   }
 

@@ -22,11 +22,5 @@
             <artifactId>spring-integration</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.xing.beetle</groupId>
-            <artifactId>redis-dedup-store</artifactId>
-            <version>${project.version}</version>
-            <scope>runtime</scope>
-        </dependency>
     </dependencies>
 </project>
