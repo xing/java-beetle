@@ -35,7 +35,6 @@ public class Application {
         new KeyValueStoreBasedDeduplicator(store, beetleAmqpConfiguration);
     BeetleConnectionFactory factory =
         new BeetleConnectionFactory(beetleAmqpConfiguration, keyValueStoreBasedDeduplicator);
-    factory.setInvertRequeueParameter(false);
 
     Connection connection = factory.newConnection();
     Channel channel = connection.createChannel();
