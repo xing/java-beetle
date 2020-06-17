@@ -47,8 +47,9 @@ Please see the following demo apps for sample usage:
 * [java spring demo](https://github.com/xing/java-beetle/tree/master/spring-java-demo) 
 * [kotlin spring demo](https://github.com/xing/java-beetle/tree/master/spring-kotlin-demo)
 
-Important Note: Deduplication for Spring integration is only supported when `@RabbitListener` is used. Usage of `RabbitTemplate` for receiving messages is not supported. (Indeed, `RabbitTemplate` abuses
-consumers by creating a consumer for each message and closing them afterwards, which contradicts the purpose of a consumer. It also adds the overhead of establishing and tearing down the TCP connection every time.)
+Important Note: Deduplication for Spring integration is only supported when `@RabbitListener` is used. Usage of `RabbitTemplate` for receiving messages is not supported. Indeed, `RabbitTemplate` abuses
+consumers by creating a consumer for each message and closing them afterwards, which contradicts the purpose of a consumer. It also adds the overhead of establishing and tearing down the TCP connection every time.
+Under high load this approach would risk to run into issues with the number of connections/sockets available to the application because the operating system might not immediately free the resources used.
 
 
 
