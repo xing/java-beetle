@@ -48,7 +48,7 @@ Please see the following demo apps for sample usage:
 * [kotlin spring demo](https://github.com/xing/java-beetle/tree/master/spring-kotlin-demo)
 
 Important Note: Deduplication for Spring integration is only supported when `@RabbitListener` is used. Usage of `RabbitTemplate` for receiving messages is not supported. (Indeed, `RabbitTemplate` abuses
-consumers by creating a consumer for each message and closing them afterwards, which kills the purpose of using a consumer at all.)
+consumers by creating a consumer for each message and closing them afterwards, which contradicts the purpose of a consumer. It also adds the overhead of establishing and tearing down the TCP connection every time.)
 
 
 For other configuration parameters see:
@@ -57,7 +57,6 @@ https://source.xing.com/gems/xing-amqp#deployment-considerations
 #### Requeue Messages at the End of Queues
 
 Please see: https://github.com/xing/beetle/blob/master/DEAD_LETTERING.md
-
 
 
 
