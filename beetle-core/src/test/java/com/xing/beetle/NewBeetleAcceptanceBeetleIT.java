@@ -50,8 +50,6 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     BeetleAmqpConfiguration beetleAmqpConfiguration = beetleAmqpConfiguration(containers);
 
     BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration);
-    factory.setInvertRequeueParameter(false);
-
     Connection connection = factory.newConnection();
     Channel channel = connection.createChannel();
     String queue = String.format("channelLevelDeduplication-%d", containers);
@@ -79,8 +77,6 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     beetleAmqpConfiguration.setDeadLetteringMsgTtlMs(1000);
 
     BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration);
-    // if this is not set failed messages will not requeued
-    factory.setInvertRequeueParameter(true);
 
     Connection connection = factory.newConnection();
     Channel channel = connection.createChannel();
@@ -115,8 +111,6 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     beetleAmqpConfiguration.setDeadLetteringMsgTtlMs(100);
 
     BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration);
-    // if this is not set failed messages will not requeued
-    factory.setInvertRequeueParameter(true);
 
     Connection connection = factory.newConnection();
     Channel channel = connection.createChannel();
@@ -154,8 +148,6 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     beetleAmqpConfiguration.setDeadLetteringMsgTtlMs(1000);
 
     BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration);
-    // if this is not set failed messages will not requeued
-    factory.setInvertRequeueParameter(true);
 
     Connection connection = factory.newConnection();
     Channel channel = connection.createChannel();
@@ -193,8 +185,6 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     beetleAmqpConfiguration.setDeadLetteringMsgTtlMs(1000);
 
     BeetleConnectionFactory factory = new BeetleConnectionFactory(beetleAmqpConfiguration);
-    // if this is not set failed messages will not requeued
-    factory.setInvertRequeueParameter(true);
 
     Connection connection = factory.newConnection();
     Channel channel = connection.createChannel();
