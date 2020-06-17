@@ -56,8 +56,7 @@ consumers by creating a consumer for each message and closing them afterwards, w
 
 #### Requeue Messages at the End of Queues
 
-Please see: https://github.com/xing/beetle/blob/c5ab329a5be9a4bb91c58556a5d4747822c37da6/DEAD_LETTERING.md
-
+Please see: https://github.com/xing/beetle/blob/master/DEAD_LETTERING.md
 
 
 
