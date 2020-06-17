@@ -78,7 +78,6 @@ public class BeetleClientWithDeadLetteringTest {
   @Test
   public void throwExceptionExceedExceptionLimitWithDeadLettering() throws InterruptedException {
 
-    factory.setInvertRequeueParameter(true);
     String messageId = UUID.randomUUID().toString();
     sendRedundantMessage("QueueWithErrorDL", 2, messageId);
     waitForMessageDelivery(8000);

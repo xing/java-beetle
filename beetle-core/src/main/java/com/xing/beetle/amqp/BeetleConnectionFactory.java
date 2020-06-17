@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class BeetleConnectionFactory extends ConnectionFactory {
 
   private RetryExecutor connectionEstablishingExecutor = RetryExecutor.SYNCHRONOUS;
-  private boolean invertRequeueParameter = false;
+  private boolean invertRequeueParameter = true;
   private BeetleAmqpConfiguration beetleAmqpConfiguration;
   private Deduplicator deduplicator;
   private ListAddressResolver listAddressResolver;
