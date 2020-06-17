@@ -1,6 +1,15 @@
 Changelog
 =========
 
+Version 1.0.5 (17.06.2020)
+--------------------------
+
+Changes:
+
+* support deduplication in Beetle core with basicPublish and basicConsume methods.
+* support deduplication with Spring using @RabbitListener and not for RabbitTemplate.
+* update documentation
+
 Version 1.0.4 (05.06.2020)
 --------------------------
 
