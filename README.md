@@ -5,31 +5,60 @@ High Availability AMQP Messaging with Redundant Queues
 
 Java client library.
 
-This package consists of there parts. The [beetle-core](https://github.com/xing/java-beetle/tree/master/beetle-core)  library, redis-dedup-store implementing message deduplication using redis
-and a [spring-adapter](https://github.com/xing/java-beetle/tree/master/spring-integration) for easy integration with spring boot applications.
-
-It also contains two sample spring boot projects in [java](https://github.com/xing/java-beetle/tree/master/spring-java-demo) and in [kotlin](https://github.com/xing/java-beetle/tree/master/spring-kotlin-demo).
-
 This library enables sending redundant messages to multiple AMQP brokers each having a queue.
 This way, if one of the brokers crashes, the messages in the queue which are on the other broker will still be there.
 At the receiving side, the beetle client will deduplicate the messages and the handler will receive the message once
 (in case of successful handling).
 
+This package consists of two parts. 
+* The [beetle-core](https://github.com/xing/java-beetle/tree/master/beetle-core) library 
+* a [spring-integration](https://github.com/xing/java-beetle/tree/master/spring-integration) for easy integration with spring applications.
+
+It also contains some demo apps:
+* [java beetle core demo](https://github.com/xing/java-beetle/tree/master/beetle-core-demo) 
+* [java spring demo](https://github.com/xing/java-beetle/tree/master/spring-java-demo) 
+* [kotlin spring demo](https://github.com/xing/java-beetle/tree/master/spring-kotlin-demo).
+
+
 How to use
 ----------
+
+###### Beetle Core
+
+Beetle Java Client, supports sending redundant messages via `BeetleChannel::basicPublish` when the Beetle header `x-publish-message-redundancy` is set to a value larger than `1`,
+as seen in [beetle core demo Application](https://github.com/xing/java-beetle/tree/master/beetle-core-demo/src/main/java/com/xing/beetle/demo/core/Application).
+
+`x-publish-message-redundancy = 2` means, the message will be sent to `2` brokers if there are at least `2`. The list of RabbitMQ servers should be configured using `BEETLE_SERVERS` environment variable.
+
+On the receiving side, deduplication is only supported for `BeetleChannel::basicConsume`, as it creates a consumer and subscribes to the queue for message consumption. Using `basicGet` will result
+duplicates so it should not be used.
 
 ###### Spring Integration
 
 Spring users can directly use the provided Spring Integration [dependency](https://nexus.dc.xing.com/#browse/browse:sysarch-snapshots:com%2Fxing%2Fbeetle) by adding it to their dependencies (`pom.xml` or `gradle.build` for instance).
 
+Spring Integration module defines a `BeetleConnectionFactory` bean (as `@ConditionalOnMissingBean`) extending from `com.rabbitmq.client.ConnectionFactory`, so
+by default Beetle Client will be used to communicate with RabbitMQ brokers unless another `ConnectionFactory` is configured.
+
 The list of RabbitMQ servers should be configured using `beetle.servers` application property or `BEETLE_SERVERS` environment variable.
 
-Example:
+Please see the following demo apps for sample usage: 
 
-`beetle.servers=localhost:5672,localhost:5673`
+* [java spring demo](https://github.com/xing/java-beetle/tree/master/spring-java-demo) 
+* [kotlin spring demo](https://github.com/xing/java-beetle/tree/master/spring-kotlin-demo)
+
+Important Note: Deduplication for Spring integration is only supported when `@RabbitListener` is used. Usage of `RabbitTemplate` for receiving messages is not supported. (Indeed, `RabbitTemplate` abuses
+consumers by creating a consumer for each message and closing them afterwards, which kills the purpose of using a consumer at all.)
+
 
 For other configuration parameters see:
 https://source.xing.com/gems/xing-amqp#deployment-considerations
 
-Spring Integration module defines a `BeetleConnectionFactory` bean (as `@ConditionalOnMissingBean`) extending from `com.rabbitmq.client.ConnectionFactory`, so
-by default Beetle Client will be used to communicate with RabbitMQ brokers unless another `ConnectionFactory` is configured.
+#### Requeue Messages at the End of Queues
+
+Please see: https://github.com/xing/beetle/blob/c5ab329a5be9a4bb91c58556a5d4747822c37da6/DEAD_LETTERING.md
+
+
+
+
+
