@@ -21,7 +21,7 @@ pipeline {
                     ansiColor('xterm') {
                         sh 'JAVA_HOME=/opt/openjdk1.11.0 mvn clean test -s ${MAVEN_SETTINGS} -P ci-internal -q'
                     }
-                        }
+                }
             }
         }
 
