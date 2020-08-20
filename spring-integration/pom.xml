@@ -41,7 +41,7 @@
         <dependency>
             <groupId>org.springframework.amqp</groupId>
             <artifactId>spring-rabbit-test</artifactId>
-            <version>${spring.version}</version>
+            <version>${spring.rabbit.test.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
