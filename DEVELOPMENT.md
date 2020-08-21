@@ -1,6 +1,6 @@
 # Development
 
-For developing java-beetle and running the tests two things are requires:
+For developing java-beetle and running the tests two things are required:
 
 * a JDK installation (11+)
 * a docker/docker-compose installation

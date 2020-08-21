@@ -117,7 +117,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>9</maven.compiler.release>
-        <spring.version>2.2.1.RELEASE</spring.version>
+        <spring.version>2.3.3.RELEASE</spring.version>
+        <spring.rabbit.test.version>2.2.10.RELEASE</spring.rabbit.test.version>
     </properties>
 
     <modules>
@@ -186,7 +187,7 @@
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>2.2.7.RELEASE</version>
+                    <version>2.3.3.RELEASE</version>
                 </plugin>
             </plugins>
         </pluginManagement>
