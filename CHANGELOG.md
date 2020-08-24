@@ -1,7 +1,15 @@
 Changelog
 =========
 
-Version 1.0.5 (17.06.2020)
+Version 1.0.7 (24.08.2020)
+--------------------------
+
+Changes:
+
+* Use Spring Boot 2.3.3.RELEASE version.
+* separate spring-rabbit-test version from spring version.
+
+Version 1.0.6 (17.06.2020)
 --------------------------
 
 Changes:
@@ -9,6 +17,14 @@ Changes:
 * support deduplication in Beetle core with basicPublish and basicConsume methods.
 * support deduplication with Spring using @RabbitListener and not for RabbitTemplate.
 * update documentation
+
+Version 1.0.5 (08.06.2020)
+--------------------------
+
+Changes:
+
+* add setters for BeetleAmqpConfiguration.
+* add a sample app demonstrating use of Java Beetle Client without Spring configuration.
 
 Version 1.0.4 (05.06.2020)
 --------------------------
