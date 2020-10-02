@@ -2,6 +2,7 @@ package com.xing.beetle.amqp;
 
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Delivery;
+import com.rabbitmq.client.LongString;
 import com.xing.beetle.dedup.spi.MessageAdapter;
 import com.xing.beetle.util.ExceptionSupport;
 
@@ -47,7 +48,9 @@ public class BeetleMessageAdapter implements MessageAdapter<Delivery> {
       return ((Number) expiresAt).longValue();
     } else if (expiresAt instanceof String) {
       return Long.parseLong((String) expiresAt);
-    } else {
+    } else try {
+      return Long.parseLong(expiresAt.toString());
+    } catch (NumberFormatException e) {
       throw new IllegalArgumentException(
           "Unexpected expires_at header value " + expiresAt.getClass());
     }
@@ -62,7 +65,9 @@ public class BeetleMessageAdapter implements MessageAdapter<Delivery> {
       return ((Number) flags).intValue() == FLAG_REDUNDANT;
     } else if (flags instanceof String) {
       return Integer.parseInt((String) flags) == FLAG_REDUNDANT;
-    } else {
+    } else try {
+      return Integer.parseInt(flags.toString()) == FLAG_REDUNDANT;
+    } catch (NumberFormatException e) {
       throw new IllegalArgumentException("Unexpected flags header value " + flags.getClass());
     }
   }
