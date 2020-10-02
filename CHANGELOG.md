@@ -1,6 +1,14 @@
 Changelog
 =========
 
+Version 1.0.8 (02.10.2020)
+--------------------------
+
+Changes:
+
+* fix int/long parsing from String headers.
+
+
 Version 1.0.7 (24.08.2020)
 --------------------------
 
