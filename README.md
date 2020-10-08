@@ -11,13 +11,13 @@ At the receiving side, the beetle client will deduplicate the messages and the h
 (in case of successful handling).
 
 This package consists of two parts. 
-* The [beetle-core](https://github.com/xing/java-beetle/tree/master/beetle-core) library 
-* a [spring-integration](https://github.com/xing/java-beetle/tree/master/spring-integration) for easy integration with spring applications.
+* The [beetle-core](./beetle-core) library 
+* a [spring-integration](./spring-integration) for easy integration with spring applications.
 
 It also contains some demo apps:
-* [java beetle core demo](https://github.com/xing/java-beetle/tree/master/beetle-core-demo) 
-* [java spring demo](https://github.com/xing/java-beetle/tree/master/spring-java-demo) 
-* [kotlin spring demo](https://github.com/xing/java-beetle/tree/master/spring-kotlin-demo).
+* [java beetle core demo](./beetle-core-demo) 
+* [java spring demo](./spring-java-demo) 
+* [kotlin spring demo](./spring-kotlin-demo).
 
 
 How to use
@@ -26,7 +26,7 @@ How to use
 ###### Beetle Core
 
 Beetle Java Client, supports sending redundant messages via `BeetleChannel::basicPublish` when the Beetle header `x-publish-message-redundancy` is set to a value larger than `1`,
-as seen in [beetle core demo Application](https://github.com/xing/java-beetle/tree/master/beetle-core-demo/src/main/java/com/xing/beetle/demo/core/Application).
+as seen in [beetle core demo Application](./beetle-core-demo/src/main/java/com/xing/beetle/demo/core/Application.java).
 
 `x-publish-message-redundancy = 2` means, the message will be sent to `2` brokers if there are at least `2`. The list of RabbitMQ servers should be configured using `BEETLE_SERVERS` environment variable.
 
@@ -44,8 +44,8 @@ The list of RabbitMQ servers should be configured using `beetle.servers` applica
 
 Please see the following demo apps for sample usage: 
 
-* [java spring demo](https://github.com/xing/java-beetle/tree/master/spring-java-demo) 
-* [kotlin spring demo](https://github.com/xing/java-beetle/tree/master/spring-kotlin-demo)
+* [java spring demo](./spring-java-demo) 
+* [kotlin spring demo](./spring-kotlin-demo)
 
 Important Note: Deduplication for Spring integration is only supported when `@RabbitListener` is used. Usage of `RabbitTemplate` for receiving messages is not supported. Indeed, `RabbitTemplate` abuses
 consumers by creating a consumer for each message and closing them afterwards, which contradicts the purpose of a consumer. It also adds the overhead of establishing and tearing down the TCP connection every time.
@@ -58,6 +58,3 @@ https://source.xing.com/gems/xing-amqp#deployment-considerations
 #### Requeue Messages at the End of Queues
 
 Please see: https://github.com/xing/beetle/blob/master/DEAD_LETTERING.md
-
-
-
