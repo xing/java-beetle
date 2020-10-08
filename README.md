@@ -35,8 +35,6 @@ duplicates so it should not be used.
 
 ###### Spring Integration
 
-Spring users can directly use the provided Spring Integration [dependency](https://nexus.dc.xing.com/#browse/browse:sysarch-snapshots:com%2Fxing%2Fbeetle) by adding it to their dependencies (`pom.xml` or `gradle.build` for instance).
-
 Spring Integration module defines a `BeetleConnectionFactory` bean (as `@ConditionalOnMissingBean`) extending from `com.rabbitmq.client.ConnectionFactory`, so
 by default Beetle Client will be used to communicate with RabbitMQ brokers unless another `ConnectionFactory` is configured.
 
