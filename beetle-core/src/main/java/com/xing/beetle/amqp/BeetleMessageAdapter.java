@@ -13,12 +13,15 @@ import static java.util.Objects.requireNonNull;
 public class BeetleMessageAdapter implements MessageAdapter<Delivery> {
 
   private final Channel channel;
+  private final String keyPrefix;
   private final boolean needToAck;
   private final boolean rejectAndRequeue;
   private static final int FLAG_REDUNDANT = 1;
 
-  BeetleMessageAdapter(Channel channel, boolean needToAck, boolean rejectAndRequeue) {
+  BeetleMessageAdapter(
+      Channel channel, String queueName, boolean needToAck, boolean rejectAndRequeue) {
     this.channel = requireNonNull(channel);
+    this.keyPrefix = "msgid:" + queueName + ":";
     this.needToAck = needToAck;
     this.rejectAndRequeue = rejectAndRequeue;
   }
@@ -36,7 +39,7 @@ public class BeetleMessageAdapter implements MessageAdapter<Delivery> {
 
   @Override
   public String keyOf(Delivery message) {
-    return message.getProperties().getMessageId();
+    return keyPrefix + message.getProperties().getMessageId();
   }
 
   @Override
