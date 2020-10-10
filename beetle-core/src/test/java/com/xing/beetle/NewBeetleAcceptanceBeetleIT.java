@@ -39,7 +39,7 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
 
   @NotNull
   private static GenericContainer startRedisContainer() {
-    GenericContainer localRedis = new GenericContainer("redis:3.0.2").withExposedPorts(6379);
+    GenericContainer localRedis = new GenericContainer("redis:4.0.14").withExposedPorts(6379);
     localRedis.start();
     return localRedis;
   }
