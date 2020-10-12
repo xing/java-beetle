@@ -10,13 +10,13 @@ This way, if one of the brokers crashes, the messages in the queue which are on 
 At the receiving side, the beetle client will deduplicate the messages and the handler will receive the message once
 (in case of successful handling).
 
-This package consists of two parts. 
-* The [beetle-core](./beetle-core) library 
+This package consists of two parts.
+* The [beetle-core](./beetle-core) library
 * a [spring-integration](./spring-integration) for easy integration with spring applications.
 
 It also contains some demo apps:
-* [java beetle core demo](./beetle-core-demo) 
-* [java spring demo](./spring-java-demo) 
+* [java beetle core demo](./beetle-core-demo)
+* [java spring demo](./spring-java-demo)
 * [kotlin spring demo](./spring-kotlin-demo).
 
 
@@ -40,18 +40,14 @@ by default Beetle Client will be used to communicate with RabbitMQ brokers unles
 
 The list of RabbitMQ servers should be configured using `beetle.servers` application property or `BEETLE_SERVERS` environment variable.
 
-Please see the following demo apps for sample usage: 
+Please see the following demo apps for sample usage:
 
-* [java spring demo](./spring-java-demo) 
+* [java spring demo](./spring-java-demo)
 * [kotlin spring demo](./spring-kotlin-demo)
 
 Important Note: Deduplication for Spring integration is only supported when `@RabbitListener` is used. Usage of `RabbitTemplate` for receiving messages is not supported. Indeed, `RabbitTemplate` abuses
 consumers by creating a consumer for each message and closing them afterwards, which contradicts the purpose of a consumer. It also adds the overhead of establishing and tearing down the TCP connection every time.
 Under high load this approach would risk to run into issues with the number of connections/sockets available to the application because the operating system might not immediately free the resources used.
-
-
-For other configuration parameters see:
-https://source.xing.com/gems/xing-amqp#deployment-considerations
 
 #### Requeue Messages at the End of Queues
 
