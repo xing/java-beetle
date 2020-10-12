@@ -1,4 +1,4 @@
-Beetle
+Beetle [![Build Status](https://travis-ci.org/xing/java-beetle.svg?branch=master)](https://travis-ci.org/xing/java-beetle)
 ======
 
 High Availability AMQP Messaging with Redundant Queues
