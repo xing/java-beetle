@@ -41,18 +41,19 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
   }
 
   @Override
-  public boolean completed(String key) {
-    if (store.putIfAbsentTtl(
+  public boolean isComplete(String key) {
+    return store
+        .get(dedupKey(key, STATUS))
+        .map(value -> value.getAsString().equals("completed"))
+        .orElse(false);
+  }
+
+  @Override
+  public void init(String key) {
+    store.putIfAbsentTtl(
         dedupKey(key, STATUS),
         new Value("incomplete"),
-        beetleAmqpConfig.getBeetleRedisStatusKeyExpiryIntervalSeconds())) {
-      return false;
-    } else {
-      return store
-          .get(dedupKey(key, STATUS))
-          .map(value -> value.getAsString().equals("completed"))
-          .orElse(false);
-    }
+        beetleAmqpConfig.getBeetleRedisStatusKeyExpiryIntervalSeconds());
   }
 
   @Override

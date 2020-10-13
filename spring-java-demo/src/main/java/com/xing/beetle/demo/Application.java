@@ -59,7 +59,7 @@ public class Application {
 
     if (countRabbitTemplate == messageCount) {
       System.out.println(
-          "Probably only there is only one broker. Deduplication does NOT work for RabbitTemplate");
+          "Probably there is only one broker. Deduplication does NOT work for RabbitTemplate");
     } else {
       System.out.println("Deduplication does NOT work for RabbitTemplate as expected.");
     }

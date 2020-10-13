@@ -5,7 +5,6 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConnectionFactory;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.amqp.MultiPlexingConnection;
-
 import com.xing.beetle.dedup.spi.Deduplicator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -52,9 +51,12 @@ public class MultiPlexingConnectionIT {
               public void complete(String messageId) {}
 
               @Override
-              public boolean completed(String messageId) {
+              public boolean isComplete(String messageId) {
                 return false;
               }
+
+              @Override
+              public void init(String key) {}
 
               @Override
               public boolean delayed(String messageId) {

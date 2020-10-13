@@ -37,7 +37,9 @@ public interface Deduplicator {
 
   void complete(String key);
 
-  boolean completed(String key);
+  boolean isComplete(String key);
+
+  void init(String key);
 
   boolean delayed(String key);
 
@@ -95,7 +97,7 @@ public interface Deduplicator {
           adapter,
           listener,
           String.format("Beetle: ignored expired message %s", key));
-    } else if (completed(key)) {
+    } else if (isComplete(key)) {
       dropMessage(
           message,
           key,
@@ -110,7 +112,7 @@ public interface Deduplicator {
   private <M> void deduplicate(
       M message, MessageAdapter<M> adapter, MessageListener<M> listener, String key) {
     if (tryAcquireMutex(key, getBeetleAmqpConfiguration().getMutexExpiration())) {
-      if (completed(key)) {
+      if (isComplete(key)) {
         dropMessage(
             message,
             key,
@@ -121,6 +123,7 @@ public interface Deduplicator {
         adapter.requeue(message);
         listener.onRequeued(message);
       } else {
+        init(key);
         long attempt = incrementAttempts(key);
         if (attempt > getBeetleAmqpConfiguration().getMaxHandlerExecutionAttempts()) {
           failureNotification(
