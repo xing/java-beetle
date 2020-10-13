@@ -6,7 +6,6 @@ import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.util.ExceptionSupport;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
@@ -77,8 +76,17 @@ public interface Deduplicator {
 
   default <M> void handle(
       M message, String queueName, MessageAdapter<M> adapter, MessageListener<M> listener) {
+
+    if (!adapter.isRedundant(message)) {
+      runHandler(
+          message,
+          listener,
+          adapter,
+          Duration.ofSeconds(getBeetleAmqpConfiguration().getHandlerTimeoutSeconds()));
+      return;
+    }
+
     String key = "msgid:" + queueName + ":" + adapter.messageId(message);
-    System.out.println("handing key "+ key);
     // check if the message is ancient or it was already completed.
     if (isExpired(message, adapter)) {
       dropMessage(
@@ -95,56 +103,53 @@ public interface Deduplicator {
           listener,
           String.format("Beetle: ignored completed message %s", key));
     } else {
-      if (tryAcquireMutex(key, getBeetleAmqpConfiguration().getMutexExpiration())) {
-        if (completed(key)) {
-          dropMessage(
+      deduplicate(message, adapter, listener, key);
+    }
+  }
+
+  private <M> void deduplicate(
+      M message, MessageAdapter<M> adapter, MessageListener<M> listener, String key) {
+    if (tryAcquireMutex(key, getBeetleAmqpConfiguration().getMutexExpiration())) {
+      if (completed(key)) {
+        dropMessage(
+            message,
+            key,
+            adapter,
+            listener,
+            String.format("Beetle: ignored completed message %s", key));
+      } else if (delayed(key)) {
+        adapter.requeue(message);
+        listener.onRequeued(message);
+      } else {
+        long attempt = incrementAttempts(key);
+        if (attempt > getBeetleAmqpConfiguration().getMaxHandlerExecutionAttempts()) {
+          failureNotification(
               message,
               key,
               adapter,
               listener,
-              String.format("Beetle: ignored completed message %s", key));
-        } else if (delayed(key)) {
-          adapter.requeue(message);
-          try {
-            listener.onRequeued(message);
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
+              String.format(
+                  "Beetle: reached the handler execution attempts limit: %d on %s",
+                  getBeetleAmqpConfiguration().getMaxHandlerExecutionAttempts(), key));
         } else {
-          long attempt = incrementAttempts(key);
-          if (attempt > getBeetleAmqpConfiguration().getMaxHandlerExecutionAttempts()) {
-            failureNotification(
+          try {
+            runHandler(
                 message,
-                key,
-                adapter,
                 listener,
-                String.format(
-                    "Beetle: reached the handler execution attempts limit: %d on %s",
-                    getBeetleAmqpConfiguration().getMaxHandlerExecutionAttempts(), key));
-          } else {
-            try {
-              runHandler(
-                  message,
-                  listener,
-                  adapter,
-                  Duration.ofSeconds(getBeetleAmqpConfiguration().getHandlerTimeoutSeconds()));
-              complete(key);
-              cleanUp(message, key, adapter);
-            } catch (Throwable throwable) {
-              handleException(message, key, adapter, listener, attempt, throwable);
-            } finally {
-              releaseMutex(key);
-            }
+                adapter,
+                Duration.ofSeconds(getBeetleAmqpConfiguration().getHandlerTimeoutSeconds()));
+            complete(key);
+            cleanUp(message, key, adapter);
+          } catch (Throwable throwable) {
+            handleException(message, key, adapter, listener, attempt, throwable);
+          } finally {
+            releaseMutex(key);
           }
-        }
-      } else {
-        adapter.requeue(message);
-        try {
-          listener.onRequeued(message);
-        } catch (IOException e) {
-          e.printStackTrace();
         }
       }
+    } else {
+      adapter.requeue(message);
+      listener.onRequeued(message);
     }
   }
 

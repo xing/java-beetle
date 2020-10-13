@@ -1,6 +1,5 @@
 package com.xing.beetle.dedup.api;
 
-import java.io.IOException;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 
@@ -30,7 +29,7 @@ public interface MessageListener<M> {
     logger().log(Level.WARNING, reason);
   }
 
-  default void onRequeued(M message) throws IOException {}
+  default void onRequeued(M message) {}
 
   default void onFailure(M message, String reason) {
     logger().log(Level.WARNING, reason);
