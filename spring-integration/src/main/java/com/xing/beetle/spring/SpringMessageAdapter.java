@@ -34,7 +34,7 @@ class SpringMessageAdapter implements MessageAdapter<Message> {
   }
 
   @Override
-  public String keyOf(Message message) {
+  public String messageId(Message message) {
     return message.getMessageProperties().getMessageId();
   }
 

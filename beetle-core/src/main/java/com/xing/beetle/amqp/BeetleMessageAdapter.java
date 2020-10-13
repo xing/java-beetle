@@ -34,7 +34,7 @@ public class BeetleMessageAdapter implements MessageAdapter<Delivery> {
   }
 
   @Override
-  public String keyOf(Delivery message) {
+  public String messageId(Delivery message) {
     return message.getProperties().getMessageId();
   }
 

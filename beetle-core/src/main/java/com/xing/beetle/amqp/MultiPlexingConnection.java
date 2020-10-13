@@ -147,7 +147,7 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
                           consumerTags.get(consumerTag), autoAck, rejectAndRequeue);
 
                   Delivery message = new Delivery(envelope, properties, body);
-                  if (beetleMessageAdapter.keyOf(message) != null) {
+                  if (beetleMessageAdapter.messageId(message) != null) {
 
                     MessageListener<Delivery> dedup_handle_delivery_called =
                         new MessageListener<>() {

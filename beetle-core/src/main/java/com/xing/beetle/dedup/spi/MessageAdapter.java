@@ -4,7 +4,7 @@ public interface MessageAdapter<M> {
 
   void drop(M message);
 
-  String keyOf(M message);
+  String messageId(M message);
 
   void requeue(M message);
 
