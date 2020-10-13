@@ -1,7 +1,5 @@
 package com.xing.beetle.spring;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.concurrent.*;
 import java.util.function.Supplier;
 
@@ -54,7 +52,6 @@ public class RecordingMessageHandler {
    * @param timeout maximum number of milliseconds to retry in total
    * @return final count
    */
-  @NotNull
   private Supplier<Long> countEventually(
       CopyOnWriteArrayList<String> messageList, String messageId, long expResult, long timeout) {
     return () -> {
