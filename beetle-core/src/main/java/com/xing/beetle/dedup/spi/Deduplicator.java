@@ -32,25 +32,25 @@ public interface Deduplicator {
   String[] keySuffixes =
       new String[] {MUTEX, STATUS, ACK_COUNT, TIMEOUT, DELAY, ATTEMPTS, EXCEPTIONS, EXPIRES};
 
-  boolean tryAcquireMutex(String messageId, int secondsToExpire);
+  boolean tryAcquireMutex(String key, int secondsToExpire);
 
-  void releaseMutex(String messageId);
+  void releaseMutex(String key);
 
-  void complete(String messageId);
+  void complete(String key);
 
-  boolean completed(String messageId);
+  boolean completed(String key);
 
-  boolean delayed(String messageId);
+  boolean delayed(String key);
 
-  void setDelay(String messageId, long timestamp);
+  void setDelay(String key, long timestamp);
 
-  long incrementAttempts(String messageId);
+  long incrementAttempts(String key);
 
-  long incrementExceptions(String messageId);
+  long incrementExceptions(String key);
 
-  long incrementAckCount(String messageId);
+  long incrementAckCount(String key);
 
-  void deleteKeys(String messageId);
+  void deleteKeys(String key);
 
   BeetleAmqpConfiguration getBeetleAmqpConfiguration();
 
@@ -75,8 +75,9 @@ public interface Deduplicator {
     }
   }
 
-  default <M> void handle(M message, MessageAdapter<M> adapter, MessageListener<M> listener) {
-    String key = adapter.keyOf(message);
+  default <M> void handle(
+      M message, String queueName, MessageAdapter<M> adapter, MessageListener<M> listener) {
+    String key = "msgid:" + queueName + ":" + adapter.keyOf(message);
     // check if the message is ancient or it was already completed.
     if (isExpired(message, adapter)) {
       dropMessage(

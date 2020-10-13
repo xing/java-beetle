@@ -144,7 +144,7 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
                   // beetle client have the full control
                   BeetleMessageAdapter beetleMessageAdapter =
                       new BeetleMessageAdapter(
-                          consumerTags.get(consumerTag), queue, autoAck, rejectAndRequeue);
+                          consumerTags.get(consumerTag), autoAck, rejectAndRequeue);
 
                   Delivery message = new Delivery(envelope, properties, body);
                   if (beetleMessageAdapter.keyOf(message) != null) {
@@ -162,7 +162,7 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
                         };
 
                     deduplicator.handle(
-                        message, beetleMessageAdapter, dedup_handle_delivery_called);
+                        message, queue, beetleMessageAdapter, dedup_handle_delivery_called);
                     return;
                   }
                 }
@@ -172,7 +172,6 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
           };
 
       Consumer consumer = tagMapping.createConsumerDecorator(callBackForAll, channel);
-      ;
       setDefaultConsumer(consumer);
 
       return channel.basicConsume(

@@ -38,17 +38,23 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
 
   @EventListener
   void onApplicationStarted(ContextRefreshedEvent event) {
+    ackModes();
+  }
+
+  private Map<String, AcknowledgeMode> ackModes() {
+    if (acknowledgeModes != null) return acknowledgeModes;
     acknowledgeModes =
         registry.getListenerContainers().stream()
             .filter(AbstractMessageListenerContainer.class::isInstance)
             .map(AbstractMessageListenerContainer.class::cast)
             .flatMap(c -> Stream.of(c.getListenerId()).map(q -> Map.entry(q, c)))
             .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getAcknowledgeMode()));
+    return acknowledgeModes;
   }
 
   private MessageAdapter<Message> adapter(Channel channel, Message message) {
     String queue = message.getMessageProperties().getConsumerQueue();
-    AcknowledgeMode mode = acknowledgeModes.getOrDefault(queue, AcknowledgeMode.AUTO);
+    AcknowledgeMode mode = ackModes().getOrDefault(queue, AcknowledgeMode.AUTO);
     return new SpringMessageAdapter(channel, mode == AcknowledgeMode.AUTO, rejectAndRequeue);
   }
 
@@ -67,7 +73,13 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
           invocation.getArguments()[1] = multiple ? Collections.singletonList(msg) : msg;
           invocation.proceed();
         };
-    messages.forEach(msg -> store.handle(msg, adapter(channel, msg), listener));
+    messages.forEach(
+        msg ->
+            store.handle(
+                msg,
+                msg.getMessageProperties().getConsumerQueue(),
+                adapter(channel, msg),
+                listener));
     return null;
   }
 }

@@ -4,7 +4,6 @@ import com.rabbitmq.client.*;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.amqp.BeetleConnectionFactory;
 import com.xing.beetle.util.ExceptionSupport;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.containers.GenericContainer;
@@ -28,7 +27,6 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     redisServer = getRedisAddress(redis);
   }
 
-  @NotNull
   private static String getRedisAddress(GenericContainer redisContainer) {
     return String.join(
         ":",
@@ -37,7 +35,6 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
         });
   }
 
-  @NotNull
   private static GenericContainer startRedisContainer() {
     GenericContainer localRedis = new GenericContainer("redis:4.0.14").withExposedPorts(6379);
     localRedis.start();

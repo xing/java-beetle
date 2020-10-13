@@ -20,77 +20,77 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
     this.beetleAmqpConfig = requireNonNull(beetleAmqpConfig);
   }
 
-  private String key(String messageId, String keySuffix) {
-    return messageId + ":" + keySuffix;
+  private String dedupKey(String key, String keySuffix) {
+    return key + ":" + keySuffix;
   }
 
   @Override
-  public boolean tryAcquireMutex(String messageId, int secondsToExpire) {
+  public boolean tryAcquireMutex(String key, int secondsToExpire) {
     return store.putIfAbsentTtl(
-        key(messageId, MUTEX), new Value(System.currentTimeMillis()), secondsToExpire);
+        dedupKey(key, MUTEX), new Value(System.currentTimeMillis()), secondsToExpire);
   }
 
   @Override
-  public void releaseMutex(String messageId) {
-    store.delete(key(messageId, MUTEX));
+  public void releaseMutex(String key) {
+    store.delete(dedupKey(key, MUTEX));
   }
 
   @Override
-  public void complete(String messageId) {
-    store.put(key(messageId, STATUS), new Value("completed"));
+  public void complete(String key) {
+    store.put(dedupKey(key, STATUS), new Value("completed"));
   }
 
   @Override
-  public boolean completed(String messageId) {
+  public boolean completed(String key) {
     if (store.putIfAbsentTtl(
-        key(messageId, STATUS),
+        dedupKey(key, STATUS),
         new Value("incomplete"),
         beetleAmqpConfig.getBeetleRedisStatusKeyExpiryIntervalSeconds())) {
       return false;
     } else {
       return store
-          .get(key(messageId, STATUS))
+          .get(dedupKey(key, STATUS))
           .map(value -> value.getAsString().equals("completed"))
           .orElse(false);
     }
   }
 
   @Override
-  public boolean delayed(String messageId) {
+  public boolean delayed(String key) {
     long now = System.currentTimeMillis();
     return store
-        .get(key(messageId, DELAY))
+        .get(dedupKey(key, DELAY))
         .map(delay -> delay.getAsNumber() > 0 && delay.getAsNumber() > now)
         .orElse(false);
   }
 
   @Override
-  public void setDelay(String messageId, long timestamp) {
-    store.put(key(messageId, DELAY), new Value(timestamp));
+  public void setDelay(String key, long timestamp) {
+    store.put(dedupKey(key, DELAY), new Value(timestamp));
   }
 
   @Override
-  public long incrementAttempts(String messageId) {
-    return store.increase(key(messageId, ATTEMPTS));
+  public long incrementAttempts(String key) {
+    return store.increase(dedupKey(key, ATTEMPTS));
   }
 
   @Override
-  public long incrementExceptions(String messageId) {
-    return store.increase(key(messageId, EXCEPTIONS));
+  public long incrementExceptions(String key) {
+    return store.increase(dedupKey(key, EXCEPTIONS));
   }
 
   @Override
-  public long incrementAckCount(String messageId) {
-    return store.increase(key(messageId, ACK_COUNT));
+  public long incrementAckCount(String key) {
+    return store.increase(dedupKey(key, ACK_COUNT));
   }
 
   @Override
-  public void deleteKeys(String messageId) {
+  public void deleteKeys(String key) {
     Stream<String> suffixStream =
         (beetleAmqpConfig.getBeetleRedisStatusKeyExpiryIntervalSeconds() > 0)
             ? Arrays.stream(keySuffixes).filter(s -> !s.equals(STATUS))
             : Arrays.stream(keySuffixes);
-    store.delete(suffixStream.map(s -> key(messageId, s)).toArray(String[]::new));
+    store.delete(suffixStream.map(s -> dedupKey(key, s)).toArray(String[]::new));
   }
 
   @Override
