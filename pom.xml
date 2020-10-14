@@ -56,6 +56,9 @@
         </snapshotRepository>
     </distributionManagement>
 
+    <profiles>
+        
+    </profiles>
     <developers>
         <developer>
             <name>Hakki Bagci</name>
