@@ -11,6 +11,6 @@ before_install:
 
 deploy:
   provider: script
-  script: "mvn -settings .travis/settings.xml -B -V clean deploy"
+  script: "./mvnw -settings .travis/settings.xml -DskipTests=true --batch-mode --update-snapshots -Poss -B -V clean deploy"
   skip_cleanup: true
 
