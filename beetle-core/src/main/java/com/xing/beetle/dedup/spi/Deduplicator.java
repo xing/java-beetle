@@ -1,7 +1,6 @@
 package com.xing.beetle.dedup.spi;
 
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
-import com.xing.beetle.amqp.BeetleMessageAdapter;
 import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.util.ExceptionSupport;
@@ -52,6 +51,8 @@ public interface Deduplicator {
 
   void deleteKeys(String messageId);
 
+  boolean initKeys(String messageId);
+
   BeetleAmqpConfiguration getBeetleAmqpConfiguration();
 
   default <M> void runHandler(
@@ -92,6 +93,7 @@ public interface Deduplicator {
           String.format("Beetle: ignored completed message %s", adapter.keyOf(message)));
     } else {
       if (tryAcquireMutex(key, getBeetleAmqpConfiguration().getMutexExpiration())) {
+        initKeys(adapter.keyOf(message));
         if (completed(key)) {
           dropMessage(
               message,
@@ -176,8 +178,7 @@ public interface Deduplicator {
       setDelay(adapter.keyOf(message), System.currentTimeMillis() + nextDelay(attempt) * 1000);
       adapter.requeue(message);
 
-      if (!(adapter instanceof BeetleMessageAdapter)) {
-        // let Spring know about the exception so that it rejects the message
+      if (adapter.shouldNotifyException()) {
         ExceptionSupport.sneakyThrow(throwable);
       }
     }

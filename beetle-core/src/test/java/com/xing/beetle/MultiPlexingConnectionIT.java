@@ -5,7 +5,6 @@ import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConnectionFactory;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.amqp.MultiPlexingConnection;
-
 import com.xing.beetle.dedup.spi.Deduplicator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -81,6 +80,11 @@ public class MultiPlexingConnectionIT {
 
               @Override
               public void deleteKeys(String messageId) {}
+
+              @Override
+              public boolean initKeys(String messageId) {
+                return false;
+              }
 
               @Override
               public BeetleAmqpConfiguration getBeetleAmqpConfiguration() {
