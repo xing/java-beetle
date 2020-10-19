@@ -1,6 +1,20 @@
 language: java
 jdk:
   - openjdk11
+
 services:
   - docker
+
+before_install:
+  - openssl aes-256-cbc -K $encrypted_6cbc0ec7ad20_key -iv $encrypted_6cbc0ec7ad20_iv -in .travis/secret_keys.gpg.enc -out .travis/secret_keys.gpg -d
+  - gpg --import .travis/secret_keys.gpg
+
+after_success:
+  - if [ -z "$TRAVIS_TAG" ] && mvn help:evaluate -Dexpression=project.version -q -DforceStdout | grep -v 'SNAPSHOT' -; then export DEPLOY=0; else export DEPLOY=1; fi
+deploy:
+  on:
+    condition: "$DEPLOY == 1"
+  provider: script
+  script: "./mvnw -settings .travis/settings.xml -DskipTests=true --batch-mode --update-snapshots -Poss -B -V clean deploy"
+  skip_cleanup: true
 

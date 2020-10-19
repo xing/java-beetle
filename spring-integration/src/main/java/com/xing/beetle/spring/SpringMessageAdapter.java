@@ -47,12 +47,13 @@ class SpringMessageAdapter implements MessageAdapter<Message> {
       return ((Number) expiresAt).longValue();
     } else if (expiresAt instanceof String) {
       return Long.parseLong((String) expiresAt);
-    } else try {
-      return Long.parseLong(expiresAt.toString());
-    } catch (NumberFormatException e) {
-      throw new IllegalArgumentException(
-              "Unexpected expires_at header value " + expiresAt.getClass());
-    }
+    } else
+      try {
+        return Long.parseLong(expiresAt.toString());
+      } catch (NumberFormatException e) {
+        throw new IllegalArgumentException(
+            "Unexpected expires_at header value " + expiresAt.getClass());
+      }
   }
 
   @Override
@@ -64,11 +65,12 @@ class SpringMessageAdapter implements MessageAdapter<Message> {
       return ((Number) flags).intValue() == FLAG_REDUNDANT;
     } else if (flags instanceof String) {
       return Integer.parseInt((String) flags) == FLAG_REDUNDANT;
-    } else try {
-      return Integer.parseInt(flags.toString()) == FLAG_REDUNDANT;
-    } catch (NumberFormatException e) {
-      throw new IllegalArgumentException("Unexpected flags header value " + flags.getClass());
-    }
+    } else
+      try {
+        return Integer.parseInt(flags.toString()) == FLAG_REDUNDANT;
+      } catch (NumberFormatException e) {
+        throw new IllegalArgumentException("Unexpected flags header value " + flags.getClass());
+      }
   }
 
   @Override
