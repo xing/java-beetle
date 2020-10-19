@@ -12,12 +12,16 @@ import static java.util.Objects.requireNonNull;
 class SpringMessageAdapter implements MessageAdapter<Message> {
 
   private final Channel channel;
+  private final String queueName;
   private final boolean needToAck;
   private final boolean rejectAndRequeue;
   private static final int FLAG_REDUNDANT = 1;
+  private static final String KEY_PREFIX = "msgid:";
 
-  SpringMessageAdapter(Channel channel, boolean needToAck, boolean rejectAndRequeue) {
+  SpringMessageAdapter(
+      Channel channel, String queueName, boolean needToAck, boolean rejectAndRequeue) {
     this.channel = requireNonNull(channel);
+    this.queueName = queueName;
     this.needToAck = needToAck;
     this.rejectAndRequeue = rejectAndRequeue;
   }
@@ -35,7 +39,7 @@ class SpringMessageAdapter implements MessageAdapter<Message> {
 
   @Override
   public String keyOf(Message message) {
-    return message.getMessageProperties().getMessageId();
+    return KEY_PREFIX + queueName + ":" + message.getMessageProperties().getMessageId();
   }
 
   @Override
