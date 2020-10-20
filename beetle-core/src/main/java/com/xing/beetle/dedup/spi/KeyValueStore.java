@@ -21,7 +21,7 @@ public interface KeyValueStore {
 
     private String text;
 
-    long getAsNumber() {
+    public long getAsNumber() {
       return Long.parseLong(text);
     }
 

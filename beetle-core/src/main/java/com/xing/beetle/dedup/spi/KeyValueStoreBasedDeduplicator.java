@@ -3,6 +3,7 @@ package com.xing.beetle.dedup.spi;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore.Value;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -99,8 +100,8 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
     keysValues.put(
         key(messageId, EXPIRES),
         new Value(
-            System.currentTimeMillis()
-                + this.beetleAmqpConfig.getBeetleRedisStatusKeyExpiryIntervalSeconds() * 1000));
+                Instant.now().getEpochSecond()
+                + this.beetleAmqpConfig.getMessageLifetimeSeconds()));
     return store.putIfAbsent(keysValues);
   }
 

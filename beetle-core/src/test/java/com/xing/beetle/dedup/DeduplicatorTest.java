@@ -12,6 +12,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -40,13 +41,19 @@ public class DeduplicatorTest {
     when(keyValueStore.putIfAbsentTtl(
             eq("msgid:queue:test-message-id:mutex"), any(KeyValueStore.Value.class), anyInt()))
         .thenReturn(true);
-    when(keyValueStore.putIfAbsentTtl(
-            eq("msgid:queue:test-message-id:status"), any(KeyValueStore.Value.class), anyInt()))
-        .thenReturn(true);
 
     Deduplicator deduplicator =
         new KeyValueStoreBasedDeduplicator(keyValueStore, new BeetleAmqpConfiguration());
     deduplicator.handle(message, messageAdapter, messageListener);
+
+    verify(keyValueStore, times(1)).putIfAbsent(argCaptor.capture());
+
+    Map<String, KeyValueStore.Value> initArgs = argCaptor.getValue();
+    assertEquals("incomplete", initArgs.get("msgid:queue:test-message-id:status").getAsString());
+    assertTrue(initArgs.containsKey("msgid:queue:test-message-id:expires"));
+    BeetleAmqpConfiguration beetleAmqpConfiguration = new BeetleAmqpConfiguration();
+    assertTrue(Instant.now().getEpochSecond()
+            + beetleAmqpConfiguration.getMessageLifetimeSeconds() >= initArgs.get("msgid:queue:test-message-id:expires").getAsNumber());
 
     ArgumentCaptor<KeyValueStore.Value> captor = ArgumentCaptor.forClass(KeyValueStore.Value.class);
     verify(keyValueStore, times(1)).put(eq("msgid:queue:test-message-id:status"), captor.capture());
