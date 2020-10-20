@@ -24,7 +24,8 @@ class RequeueAtEndConnectionIT {
   private static final String QUEUE = "test-queue";
   private static final int NUMBER_OF_MESSAGES = 10;
 
-  @Container private final RabbitMQContainer container = new RabbitMQContainer();
+  @Container
+  private final RabbitMQContainer container = new RabbitMQContainer(BaseBeetleIT.RABBITMQ_VERSION);
 
   @ParameterizedTest
   @CsvSource({

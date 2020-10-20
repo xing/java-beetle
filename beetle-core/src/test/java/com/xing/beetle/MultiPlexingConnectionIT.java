@@ -19,7 +19,7 @@ public class MultiPlexingConnectionIT {
   private static final String QUEUE = "test-queue";
   private static final int NUMBER_OF_MESSAGES = 10;
 
-  @Container RabbitMQContainer container = new RabbitMQContainer();
+  @Container RabbitMQContainer container = new RabbitMQContainer(BaseBeetleIT.RABBITMQ_VERSION);
 
   @ParameterizedTest(name = "MplexConn {0}/{1}")
   @CsvSource({

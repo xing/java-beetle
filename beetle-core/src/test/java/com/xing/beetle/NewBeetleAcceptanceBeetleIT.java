@@ -8,6 +8,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,11 +24,11 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
   private static String redisServer = "";
 
   static {
-    GenericContainer redis = startRedisContainer();
+    GenericContainer<?> redis = startRedisContainer();
     redisServer = getRedisAddress(redis);
   }
 
-  private static String getRedisAddress(GenericContainer redisContainer) {
+  private static String getRedisAddress(GenericContainer<?> redisContainer) {
     return String.join(
         ":",
         new String[] {
@@ -35,8 +36,10 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
         });
   }
 
-  private static GenericContainer startRedisContainer() {
-    GenericContainer localRedis = new GenericContainer("redis:3.0.2").withExposedPorts(6379);
+  private static GenericContainer<?> startRedisContainer() {
+    GenericContainer<?> localRedis =
+        new GenericContainer<>(DockerImageName.parse(BaseBeetleIT.REDIS_VERSION))
+            .withExposedPorts(6379);
     localRedis.start();
     return localRedis;
   }
