@@ -16,7 +16,8 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -30,6 +31,8 @@ public class DeduplicatorTest {
 
   @Mock private KeyValueStore keyValueStore;
 
+  long expirationTime = Instant.now().getEpochSecond() + 1234L;
+
   @Test
   public void test_redundantMessagesProcessedOnceSuccessfully() throws Throwable {
 
@@ -37,12 +40,7 @@ public class DeduplicatorTest {
 
     TestMessage message = new TestMessage();
     when(messageAdapter.isRedundant(any())).thenReturn(true);
-    when(messageAdapter.keyOf(eq(message))).thenReturn("msgid:queue:test-message-id");
-    long expirationTime = Instant.now().getEpochSecond() + 1234L;
-    when(messageAdapter.expiresAt(message)).thenReturn(expirationTime);
-    when(keyValueStore.putIfAbsentTtl(
-            eq("msgid:queue:test-message-id:mutex"), any(KeyValueStore.Value.class), anyInt()))
-        .thenReturn(true);
+    setupMockResponses(message);
 
     Deduplicator deduplicator =
         new KeyValueStoreBasedDeduplicator(keyValueStore, new BeetleAmqpConfiguration());
@@ -96,13 +94,9 @@ public class DeduplicatorTest {
     MockitoAnnotations.initMocks(this);
 
     TestMessage message = new TestMessage();
+    setupMockResponses(message);
+
     when(messageAdapter.isRedundant(any())).thenReturn(true);
-    long expirationTime = Instant.now().getEpochSecond() + 1234L;
-    when(messageAdapter.expiresAt(message)).thenReturn(expirationTime);
-    when(messageAdapter.keyOf(eq(message))).thenReturn("msgid:queue:test-message-id");
-    when(keyValueStore.putIfAbsentTtl(
-            eq("msgid:queue:test-message-id:mutex"), any(KeyValueStore.Value.class), anyInt()))
-        .thenReturn(true);
     when(keyValueStore.putIfAbsent(anyMap())).thenReturn(true);
 
     doThrow(new InterruptedException()).when(messageListener).onMessage(message);
@@ -126,5 +120,29 @@ public class DeduplicatorTest {
 
     // mutex should be released after completion
     verify(keyValueStore).delete(eq("msgid:queue:test-message-id:mutex"));
+  }
+
+  @Test
+  public void test_nonRedundantMessage_shouldAlsoBeCleanedUpFromRedis() throws Throwable {
+
+    MockitoAnnotations.initMocks(this);
+
+    TestMessage message = new TestMessage();
+    when(messageAdapter.isRedundant(any())).thenReturn(false);
+    setupMockResponses(message);
+
+    Deduplicator deduplicator =
+        new KeyValueStoreBasedDeduplicator(keyValueStore, new BeetleAmqpConfiguration());
+    deduplicator.handle(message, messageAdapter, messageListener);
+
+    verifyKeyCleanUp();
+  }
+
+  public void setupMockResponses(TestMessage message) {
+    when(messageAdapter.keyOf(eq(message))).thenReturn("msgid:queue:test-message-id");
+    when(messageAdapter.expiresAt(message)).thenReturn(expirationTime);
+    when(keyValueStore.putIfAbsentTtl(
+            eq("msgid:queue:test-message-id:mutex"), any(KeyValueStore.Value.class), anyInt()))
+        .thenReturn(true);
   }
 }
