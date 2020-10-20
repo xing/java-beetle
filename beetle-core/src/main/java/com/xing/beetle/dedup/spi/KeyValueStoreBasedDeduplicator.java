@@ -4,6 +4,8 @@ import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore.Value;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
@@ -42,17 +44,10 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
 
   @Override
   public boolean completed(String messageId) {
-    if (store.putIfAbsentTtl(
-        key(messageId, STATUS),
-        new Value("incomplete"),
-        beetleAmqpConfig.getBeetleRedisStatusKeyExpiryIntervalSeconds())) {
-      return false;
-    } else {
-      return store
-          .get(key(messageId, STATUS))
-          .map(value -> value.getAsString().equals("completed"))
-          .orElse(false);
-    }
+    return store
+        .get(key(messageId, STATUS))
+        .map(value -> value.getAsString().equals("completed"))
+        .orElse(false);
   }
 
   @Override
@@ -90,7 +85,19 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
         (beetleAmqpConfig.getBeetleRedisStatusKeyExpiryIntervalSeconds() > 0)
             ? Arrays.stream(keySuffixes).filter(s -> !s.equals(STATUS))
             : Arrays.stream(keySuffixes);
-    store.delete(suffixStream.map(s -> key(messageId, s)).toArray(String[]::new));
+    store.deleteMultiple(suffixStream.map(s -> key(messageId, s)).toArray(String[]::new));
+  }
+
+  /**
+   * returns true if the initialization succeeds, i.e. there were no already existing STATUS and
+   * EXPIRES keys. return false if at least one of STATUS and EXPIRES keys already exists.
+   */
+  @Override
+  public boolean initKeys(String messageId, long expirationTimeSecs) {
+    Map<String, Value> keysValues = new HashMap<>();
+    keysValues.put(key(messageId, STATUS), new Value("incomplete"));
+    keysValues.put(key(messageId, EXPIRES), new Value(expirationTimeSecs));
+    return store.putIfAbsent(keysValues);
   }
 
   @Override

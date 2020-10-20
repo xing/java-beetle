@@ -4,7 +4,9 @@ import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore;
 import redis.clients.jedis.params.SetParams;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * KeyValueStore based on Redis providing necessary functionality for message status tracking for
@@ -55,6 +57,7 @@ public class RedisDedupStore implements KeyValueStore {
                           key,
                           value.getAsString(),
                           SetParams.setParams().nx().ex(secondsToExpire)));
+
     } else {
       result =
           this.failover.execute(
@@ -64,12 +67,22 @@ public class RedisDedupStore implements KeyValueStore {
   }
 
   @Override
+  public boolean putIfAbsent(Map<String, Value> keysValues) {
+    String keysValuesStr =
+        keysValues.entrySet().stream()
+            .map(entry -> entry.getKey() + "," + entry.getValue().getAsString())
+            .collect(Collectors.joining(","));
+    Long result = this.failover.execute(() -> redis.getClient().msetnx(keysValuesStr.split(",")));
+    return result != null && result.equals(1L);
+  }
+
+  @Override
   public void put(String key, Value value) {
     this.failover.execute(() -> redis.getClient().set(key, value.getAsString()));
   }
 
   @Override
-  public void delete(String... keys) {
+  public void deleteMultiple(String... keys) {
     this.failover.execute(() -> redis.getClient().del(keys));
   }
 

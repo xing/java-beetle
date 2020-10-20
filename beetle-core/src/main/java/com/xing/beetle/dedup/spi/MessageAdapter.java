@@ -11,4 +11,6 @@ public interface MessageAdapter<M> {
   long expiresAt(M message);
 
   boolean isRedundant(M message);
+
+  boolean shouldNotifyException();
 }

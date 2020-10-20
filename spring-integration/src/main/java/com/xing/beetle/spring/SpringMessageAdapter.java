@@ -87,4 +87,9 @@ class SpringMessageAdapter implements MessageAdapter<Message> {
       }
     }
   }
+
+  @Override
+  public boolean shouldNotifyException() {
+    return true;
+  }
 }

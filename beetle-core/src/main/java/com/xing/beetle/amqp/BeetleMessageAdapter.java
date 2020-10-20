@@ -87,4 +87,9 @@ public class BeetleMessageAdapter implements MessageAdapter<Delivery> {
       }
     }
   }
+
+  @Override
+  public boolean shouldNotifyException() {
+    return false;
+  }
 }
