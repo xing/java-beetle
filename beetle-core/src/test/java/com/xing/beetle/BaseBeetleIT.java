@@ -17,9 +17,12 @@ import java.util.stream.Stream;
 @Testcontainers
 class BaseBeetleIT {
 
-  @Container public static final RabbitMQContainer rmq1 = new RabbitMQContainer();
-  @Container public static final RabbitMQContainer rmq2 = new RabbitMQContainer();
-  @Container public static final RabbitMQContainer rmq3 = new RabbitMQContainer();
+  public static String RABBITMQ_VERSION = "rabbitmq:3.8.3";
+  public static String REDIS_VERSION = "redis:3.0.2";
+
+  @Container public static final RabbitMQContainer rmq1 = new RabbitMQContainer(RABBITMQ_VERSION);
+  @Container public static final RabbitMQContainer rmq2 = new RabbitMQContainer(RABBITMQ_VERSION);
+  @Container public static final RabbitMQContainer rmq3 = new RabbitMQContainer(RABBITMQ_VERSION);
 
   public static final RabbitMQContainer[] rmq = {rmq1, rmq2, rmq3};
 

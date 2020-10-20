@@ -26,6 +26,7 @@ import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.utility.DockerImageName;
 
 import java.util.List;
 import java.util.UUID;
@@ -56,12 +57,17 @@ public class BeetleClientTest {
   private static String redisServer;
 
   static {
-    GenericContainer redis = new GenericContainer("redis:3.0.2").withExposedPorts(6379);
+    GenericContainer<?> redis =
+        new GenericContainer<>(DockerImageName.parse(TestSettings.REDIS_VERSION))
+            .withExposedPorts(6379);
     redis.start();
 
-    List<GenericContainer> rabbitBrokers =
+    List<GenericContainer<?>> rabbitBrokers =
         IntStream.range(0, 2)
-            .mapToObj(i -> new GenericContainer("rabbitmq:3.5.3").withExposedPorts(5672))
+            .mapToObj(
+                i ->
+                    new GenericContainer<>(DockerImageName.parse(TestSettings.RABBITMQ_VERSION))
+                        .withExposedPorts(5672))
             .collect(Collectors.toList());
     rabbitBrokers.forEach(GenericContainer::start);
 
