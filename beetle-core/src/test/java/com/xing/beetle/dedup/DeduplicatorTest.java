@@ -38,6 +38,8 @@ public class DeduplicatorTest {
     TestMessage message = new TestMessage();
     when(messageAdapter.isRedundant(any())).thenReturn(true);
     when(messageAdapter.keyOf(eq(message))).thenReturn("msgid:queue:test-message-id");
+    long expirationTime = Instant.now().getEpochSecond() + 1234L;
+    when(messageAdapter.expiresAt(message)).thenReturn(expirationTime);
     when(keyValueStore.putIfAbsentTtl(
             eq("msgid:queue:test-message-id:mutex"), any(KeyValueStore.Value.class), anyInt()))
         .thenReturn(true);
@@ -50,10 +52,7 @@ public class DeduplicatorTest {
 
     Map<String, KeyValueStore.Value> initArgs = argCaptor.getValue();
     assertEquals("incomplete", initArgs.get("msgid:queue:test-message-id:status").getAsString());
-    assertTrue(initArgs.containsKey("msgid:queue:test-message-id:expires"));
-    BeetleAmqpConfiguration beetleAmqpConfiguration = new BeetleAmqpConfiguration();
-    assertTrue(Instant.now().getEpochSecond()
-            + beetleAmqpConfiguration.getMessageLifetimeSeconds() >= initArgs.get("msgid:queue:test-message-id:expires").getAsNumber());
+    assertEquals(expirationTime, initArgs.get("msgid:queue:test-message-id:expires").getAsNumber());
 
     ArgumentCaptor<KeyValueStore.Value> captor = ArgumentCaptor.forClass(KeyValueStore.Value.class);
     verify(keyValueStore, times(1)).put(eq("msgid:queue:test-message-id:status"), captor.capture());
@@ -98,6 +97,8 @@ public class DeduplicatorTest {
 
     TestMessage message = new TestMessage();
     when(messageAdapter.isRedundant(any())).thenReturn(true);
+    long expirationTime = Instant.now().getEpochSecond() + 1234L;
+    when(messageAdapter.expiresAt(message)).thenReturn(expirationTime);
     when(messageAdapter.keyOf(eq(message))).thenReturn("msgid:queue:test-message-id");
     when(keyValueStore.putIfAbsentTtl(
             eq("msgid:queue:test-message-id:mutex"), any(KeyValueStore.Value.class), anyInt()))
@@ -116,7 +117,7 @@ public class DeduplicatorTest {
 
     Map<String, KeyValueStore.Value> initArgs = argCaptor.getValue();
     assertEquals("incomplete", initArgs.get("msgid:queue:test-message-id:status").getAsString());
-    assertTrue(initArgs.containsKey("msgid:queue:test-message-id:expires"));
+    assertEquals(expirationTime, initArgs.get("msgid:queue:test-message-id:expires").getAsNumber());
 
     verify(keyValueStore, times(1)).increase(eq("msgid:queue:test-message-id:exceptions"));
     verify(keyValueStore, times(1)).increase(eq("msgid:queue:test-message-id:attempts"));

@@ -82,7 +82,7 @@ public class MultiPlexingConnectionIT {
               public void deleteKeys(String messageId) {}
 
               @Override
-              public boolean initKeys(String messageId) {
+              public boolean initKeys(String messageId, long expirationTime) {
                 return false;
               }
 

@@ -3,7 +3,6 @@ package com.xing.beetle.dedup.spi;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.spi.KeyValueStore.Value;
 
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -94,14 +93,10 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
    * EXPIRES keys. return false if at least one of STATUS and EXPIRES keys already exists.
    */
   @Override
-  public boolean initKeys(String messageId) {
+  public boolean initKeys(String messageId, long expirationTimeSecs) {
     Map<String, Value> keysValues = new HashMap<>();
     keysValues.put(key(messageId, STATUS), new Value("incomplete"));
-    keysValues.put(
-        key(messageId, EXPIRES),
-        new Value(
-                Instant.now().getEpochSecond()
-                + this.beetleAmqpConfig.getMessageLifetimeSeconds()));
+    keysValues.put(key(messageId, EXPIRES), new Value(expirationTimeSecs));
     return store.putIfAbsent(keysValues);
   }
 

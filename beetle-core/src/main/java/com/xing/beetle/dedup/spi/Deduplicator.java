@@ -51,7 +51,7 @@ public interface Deduplicator {
 
   void deleteKeys(String messageId);
 
-  boolean initKeys(String messageId);
+  boolean initKeys(String messageId, long expirationTimeSecs);
 
   BeetleAmqpConfiguration getBeetleAmqpConfiguration();
 
@@ -93,7 +93,7 @@ public interface Deduplicator {
           String.format("Beetle: ignored completed message %s", adapter.keyOf(message)));
     } else {
       if (tryAcquireMutex(key, getBeetleAmqpConfiguration().getMutexExpiration())) {
-        initKeys(adapter.keyOf(message));
+        initKeys(adapter.keyOf(message), adapter.expiresAt(message));
         if (completed(key)) {
           dropMessage(
               message,
