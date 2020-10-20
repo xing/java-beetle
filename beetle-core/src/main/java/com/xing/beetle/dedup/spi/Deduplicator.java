@@ -197,11 +197,8 @@ public interface Deduplicator {
    * the last message with this message id.
    */
   private <M> void cleanUp(M message, MessageAdapter<M> adapter) {
-    if (getBeetleAmqpConfiguration().getMaxHandlerExecutionAttempts() > 1
-        || adapter.isRedundant(message)) {
-      if (!adapter.isRedundant(message) || incrementAckCount(adapter.keyOf(message)) >= 2) {
-        deleteKeys(adapter.keyOf(message));
-      }
+    if (!adapter.isRedundant(message) || incrementAckCount(adapter.keyOf(message)) >= 2) {
+      deleteKeys(adapter.keyOf(message));
     }
   }
 
