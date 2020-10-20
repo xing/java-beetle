@@ -10,16 +10,31 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.testcontainers.containers.RabbitMQContainer;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.io.IOException;
+import java.util.concurrent.TimeoutException;
 
 @Testcontainers
 public class MultiPlexingConnectionIT {
 
+  private static final System.Logger logger =
+      System.getLogger(MultiPlexingConnectionIT.class.getName());
+
   private static final String QUEUE = "test-queue";
   private static final int NUMBER_OF_MESSAGES = 10;
 
-  @Container RabbitMQContainer container = new RabbitMQContainer(BaseBeetleIT.RABBITMQ_VERSION);
+  private Channel channel;
+
+  public MultiPlexingConnectionIT() {
+    TestContainerProvider.startContainers();
+    RabbitMQContainer container = TestContainerProvider.rabbitMQContainers.get(0);
+    container.start();
+    ConnectionFactory factory = new ConnectionFactory();
+    factory.setHost(container.getContainerIpAddress());
+    factory.setPort(container.getAmqpPort());
+    channel = createChannel(factory);
+  }
 
   @ParameterizedTest(name = "MplexConn {0}/{1}")
   @CsvSource({
@@ -31,68 +46,6 @@ public class MultiPlexingConnectionIT {
     "CONSUME,MULTIPLE"
   })
   void test(ChannelReadMode mode, MessageAcknowledgementStrategy strategy) throws Exception {
-    ConnectionFactory factory = new ConnectionFactory();
-    factory.setHost(container.getContainerIpAddress());
-    factory.setPort(container.getAmqpPort());
-
-    MultiPlexingConnection connection =
-        new MultiPlexingConnection(
-            factory.newConnection(),
-            new Deduplicator() {
-              @Override
-              public boolean tryAcquireMutex(String messageId, int secondsToExpire) {
-                return false;
-              }
-
-              @Override
-              public void releaseMutex(String messageId) {}
-
-              @Override
-              public void complete(String messageId) {}
-
-              @Override
-              public boolean completed(String messageId) {
-                return false;
-              }
-
-              @Override
-              public boolean delayed(String messageId) {
-                return false;
-              }
-
-              @Override
-              public void setDelay(String messageId, long timestamp) {}
-
-              @Override
-              public long incrementAttempts(String messageId) {
-                return 0;
-              }
-
-              @Override
-              public long incrementExceptions(String messageId) {
-                return 0;
-              }
-
-              @Override
-              public long incrementAckCount(String messageId) {
-                return 0;
-              }
-
-              @Override
-              public void deleteKeys(String messageId) {}
-
-              @Override
-              public boolean initKeys(String messageId, long expirationTime) {
-                return false;
-              }
-
-              @Override
-              public BeetleAmqpConfiguration getBeetleAmqpConfiguration() {
-                return null;
-              }
-            },
-            true);
-    Channel channel = connection.createChannel();
 
     String queue = String.format("%s-%s-%s", QUEUE, mode, strategy);
     channel.queueDeclare(queue, false, false, false, null);
@@ -111,8 +64,73 @@ public class MultiPlexingConnectionIT {
     AMQP.Queue.PurgeOk purgeOk = channel.queuePurge(queue);
     Assertions.assertEquals(NUMBER_OF_MESSAGES, purgeOk.getMessageCount());
 
-    channel.close();
-    channel = connection.createChannel();
     Assertions.assertEquals(0, channel.messageCount(queue));
+  }
+
+  private Channel createChannel(ConnectionFactory factory) {
+    try {
+      MultiPlexingConnection connection =
+          new MultiPlexingConnection(
+              factory.newConnection(),
+              new Deduplicator() {
+                @Override
+                public boolean tryAcquireMutex(String messageId, int secondsToExpire) {
+                  return false;
+                }
+
+                @Override
+                public void releaseMutex(String messageId) {}
+
+                @Override
+                public void complete(String messageId) {}
+
+                @Override
+                public boolean completed(String messageId) {
+                  return false;
+                }
+
+                @Override
+                public boolean delayed(String messageId) {
+                  return false;
+                }
+
+                @Override
+                public void setDelay(String messageId, long timestamp) {}
+
+                @Override
+                public long incrementAttempts(String messageId) {
+                  return 0;
+                }
+
+                @Override
+                public long incrementExceptions(String messageId) {
+                  return 0;
+                }
+
+                @Override
+                public long incrementAckCount(String messageId) {
+                  return 0;
+                }
+
+                @Override
+                public void deleteKeys(String messageId) {}
+
+                @Override
+                public boolean initKeys(String messageId, long expirationTime) {
+                  return false;
+                }
+
+                @Override
+                public BeetleAmqpConfiguration getBeetleAmqpConfiguration() {
+                  return null;
+                }
+              },
+              true);
+
+      return connection.createChannel();
+    } catch (IOException | TimeoutException e) {
+      logger.log(System.Logger.Level.ERROR, "Channel creation failed.");
+      return null;
+    }
   }
 }

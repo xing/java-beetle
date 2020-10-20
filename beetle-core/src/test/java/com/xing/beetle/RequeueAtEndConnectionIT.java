@@ -7,11 +7,11 @@ import com.rabbitmq.client.GetResponse;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.amqp.RequeueAtEndConnection;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mockito;
 import org.testcontainers.containers.RabbitMQContainer;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
@@ -19,30 +19,36 @@ import java.math.BigDecimal;
 import static org.mockito.Mockito.when;
 
 @Testcontainers
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RequeueAtEndConnectionIT {
 
-  private static final String QUEUE = "test-queue";
+  private static final String QUEUE_PREFIX = "test-queue-";
   private static final int NUMBER_OF_MESSAGES = 10;
 
-  @Container
-  private final RabbitMQContainer container = new RabbitMQContainer(BaseBeetleIT.RABBITMQ_VERSION);
+  private RabbitMQContainer container;
+
+  public RequeueAtEndConnectionIT() {
+    TestContainerProvider.startContainers();
+    container = TestContainerProvider.rabbitMQContainers.get(0);
+  }
 
   @ParameterizedTest
   @CsvSource({
-    "-1,false,false,1,1.0",
-    "-1,false,true,2,0.5",
-    "0,false,false,2,1.0",
-    "0,false,true,2,0.5",
-    "0,true,true,2,1.0",
-    "0,true,false,1,1.0",
-    "99999999,true,true,1,1.0"
+    "q1,-1,false,false,1,1.0",
+    "q2,-1,false,true,2,0.5",
+    "q3,0,false,false,2,1.0",
+    "q4,0,false,true,2,0.5",
+    "q5,0,true,true,2,1.0",
+    "q6,0,true,false,1,1.0",
+    "q7,99999999,true,true,1,1.0"
   })
   void test(
+      String queueSuffix,
       int requeueDelay,
       boolean revertRequeue,
       boolean requeue,
       int expectedMessageFactor,
-      BigDecimal expectedBodyeDiff)
+      BigDecimal expectedBodyDiff)
       throws Exception {
     int processMessageCount = 0;
     ConnectionFactory factory = new ConnectionFactory();
@@ -62,18 +68,19 @@ class RequeueAtEndConnectionIT {
         new RequeueAtEndConnection(
             factory.newConnection(), beetleAmqpConfiguration, revertRequeue)) {
       Channel channel = connection.createChannel();
-      channel.queueDeclare(QUEUE, false, false, true, null);
+      String queueName = QUEUE_PREFIX + queueSuffix;
+      channel.queueDeclare(queueName, false, false, true, null);
       for (byte i = 0; i < NUMBER_OF_MESSAGES; i++) {
-        channel.basicPublish("", QUEUE, null, new byte[] {i});
+        channel.basicPublish("", queueName, null, new byte[] {i});
       }
       GetResponse msg;
       BigDecimal lastValue = BigDecimal.ZERO;
-      while ((msg = channel.basicGet(QUEUE, false)) != null) {
+      while ((msg = channel.basicGet(queueName, false)) != null) {
         processMessageCount++;
         byte body = msg.getBody()[0];
         Assertions.assertEquals(lastValue.byteValue(), body);
         lastValue =
-            lastValue.add(expectedBodyeDiff).remainder(BigDecimal.valueOf(NUMBER_OF_MESSAGES));
+            lastValue.add(expectedBodyDiff).remainder(BigDecimal.valueOf(NUMBER_OF_MESSAGES));
 
         if (msg.getEnvelope().isRedeliver()
             || msg.getProps().getHeaders() != null
