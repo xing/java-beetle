@@ -5,26 +5,18 @@ import com.rabbitmq.client.Address;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import com.xing.beetle.util.ExceptionSupport;
+import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.containers.RabbitMQContainer;
-import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.function.IntFunction;
 import java.util.stream.Stream;
 
 @Testcontainers
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BaseBeetleIT {
-
-  public static String RABBITMQ_VERSION = "rabbitmq:3.8.3";
-  public static String REDIS_VERSION = "redis:3.0.2";
-
-  @Container public static final RabbitMQContainer rmq1 = new RabbitMQContainer(RABBITMQ_VERSION);
-  @Container public static final RabbitMQContainer rmq2 = new RabbitMQContainer(RABBITMQ_VERSION);
-  @Container public static final RabbitMQContainer rmq3 = new RabbitMQContainer(RABBITMQ_VERSION);
-
-  public static final RabbitMQContainer[] rmq = {rmq1, rmq2, rmq3};
 
   static final IntFunction<AMQP.BasicProperties> REDUNDANT =
       r ->
@@ -37,9 +29,10 @@ class BaseBeetleIT {
     return Address.parseAddress(amqpUrl.substring(7));
   }
 
-  static Stream<Connection> createConnections(ConnectionFactory factory, int count)
-      throws Exception {
-    return Arrays.stream(rmq, 0, count)
+  static Stream<Connection> createConnections(
+      List<RabbitMQContainer> rabbitMQContainers, ConnectionFactory factory, int count) {
+    return rabbitMQContainers.stream()
+        .limit(count)
         .map(rabbitMQContainer -> createConnection(factory, rabbitMQContainer));
   }
 

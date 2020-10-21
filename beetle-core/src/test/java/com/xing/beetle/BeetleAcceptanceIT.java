@@ -8,10 +8,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -19,14 +17,11 @@ import java.util.stream.Collectors;
 import static com.xing.beetle.Assertions.assertEventualLength;
 
 @Testcontainers
-class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
+class BeetleAcceptanceIT extends BaseBeetleIT {
 
-  private static String redisServer = "";
+  private String redisServer = "";
 
-  static {
-    GenericContainer<?> redis = startRedisContainer();
-    redisServer = getRedisAddress(redis);
-  }
+  private GenericContainer<?> redis;
 
   private static String getRedisAddress(GenericContainer<?> redisContainer) {
     return String.join(
@@ -36,12 +31,10 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
         });
   }
 
-  private static GenericContainer<?> startRedisContainer() {
-    GenericContainer<?> localRedis =
-        new GenericContainer<>(DockerImageName.parse(BaseBeetleIT.REDIS_VERSION))
-            .withExposedPorts(6379);
-    localRedis.start();
-    return localRedis;
+  public BeetleAcceptanceIT() {
+    TestContainerProvider.startContainers();
+    redis = TestContainerProvider.redis;
+    redisServer = getRedisAddress(redis);
   }
 
   @ParameterizedTest(name = "Brokers={0}")
@@ -60,12 +53,12 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
     List<Delivery> messages = new ArrayList<>();
     channel.basicConsume(queue, true, (tag, msg) -> messages.add(msg), System.out::println);
 
-    assertEventualLength(messages, 1, 500);
+    assertEventualLength(messages, 1, 1000);
     messages.clear();
 
     channel.basicPublish("", queue, BaseBeetleIT.REDUNDANT.apply(2), "test2".getBytes());
 
-    assertEventualLength(messages, 1, 500);
+    assertEventualLength(messages, 1, 1000);
   }
 
   @ParameterizedTest(name = "Brokers={0}")
@@ -213,7 +206,7 @@ class NewBeetleAcceptanceBeetleIT extends BaseBeetleIT {
   BeetleAmqpConfiguration beetleAmqpConfiguration(int containers) {
 
     List<String> rabbitAddresses =
-        Arrays.stream(rmq)
+        TestContainerProvider.rabbitMQContainers.stream()
             .map(rabbit -> rabbit.getContainerIpAddress() + ":" + rabbit.getFirstMappedPort())
             .limit(containers)
             .collect(Collectors.toList());

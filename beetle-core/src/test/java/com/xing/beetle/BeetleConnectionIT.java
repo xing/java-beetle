@@ -2,7 +2,9 @@ package com.xing.beetle;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -21,7 +23,33 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 class BeetleConnectionIT extends BaseBeetleIT {
 
+  private static final System.Logger logger = System.getLogger(BeetleConnectionIT.class.getName());
+
   private static final int NUMBER_OF_MESSAGES = 5;
+  private Channel singleBrokerChannel;
+  private Channel twoBrokersChannel;
+
+  public BeetleConnectionIT() {
+    TestContainerProvider.startContainers();
+    ConnectionFactory factory = new ConnectionFactory();
+    List<Connection> connections;
+    try {
+      logger.log(System.Logger.Level.INFO, "Establishing connections to brokers...");
+      connections =
+          createConnections(TestContainerProvider.rabbitMQContainers, factory, 2)
+              .collect(Collectors.toList());
+      twoBrokersChannel = createChannel(connections);
+      singleBrokerChannel = createChannel(List.of(connections.get(0)));
+    } catch (Exception e) {
+      logger.log(System.Logger.Level.ERROR, "Channel creation failed.");
+    }
+  }
+
+  public Channel createChannel(List<Connection> connections) throws IOException {
+    BeetleConnection beetleConnection =
+        new BeetleConnection(connections, new BeetleAmqpConfiguration());
+    return beetleConnection.createChannel();
+  }
 
   @ParameterizedTest(name = "Read ACK {0} {1} {2}")
   @MethodSource("generateTestParameters")
@@ -29,14 +57,7 @@ class BeetleConnectionIT extends BaseBeetleIT {
   void testReadAck(int containers, ChannelReadMode mode, MessageAcknowledgementStrategy strategy)
       throws Exception {
 
-    ConnectionFactory factory = new ConnectionFactory();
-
-    Stream<Connection> connections = createConnections(factory, containers);
-    BeetleConnection beetleConnection =
-        new BeetleConnection(
-            connections.collect(Collectors.toList()), new BeetleAmqpConfiguration());
-    Channel channel = beetleConnection.createChannel();
-
+    Channel channel = containers == 1 ? singleBrokerChannel : twoBrokersChannel;
     String queue = String.format("%d-%s-%s", containers, mode, strategy);
 
     channel.queueDeclare(queue, false, false, false, null);
@@ -49,9 +70,6 @@ class BeetleConnectionIT extends BaseBeetleIT {
     long expectedNumberOfMessages = NUMBER_OF_MESSAGES * Math.min(containers, redundancy);
     int messageCount = mode.readAck(channel, queue, strategy, expectedNumberOfMessages);
     assertEquals(expectedNumberOfMessages, messageCount);
-
-    channel.close();
-    channel = beetleConnection.createChannel();
     assertEquals(0, channel.messageCount(queue));
   }
 
@@ -59,8 +77,10 @@ class BeetleConnectionIT extends BaseBeetleIT {
   @MethodSource("generateTestParametersNack")
   void testReadNack(int containers, ChannelReadMode mode, MessageAcknowledgementStrategy strategy)
       throws Exception {
+
     ConnectionFactory factory = new ConnectionFactory();
-    Stream<Connection> connections = createConnections(factory, containers);
+    Stream<Connection> connections =
+        createConnections(TestContainerProvider.rabbitMQContainers, factory, containers);
     BeetleConnection beetleConnection =
         new BeetleConnection(
             connections.collect(Collectors.toList()), new BeetleAmqpConfiguration());
@@ -91,11 +111,11 @@ class BeetleConnectionIT extends BaseBeetleIT {
   }
 
   /**
-   * generate permutations of number of connected RMQ servers (1-3), read mode and acknowledgment
+   * generate permutations of number of connected RMQ servers (1-2), read mode and acknowledgment
    * strategies
    */
   static Stream<Object[]> generateTestParameters() {
-    return IntStream.rangeClosed(1, 3)
+    return IntStream.rangeClosed(1, 2)
         .mapToObj(cc -> add(new Object[0], cc))
         .flatMap(args -> Stream.of(ChannelReadMode.values()).map(rm -> add(args, rm)))
         .flatMap(
@@ -103,17 +123,11 @@ class BeetleConnectionIT extends BaseBeetleIT {
   }
 
   /**
-   * generate permutations of number of connected RMQ servers (1-3), read mode and acknowledgment
+   * generate permutations of number of connected RMQ servers (1-2), read mode and acknowledgment
    * strategies excluding automatic ACK
    */
   static Stream<Object[]> generateTestParametersNack() {
     return generateTestParameters()
         .filter(objects -> Arrays.stream(objects).noneMatch(o -> o.toString().contains("AUTO")));
   }
-
-  // @Test
-  // @DisplayName("Test param count")
-  // void testParams() {
-  // assertEquals(18, generateTestParameters().count());
-  // }
 }
