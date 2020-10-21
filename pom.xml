@@ -77,8 +77,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>9</maven.compiler.release>
-        <spring.version>2.3.3.RELEASE</spring.version>
-        <spring.rabbit.test.version>2.2.10.RELEASE</spring.rabbit.test.version>
+        <spring.version>2.2.0.RELEASE</spring.version>
+        <spring.rabbit.test.version>2.2.0.RELEASE</spring.rabbit.test.version>
     </properties>
 
     <modules>

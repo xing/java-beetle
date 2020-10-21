@@ -66,7 +66,7 @@ public class BeetleAutoConfiguration {
           .asInt(Duration::getSeconds)
           .to(factory::setRequestedHeartbeat);
       RabbitProperties.Ssl ssl = properties.getSsl();
-      if (ssl.determineEnabled()) {
+      if (ssl.isEnabled()) {
         factory.setUseSSL(true);
         map.from(ssl::getAlgorithm).whenNonNull().to(factory::setSslAlgorithm);
         map.from(ssl::getKeyStoreType).to(factory::setKeyStoreType);
