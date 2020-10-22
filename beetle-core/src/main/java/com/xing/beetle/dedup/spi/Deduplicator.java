@@ -3,12 +3,12 @@ package com.xing.beetle.dedup.spi;
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
 import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
+import com.xing.beetle.util.DelayedExecutor;
 import com.xing.beetle.util.ExceptionSupport;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -51,8 +51,6 @@ public interface Deduplicator {
 
   void deleteKeys(String messageId);
 
-  ScheduledExecutorService executor();
-
   boolean initKeys(String messageId, long expirationTimeSecs);
 
   BeetleAmqpConfiguration getBeetleAmqpConfiguration();
@@ -61,9 +59,8 @@ public interface Deduplicator {
       M message, MessageListener<M> listener, MessageAdapter<M> adapter, Duration timeout) {
     Interruptable<M> interruptable = new Interruptable<>(listener);
     // Schedule an interruption for the execution of the handler when the timeout is expired
-    executor()
-        .schedule(
-            interruptable::interruptTimedOutAndRethrow, timeout.toMillis(), TimeUnit.MILLISECONDS);
+    DelayedExecutor.delayedExecutor(timeout.toMillis(), TimeUnit.MILLISECONDS)
+        .execute(interruptable::interruptTimedOutAndRethrow);
     // actually run the handler, i.e handle the message
     try {
       interruptable.onMessage(message);

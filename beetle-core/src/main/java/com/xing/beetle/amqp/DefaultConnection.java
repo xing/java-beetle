@@ -3,9 +3,10 @@ package com.xing.beetle.amqp;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.lang.System.Logger.Level;
+import java.util.logging.Level;
 import java.net.InetAddress;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.BlockedCallback;
@@ -150,7 +151,7 @@ public interface DefaultConnection extends Connection {
 
   @Override
   default void abort(int timeout) {
-    System.getLogger(getClass().getName()).log(Level.DEBUG, "abort w/timeout");
+    Logger.getLogger(getClass().getName()).log(Level.FINER, "abort w/timeout");
     abort(AMQP.REPLY_SUCCESS, "OK", timeout);
   }
 
@@ -187,7 +188,7 @@ public interface DefaultConnection extends Connection {
 
   @Override
   default void close(int timeout) throws IOException {
-    System.getLogger(getClass().getName()).log(Level.DEBUG, "close");
+    Logger.getLogger(getClass().getName()).log(Level.FINER, "close");
     close(AMQP.REPLY_SUCCESS, "OK", timeout);
   }
 

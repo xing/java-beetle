@@ -2,8 +2,8 @@ package com.xing.beetle.util;
 
 import com.xing.beetle.util.ExceptionSupport.Supplier;
 
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 import java.util.concurrent.*;
 import java.util.function.Predicate;
 
@@ -75,7 +75,7 @@ public class RetryExecutor {
 
     Retrying(Supplier<? extends T> supplier) {
       this.supplier = requireNonNull(supplier);
-      this.logger = System.getLogger(supplier.getClass().getName());
+      this.logger = Logger.getLogger(supplier.getClass().getName());
       this.future = new CompletableFuture<>();
       this.attempt = 0;
       future.whenComplete(this::logCompletion);
@@ -83,7 +83,7 @@ public class RetryExecutor {
 
     private void logCompletion(T success, Throwable error) {
       if (error != null) {
-        logger.log(Level.ERROR, "Failed to supply. Stop retrying.", error);
+        logger.log(Level.SEVERE, "Failed to supply. Stop retrying.", error);
       } else if (logger.isLoggable(logLevel)) {
         logger.log(logLevel, "Finished to supply " + success);
       }
@@ -120,7 +120,7 @@ public class RetryExecutor {
   @FunctionalInterface
   public interface Scheduler {
 
-    Scheduler DEFAULT = CompletableFuture::delayedExecutor;
+    Scheduler DEFAULT = DelayedExecutor::delayedExecutor;
     Scheduler IMMEDIATELY = (delay, unit, executor) -> executor;
     Scheduler SYNCHRONOUS = (delay, unit, executor) -> Runnable::run;
 
@@ -128,14 +128,14 @@ public class RetryExecutor {
   }
 
   public static RetryExecutor ASYNC_EXPONENTIAL =
-      new RetryExecutor(ForkJoinPool.commonPool(), Scheduler.DEFAULT, Backoff.DEFAULT, Level.DEBUG);
+      new RetryExecutor(ForkJoinPool.commonPool(), Scheduler.DEFAULT, Backoff.DEFAULT, Level.FINER);
   public static RetryExecutor ASYNC_IMMEDIATELY =
       new RetryExecutor(
-          ForkJoinPool.commonPool(), Scheduler.IMMEDIATELY, Backoff.DEFAULT, Level.DEBUG);
+          ForkJoinPool.commonPool(), Scheduler.IMMEDIATELY, Backoff.DEFAULT, Level.FINER);
   public static RetryExecutor SYNCHRONOUS =
-      new RetryExecutor(Runnable::run, Scheduler.SYNCHRONOUS, Backoff.DEFAULT, Level.DEBUG);
+      new RetryExecutor(Runnable::run, Scheduler.SYNCHRONOUS, Backoff.DEFAULT, Level.FINER);
   public static RetryExecutor DEFAULT =
-      new RetryExecutor(Runnable::run, Scheduler.DEFAULT, Backoff.DEFAULT, Level.DEBUG);
+      new RetryExecutor(Runnable::run, Scheduler.DEFAULT, Backoff.DEFAULT, Level.FINER);
 
   private final Executor executor;
   private final Scheduler scheduler;

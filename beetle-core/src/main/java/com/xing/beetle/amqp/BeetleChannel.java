@@ -8,15 +8,15 @@ import com.xing.beetle.util.ExceptionSupport.Function;
 import com.xing.beetle.util.RingStream;
 
 import java.io.IOException;
-import java.lang.System.Logger;
-import java.lang.System.Logger.Level;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 import java.time.Instant;
 import java.util.*;
 
 /** BeetleChannel wraps one or more actual AMQP channels for consumption by a message processor. */
 public class BeetleChannel implements DefaultChannel.Decorator {
 
-  private static final Logger LOGGER = System.getLogger(BeetleChannel.class.getName());
+  private static final Logger LOGGER = Logger.getLogger(BeetleChannel.class.getName());
   private static final int FLAG_REDUNDANT = 1;
 
   private final RingStream<Channel> delegates;
