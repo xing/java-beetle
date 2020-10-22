@@ -6,6 +6,8 @@ import com.xing.beetle.dedup.spi.KeyValueStore.Value;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
@@ -15,15 +17,21 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
 
   private KeyValueStore store;
   private BeetleAmqpConfiguration beetleAmqpConfig;
+  private ScheduledExecutorService executor;
 
   public KeyValueStoreBasedDeduplicator(
       KeyValueStore store, BeetleAmqpConfiguration beetleAmqpConfig) {
     this.store = requireNonNull(store);
     this.beetleAmqpConfig = requireNonNull(beetleAmqpConfig);
+    executor = Executors.newScheduledThreadPool(3);
   }
 
   private String key(String messageId, String keySuffix) {
     return messageId + ":" + keySuffix;
+  }
+
+  public void shutdown() {
+    executor.shutdown();
   }
 
   @Override
@@ -86,6 +94,11 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
             ? Arrays.stream(keySuffixes).filter(s -> !s.equals(STATUS))
             : Arrays.stream(keySuffixes);
     store.deleteMultiple(suffixStream.map(s -> key(messageId, s)).toArray(String[]::new));
+  }
+
+  @Override
+  public ScheduledExecutorService executor() {
+    return executor;
   }
 
   /**

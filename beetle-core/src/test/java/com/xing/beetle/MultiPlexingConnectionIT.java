@@ -13,20 +13,27 @@ import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.io.IOException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 @Testcontainers
 public class MultiPlexingConnectionIT {
 
-  private static final System.Logger logger =
-      System.getLogger(MultiPlexingConnectionIT.class.getName());
+  private static final Logger logger =
+      java.util.logging.Logger.getLogger(MultiPlexingConnectionIT.class.getName());
 
   private static final String QUEUE = "test-queue";
   private static final int NUMBER_OF_MESSAGES = 10;
 
   private Channel channel;
 
+  private ScheduledExecutorService executor;
+
   public MultiPlexingConnectionIT() {
+    executor = Executors.newSingleThreadScheduledExecutor();
     TestContainerProvider.startContainers();
     RabbitMQContainer container = TestContainerProvider.rabbitMQContainers.get(0);
     container.start();
@@ -116,6 +123,11 @@ public class MultiPlexingConnectionIT {
                 public void deleteKeys(String messageId) {}
 
                 @Override
+                public ScheduledExecutorService executor() {
+                  return executor;
+                }
+
+                @Override
                 public boolean initKeys(String messageId, long expirationTime) {
                   return false;
                 }
@@ -129,7 +141,7 @@ public class MultiPlexingConnectionIT {
 
       return connection.createChannel();
     } catch (IOException | TimeoutException e) {
-      logger.log(System.Logger.Level.ERROR, "Channel creation failed.");
+      logger.log(Level.FINE, "Channel creation failed.");
       return null;
     }
   }

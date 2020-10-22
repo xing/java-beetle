@@ -8,7 +8,7 @@ import com.xing.beetle.util.ExceptionSupport;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -51,6 +51,8 @@ public interface Deduplicator {
 
   void deleteKeys(String messageId);
 
+  ScheduledExecutorService executor();
+
   boolean initKeys(String messageId, long expirationTimeSecs);
 
   BeetleAmqpConfiguration getBeetleAmqpConfiguration();
@@ -59,8 +61,9 @@ public interface Deduplicator {
       M message, MessageListener<M> listener, MessageAdapter<M> adapter, Duration timeout) {
     Interruptable<M> interruptable = new Interruptable<>(listener);
     // Schedule an interruption for the execution of the handler when the timeout is expired
-    CompletableFuture.delayedExecutor(timeout.toMillis(), TimeUnit.MILLISECONDS)
-        .execute(interruptable::interruptTimedOutAndRethrow);
+    executor()
+        .schedule(
+            interruptable::interruptTimedOutAndRethrow, timeout.toMillis(), TimeUnit.MILLISECONDS);
     // actually run the handler, i.e handle the message
     try {
       interruptable.onMessage(message);
@@ -145,21 +148,21 @@ public interface Deduplicator {
     }
   }
 
-  private <M> void dropMessage(
+  default <M> void dropMessage(
       M message, MessageAdapter<M> adapter, MessageListener<M> listener, String reason) {
     adapter.drop(message);
     listener.onDropped(message, reason);
     cleanUp(message, adapter);
   }
 
-  private <M> boolean isExpired(M message, MessageAdapter<M> adapter) {
+  default <M> boolean isExpired(M message, MessageAdapter<M> adapter) {
     // expires_at is a unix timestamp (so in seconds)
     long expiresAt = adapter.expiresAt(message);
     if (expiresAt <= 0) return false;
     return expiresAt < Instant.now().getEpochSecond();
   }
 
-  private <M> void handleException(
+  default <M> void handleException(
       M message,
       MessageAdapter<M> adapter,
       MessageListener<M> listener,
@@ -184,7 +187,7 @@ public interface Deduplicator {
     }
   }
 
-  private <M> void failureNotification(
+  default <M> void failureNotification(
       M message, MessageAdapter<M> adapter, MessageListener<M> listener, String reason) {
     complete(adapter.keyOf(message));
     adapter.drop(message);
@@ -196,13 +199,13 @@ public interface Deduplicator {
    * deletes all keys associated with this message in the deduplication store if we are sure this is
    * the last message with this message id.
    */
-  private <M> void cleanUp(M message, MessageAdapter<M> adapter) {
+  default <M> void cleanUp(M message, MessageAdapter<M> adapter) {
     if (!adapter.isRedundant(message) || incrementAckCount(adapter.keyOf(message)) >= 2) {
       deleteKeys(adapter.keyOf(message));
     }
   }
 
-  private int nextDelay(long attempt) {
+  default int nextDelay(long attempt) {
     return (int)
         Math.min(
             getBeetleAmqpConfiguration().getMaxhandlerExecutionAttemptsDelay(),
