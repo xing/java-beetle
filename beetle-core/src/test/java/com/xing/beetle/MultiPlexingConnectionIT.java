@@ -30,10 +30,7 @@ public class MultiPlexingConnectionIT {
 
   private Channel channel;
 
-  private ScheduledExecutorService executor;
-
   public MultiPlexingConnectionIT() {
-    executor = Executors.newSingleThreadScheduledExecutor();
     TestContainerProvider.startContainers();
     RabbitMQContainer container = TestContainerProvider.rabbitMQContainers.get(0);
     container.start();
@@ -123,11 +120,6 @@ public class MultiPlexingConnectionIT {
                 public void deleteKeys(String messageId) {}
 
                 @Override
-                public ScheduledExecutorService executor() {
-                  return executor;
-                }
-
-                @Override
                 public boolean initKeys(String messageId, long expirationTime) {
                   return false;
                 }
@@ -141,7 +133,7 @@ public class MultiPlexingConnectionIT {
 
       return connection.createChannel();
     } catch (IOException | TimeoutException e) {
-      logger.log(Level.FINE, "Channel creation failed.");
+      logger.log(Level.SEVERE, "Channel creation failed.");
       return null;
     }
   }
