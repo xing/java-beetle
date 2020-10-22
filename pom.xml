@@ -76,7 +76,8 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.release>9</maven.compiler.release>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
         <spring.version>2.2.1.RELEASE</spring.version>
         <spring.rabbit.test.version>2.2.1.RELEASE</spring.rabbit.test.version>
     </properties>
@@ -108,11 +109,6 @@
                 <plugin>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.8.1</version>
-                    <configuration>
-                        <source>11</source>
-                        <target>11</target>
-                        <compilerVersion>11</compilerVersion>
-                    </configuration>
                 </plugin>
                 <plugin>
                     <artifactId>maven-release-plugin</artifactId>
