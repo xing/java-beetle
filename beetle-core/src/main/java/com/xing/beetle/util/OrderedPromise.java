@@ -6,15 +6,12 @@ import com.xing.beetle.util.ExceptionSupport.Consumer;
 import com.xing.beetle.util.ExceptionSupport.Function;
 import com.xing.beetle.util.ExceptionSupport.Runnable;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.*;
 
 public class OrderedPromise<T> {
 
   public static <T> OrderedPromise<T> of(CompletionStage<T> delegate) {
-    return new OrderedPromise<>(delegate, CompletableFuture.completedStage(null));
+    return new OrderedPromise<>(delegate, CompletableFuture.completedFuture(null));
   }
 
   private final CompletionStage<T> delegate;
