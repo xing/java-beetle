@@ -9,8 +9,8 @@ import org.junit.jupiter.api.TestInstance;
 import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.function.IntFunction;
 import java.util.stream.Stream;
 
@@ -21,7 +21,7 @@ class BaseBeetleIT {
   static final IntFunction<AMQP.BasicProperties> REDUNDANT =
       r ->
           new AMQP.BasicProperties.Builder()
-              .headers(Map.of(BeetleHeader.PUBLISH_REDUNDANCY, r))
+              .headers(Collections.singletonMap(BeetleHeader.PUBLISH_REDUNDANCY, r))
               .build();
 
   private static Address addressOf(RabbitMQContainer container) {

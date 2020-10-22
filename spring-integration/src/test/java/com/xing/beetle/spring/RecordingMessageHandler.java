@@ -6,7 +6,6 @@ import java.util.function.Supplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class RecordingMessageHandler {
-  protected final System.Logger log = System.getLogger(getClass().getName());
   protected final CopyOnWriteArrayList<String> result = new CopyOnWriteArrayList<>();
   protected final CopyOnWriteArrayList<String> redelivered = new CopyOnWriteArrayList<>();
   protected final CopyOnWriteArrayList<String> deadLettered = new CopyOnWriteArrayList<>();

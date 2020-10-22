@@ -5,13 +5,14 @@ import org.testcontainers.containers.RabbitMQContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public class TestContainerProvider {
 
-  private static final System.Logger logger =
-      System.getLogger(TestContainerProvider.class.getName());
+  private static final Logger logger = Logger.getLogger(TestContainerProvider.class.getName());
 
   public static String RABBITMQ_VERSION = "rabbitmq:3.8.3";
   public static String REDIS_VERSION = "redis:3.0.2";
@@ -34,7 +35,7 @@ public class TestContainerProvider {
 
     rabbitMQContainers.forEach(GenericContainer::start);
 
-    logger.log(System.Logger.Level.INFO, "Test containers started.");
+    logger.log(Level.FINE, "Test containers started.");
 
     Runtime.getRuntime()
         .addShutdownHook(
@@ -42,7 +43,7 @@ public class TestContainerProvider {
                 () -> {
                   redis.stop();
                   rabbitMQContainers.forEach(GenericContainer::stop);
-                  logger.log(System.Logger.Level.INFO, "Test containers stopped.");
+                  logger.log(Level.INFO, "Test containers stopped.");
                 }));
 
     started = true;

@@ -188,7 +188,6 @@ public class BeetleClientTest {
 
     @RabbitListener(queues = "QueueWithError")
     public void handleWithError(Message message) {
-      log.log(System.Logger.Level.DEBUG, message.getMessageProperties());
       if (message.getMessageProperties().isRedelivered()) {
         redelivered.add(message.getMessageProperties().getMessageId());
       }
@@ -202,7 +201,6 @@ public class BeetleClientTest {
 
     @RabbitListener(queues = "QueueWithTimeout")
     public void handleWithTimeout(Message message) throws InterruptedException {
-      log.log(System.Logger.Level.DEBUG, message.getMessageProperties());
       if (message.getMessageProperties().isRedelivered()) {
         redelivered.add(message.getMessageProperties().getMessageId());
       }
