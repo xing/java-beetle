@@ -26,7 +26,8 @@ class BaseBeetleIT {
 
   private static Address addressOf(RabbitMQContainer container) {
     String amqpUrl = container.getAmqpUrl();
-    return Address.parseAddress(amqpUrl.substring(7));
+    String address = amqpUrl.substring(7).replace("localhost", "127.0.0.1");
+    return Address.parseAddress(address);
   }
 
   static Stream<Connection> createConnections(

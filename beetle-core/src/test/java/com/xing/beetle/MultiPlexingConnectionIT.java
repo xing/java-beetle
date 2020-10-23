@@ -31,7 +31,7 @@ public class MultiPlexingConnectionIT {
     RabbitMQContainer container = TestContainerProvider.rabbitMQContainers.get(0);
     container.start();
     ConnectionFactory factory = new ConnectionFactory();
-    factory.setHost(container.getContainerIpAddress());
+    factory.setHost("127.0.0.1");
     factory.setPort(container.getAmqpPort());
     channel = createChannel(factory);
   }

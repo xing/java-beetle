@@ -70,13 +70,11 @@ public class BeetleClientWithDeadLetteringTest {
 
     List<String> rabbitAddresses =
         rabbitBrokers.stream()
-            .map(rabbit -> rabbit.getContainerIpAddress() + ":" + rabbit.getFirstMappedPort())
+            .map(rabbit -> "127.0.0.1:" + rabbit.getFirstMappedPort())
             .collect(Collectors.toList());
 
     beetleServers = String.join(",", rabbitAddresses);
-    redisServer =
-        String.join(
-            ":", new String[] {redis.getContainerIpAddress(), redis.getFirstMappedPort() + ""});
+    redisServer = "127.0.0.1:" + redis.getFirstMappedPort().toString();
 
     System.setProperty("test.deadLetterEnabled", "true");
   }

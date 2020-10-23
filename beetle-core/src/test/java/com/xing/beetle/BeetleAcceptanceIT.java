@@ -24,11 +24,7 @@ class BeetleAcceptanceIT extends BaseBeetleIT {
   private GenericContainer<?> redis;
 
   private static String getRedisAddress(GenericContainer<?> redisContainer) {
-    return String.join(
-        ":",
-        new String[] {
-          redisContainer.getContainerIpAddress(), redisContainer.getFirstMappedPort() + ""
-        });
+    return "127.0.0.1:" + redisContainer.getFirstMappedPort();
   }
 
   public BeetleAcceptanceIT() {
@@ -207,7 +203,7 @@ class BeetleAcceptanceIT extends BaseBeetleIT {
 
     List<String> rabbitAddresses =
         TestContainerProvider.rabbitMQContainers.stream()
-            .map(rabbit -> rabbit.getContainerIpAddress() + ":" + rabbit.getFirstMappedPort())
+            .map(rabbit -> "127.0.0.1:" + rabbit.getFirstMappedPort())
             .limit(containers)
             .collect(Collectors.toList());
 

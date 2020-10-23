@@ -52,12 +52,12 @@ class RequeueAtEndConnectionIT {
       throws Exception {
     int processMessageCount = 0;
     ConnectionFactory factory = new ConnectionFactory();
-    factory.setHost(container.getContainerIpAddress());
+    factory.setHost("127.0.0.1");
     factory.setPort(container.getAmqpPort());
 
     BeetleAmqpConfiguration beetleAmqpConfiguration = beetleAmqpConfiguration();
     when(beetleAmqpConfiguration.getBeetleServers())
-        .thenReturn(container.getContainerIpAddress() + ":" + container.getAmqpPort());
+        .thenReturn("127.0.0.1:" + container.getAmqpPort());
     if (requeueDelay >= 0) {
       when(beetleAmqpConfiguration.getDeadLetteringMsgTtlMs()).thenReturn(requeueDelay);
       when(beetleAmqpConfiguration.isDeadLetteringEnabled()).thenReturn(true);
