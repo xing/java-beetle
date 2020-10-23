@@ -14,15 +14,10 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
 
 @Testcontainers
 public class MultiPlexingConnectionIT {
-
-  private static final Logger logger =
-      java.util.logging.Logger.getLogger(MultiPlexingConnectionIT.class.getName());
-
   private static final String QUEUE = "test-queue";
   private static final int NUMBER_OF_MESSAGES = 10;
 
@@ -131,7 +126,6 @@ public class MultiPlexingConnectionIT {
 
       return connection.createChannel();
     } catch (IOException | TimeoutException e) {
-      logger.log(Level.SEVERE, "Channel creation failed.");
       return null;
     }
   }

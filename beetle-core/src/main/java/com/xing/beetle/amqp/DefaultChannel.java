@@ -3,11 +3,9 @@ package com.xing.beetle.amqp;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.util.logging.Level;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Logger;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.AMQP.Basic;
@@ -36,8 +34,12 @@ import com.rabbitmq.client.ReturnListener;
 import com.rabbitmq.client.ShutdownListener;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.xing.beetle.util.ExceptionSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public interface DefaultChannel extends Channel {
+
+  Logger log = LoggerFactory.getLogger(Decorator.class);
 
   /**
    * Decorator provides default implementations of the (Default)Channel interface delegating to the
@@ -415,7 +417,7 @@ public interface DefaultChannel extends Channel {
       CancelCallback cancel,
       ConsumerShutdownSignalCallback shutdownSignal) {
     return new Consumer() {
-
+      private Logger log = LoggerFactory.getLogger(getClass());
       @Override
       public void handleCancel(String consumerTag) throws IOException {
         if (cancel != null) {
@@ -425,13 +427,12 @@ public interface DefaultChannel extends Channel {
 
       @Override
       public void handleCancelOk(String consumerTag) {
-        Logger.getLogger(getClass().getName())
-            .log(Level.FINER, "%s: Channel closed\n", consumerTag);
+        log.debug("{}: Channel closed\n", consumerTag);
       }
 
       @Override
       public void handleConsumeOk(String consumerTag) {
-        Logger.getLogger(getClass().getName()).log(Level.FINER, "%s: ConsumeOK\n", consumerTag);
+        log.debug("{}: ConsumeOK\n", consumerTag);
       }
 
       @Override
@@ -445,7 +446,7 @@ public interface DefaultChannel extends Channel {
 
       @Override
       public void handleRecoverOk(String consumerTag) {
-        Logger.getLogger(getClass().getName()).log(Level.FINER, "%s: RecoverOK", consumerTag);
+        log.debug("{}: RecoverOK", consumerTag);
       }
 
       @Override
@@ -498,7 +499,7 @@ public interface DefaultChannel extends Channel {
 
   @Override
   default void abort() throws IOException {
-    Logger.getLogger(getClass().getName()).log(Level.FINER, "aborted");
+    log.debug("aborted");
     abort(AMQP.REPLY_SUCCESS, "OK");
   }
 
@@ -782,7 +783,7 @@ public interface DefaultChannel extends Channel {
 
   @Override
   default void close() throws IOException, TimeoutException {
-    Logger.getLogger(getClass().getName()).log(Level.FINER, "Channel close");
+    log.debug("Channel close");
     close(AMQP.REPLY_SUCCESS, "OK");
   }
 
@@ -925,7 +926,7 @@ public interface DefaultChannel extends Channel {
       throws IOException, InterruptedException, TimeoutException {
     try {
       if (!waitForConfirms(timeout)) {
-        Logger.getLogger(getClass().getName()).log(Level.FINER, "Close because of NACKS");
+        log.debug("Close because of NACKS");
         close(AMQP.REPLY_SUCCESS, "NACKS RECEIVED");
         throw new IOException("nacks received");
       }

@@ -1,9 +1,9 @@
 package com.xing.beetle.util;
 
 import com.xing.beetle.util.ExceptionSupport.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.logging.Logger;
-import java.util.logging.Level;
 import java.util.concurrent.*;
 import java.util.function.Predicate;
 
@@ -11,6 +11,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.ThreadLocalRandom.current;
 
 public class RetryExecutor {
+  private final Logger log = LoggerFactory.getLogger(RetryExecutor.class);
 
   @FunctionalInterface
   public interface Backoff {
@@ -75,7 +76,7 @@ public class RetryExecutor {
 
     Retrying(Supplier<? extends T> supplier) {
       this.supplier = requireNonNull(supplier);
-      this.logger = Logger.getLogger(supplier.getClass().getName());
+      this.logger = LoggerFactory.getLogger(supplier.getClass());
       this.future = new CompletableFuture<>();
       this.attempt = 0;
       future.whenComplete(this::logCompletion);
@@ -83,9 +84,9 @@ public class RetryExecutor {
 
     private void logCompletion(T success, Throwable error) {
       if (error != null) {
-        logger.log(Level.SEVERE, "Failed to supply. Stop retrying.", error);
-      } else if (logger.isLoggable(logLevel)) {
-        logger.log(logLevel, "Finished to supply " + success);
+        logger.error("Failed to supply. Stop retrying.", error);
+      } else if (logger.isDebugEnabled()) {
+        logger.debug("Finished to supply " + success);
       }
     }
 
@@ -95,8 +96,8 @@ public class RetryExecutor {
         T result = supplier.getChecked();
         future.complete(result);
       } catch (Throwable error) {
-        if (logger.isLoggable(logLevel)) {
-          logger.log(logLevel, String.format("%d. attempt failed", attempt), error);
+        if (logger.isDebugEnabled()) {
+          logger.debug(String.format("%d. attempt failed", attempt), error);
         }
         schedule(error);
       }
@@ -128,25 +129,25 @@ public class RetryExecutor {
   }
 
   public static RetryExecutor ASYNC_EXPONENTIAL =
-      new RetryExecutor(ForkJoinPool.commonPool(), Scheduler.DEFAULT, Backoff.DEFAULT, Level.FINER);
+      new RetryExecutor(ForkJoinPool.commonPool(), Scheduler.DEFAULT, Backoff.DEFAULT);
   public static RetryExecutor ASYNC_IMMEDIATELY =
       new RetryExecutor(
-          ForkJoinPool.commonPool(), Scheduler.IMMEDIATELY, Backoff.DEFAULT, Level.FINER);
+          ForkJoinPool.commonPool(), Scheduler.IMMEDIATELY, Backoff.DEFAULT);
   public static RetryExecutor SYNCHRONOUS =
-      new RetryExecutor(Runnable::run, Scheduler.SYNCHRONOUS, Backoff.DEFAULT, Level.FINER);
+      new RetryExecutor(Runnable::run, Scheduler.SYNCHRONOUS, Backoff.DEFAULT);
   public static RetryExecutor DEFAULT =
-      new RetryExecutor(Runnable::run, Scheduler.DEFAULT, Backoff.DEFAULT, Level.FINER);
+      new RetryExecutor(Runnable::run, Scheduler.DEFAULT, Backoff.DEFAULT);
 
   private final Executor executor;
   private final Scheduler scheduler;
   private final Backoff backoff;
-  private final Level logLevel;
 
-  public RetryExecutor(Executor executor, Scheduler scheduler, Backoff backoff, Level level) {
+
+  public RetryExecutor(Executor executor, Scheduler scheduler, Backoff backoff) {
     this.executor = requireNonNull(executor);
     this.scheduler = requireNonNull(scheduler);
     this.backoff = requireNonNull(backoff);
-    this.logLevel = requireNonNull(level);
+
   }
 
   public <T> CompletionStage<T> supply(Supplier<? extends T> supplier) {
@@ -154,18 +155,14 @@ public class RetryExecutor {
   }
 
   public RetryExecutor withBackoff(Backoff backoff) {
-    return new RetryExecutor(executor, scheduler, backoff, logLevel);
+    return new RetryExecutor(executor, scheduler, backoff);
   }
 
   public RetryExecutor withExecutor(Executor executor) {
-    return new RetryExecutor(executor, scheduler, backoff, logLevel);
-  }
-
-  public RetryExecutor withLogLevel(Level logLevel) {
-    return new RetryExecutor(executor, scheduler, backoff, logLevel);
+    return new RetryExecutor(executor, scheduler, backoff);
   }
 
   public RetryExecutor withScheduler(Scheduler scheduler) {
-    return new RetryExecutor(executor, scheduler, backoff, logLevel);
+    return new RetryExecutor(executor, scheduler, backoff);
   }
 }

@@ -6,17 +6,18 @@ import com.xing.beetle.BeetleHeader;
 import com.xing.beetle.util.ExceptionSupport;
 import com.xing.beetle.util.ExceptionSupport.Function;
 import com.xing.beetle.util.RingStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.logging.Logger;
-import java.util.logging.Level;
 import java.time.Instant;
 import java.util.*;
 
 /** BeetleChannel wraps one or more actual AMQP channels for consumption by a message processor. */
 public class BeetleChannel implements DefaultChannel.Decorator {
 
-  private static final Logger LOGGER = Logger.getLogger(BeetleChannel.class.getName());
+  private static final Logger LOGGER = LoggerFactory.getLogger(BeetleChannel.class);
+
   private static final int FLAG_REDUNDANT = 1;
 
   private final RingStream<Channel> delegates;
@@ -151,14 +152,7 @@ public class BeetleChannel implements DefaultChannel.Decorator {
     }
 
     if (sent != redundancy) {
-      LOGGER.log(
-          Level.WARNING,
-          "Message was sent "
-              + sent
-              + " times. Expected was a redundancy of "
-              + redundancy
-              + ". Message Header:"
-              + properties);
+      LOGGER.warn("Message was sent {} times. Expected was a redundancy of {}. Message Header: {}", sent, redundancy, properties);
     }
   }
 
@@ -198,8 +192,7 @@ public class BeetleChannel implements DefaultChannel.Decorator {
       channel.basicPublish(exchange, routingKey, mandatory, immediate, props, body);
       return true;
     } catch (Exception e) {
-      LOGGER.log(
-          Level.WARNING,
+      LOGGER.warn(
           String.format(
               "Failed to send message with headers %s to %s",
               props, channel.getConnection().getAddress()),

@@ -1,8 +1,9 @@
 package com.xing.beetle.dedup.api;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
-import java.util.logging.Logger;
-import java.util.logging.Level;
 
 /**
  * Interface for listening the (AMQP) messages and handling the different cases including message
@@ -12,7 +13,7 @@ import java.util.logging.Level;
 public interface MessageListener<M> {
 
   default boolean handleFailed(Throwable exception, int attempt) {
-    logger().log(Level.SEVERE, "Beetle message processing failed due to: {0}", exception);
+    logger().error("Beetle message processing failed due to: {0}", exception);
     return true;
   }
 
@@ -23,17 +24,17 @@ public interface MessageListener<M> {
       int offset = canonical.indexOf("$$Lambda$");
       loggerName = offset > 0 ? canonical.substring(0, offset) : canonical;
     }
-    return Logger.getLogger(loggerName);
+    return LoggerFactory.getLogger(loggerName);
   }
 
   default void onDropped(M message, String reason) {
-    logger().log(Level.WARNING, reason);
+    logger().warn(reason);
   }
 
   default void onRequeued(M message) throws IOException {}
 
   default void onFailure(M message, String reason) {
-    logger().log(Level.WARNING, reason);
+    logger().warn(reason);
   }
 
   void onMessage(M message) throws Throwable;

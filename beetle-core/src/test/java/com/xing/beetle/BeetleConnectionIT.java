@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -25,9 +23,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
 class BeetleConnectionIT extends BaseBeetleIT {
-
-  private static final Logger logger = Logger.getLogger(BeetleConnectionIT.class.getName());
-
   private static final int NUMBER_OF_MESSAGES = 5;
   private Channel singleBrokerChannel;
   private Channel twoBrokersChannel;
@@ -37,14 +32,12 @@ class BeetleConnectionIT extends BaseBeetleIT {
     ConnectionFactory factory = new ConnectionFactory();
     List<Connection> connections;
     try {
-      logger.log(Level.FINE, "Establishing connections to brokers...");
       connections =
           createConnections(TestContainerProvider.rabbitMQContainers, factory, 2)
               .collect(Collectors.toList());
       twoBrokersChannel = createChannel(connections);
       singleBrokerChannel = createChannel(Collections.singletonList(connections.get(0)));
-    } catch (Exception e) {
-      logger.log(Level.SEVERE, "Channel creation failed.");
+    } catch (Exception ignored) {
     }
   }
 
