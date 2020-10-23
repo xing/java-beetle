@@ -8,7 +8,9 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * This interface provides an implementation for deduplication logic which also takes care of
@@ -67,14 +69,14 @@ public interface Deduplicator {
                 }
               });
       cf.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-    } catch (Throwable throwable) {
-      if (throwable instanceof InterruptedException
-          || (throwable.getCause() != null
-              && throwable.getCause() instanceof InterruptedException)) {
-        listener.onFailure(
-            message,
-            String.format("Beetle: message handling timed out for %s", adapter.keyOf(message)));
-      }
+    } catch (TimeoutException throwable) {
+      listener.onFailure(
+          message,
+          String.format("Beetle: message handling timed out for %s", adapter.keyOf(message)));
+      ExceptionSupport.sneakyThrow(throwable);
+    } catch (ExecutionException | InterruptedException throwable) {
+      listener.onFailure(
+          message, String.format("Beetle: message handling failed for %s", adapter.keyOf(message)));
       ExceptionSupport.sneakyThrow(throwable);
     }
   }
