@@ -152,7 +152,11 @@ public class BeetleChannel implements DefaultChannel.Decorator {
     }
 
     if (sent != redundancy) {
-      LOGGER.warn("Message was sent {} times. Expected was a redundancy of {}. Message Header: {}", sent, redundancy, properties);
+      LOGGER.warn(
+          "Message was sent {} times. Expected was a redundancy of {}. Message Header: {}",
+          sent,
+          redundancy,
+          properties);
     }
   }
 

@@ -152,7 +152,7 @@ public interface DefaultConnection extends Connection {
 
   @Override
   default void abort(int timeout) {
-   log.debug("abort w/timeout");
+    log.debug("abort w/timeout");
     abort(AMQP.REPLY_SUCCESS, "OK", timeout);
   }
 

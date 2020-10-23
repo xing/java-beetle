@@ -418,6 +418,7 @@ public interface DefaultChannel extends Channel {
       ConsumerShutdownSignalCallback shutdownSignal) {
     return new Consumer() {
       private Logger log = LoggerFactory.getLogger(getClass());
+
       @Override
       public void handleCancel(String consumerTag) throws IOException {
         if (cancel != null) {

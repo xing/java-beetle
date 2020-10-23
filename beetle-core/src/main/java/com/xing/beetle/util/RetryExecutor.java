@@ -131,8 +131,7 @@ public class RetryExecutor {
   public static RetryExecutor ASYNC_EXPONENTIAL =
       new RetryExecutor(ForkJoinPool.commonPool(), Scheduler.DEFAULT, Backoff.DEFAULT);
   public static RetryExecutor ASYNC_IMMEDIATELY =
-      new RetryExecutor(
-          ForkJoinPool.commonPool(), Scheduler.IMMEDIATELY, Backoff.DEFAULT);
+      new RetryExecutor(ForkJoinPool.commonPool(), Scheduler.IMMEDIATELY, Backoff.DEFAULT);
   public static RetryExecutor SYNCHRONOUS =
       new RetryExecutor(Runnable::run, Scheduler.SYNCHRONOUS, Backoff.DEFAULT);
   public static RetryExecutor DEFAULT =
@@ -142,12 +141,10 @@ public class RetryExecutor {
   private final Scheduler scheduler;
   private final Backoff backoff;
 
-
   public RetryExecutor(Executor executor, Scheduler scheduler, Backoff backoff) {
     this.executor = requireNonNull(executor);
     this.scheduler = requireNonNull(scheduler);
     this.backoff = requireNonNull(backoff);
-
   }
 
   public <T> CompletionStage<T> supply(Supplier<? extends T> supplier) {

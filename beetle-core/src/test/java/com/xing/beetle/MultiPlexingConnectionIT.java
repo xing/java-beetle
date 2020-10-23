@@ -15,7 +15,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 
-
 @Testcontainers
 public class MultiPlexingConnectionIT {
   private static final String QUEUE = "test-queue";
