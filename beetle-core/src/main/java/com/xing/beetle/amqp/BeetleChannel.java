@@ -125,7 +125,7 @@ public class BeetleChannel implements DefaultChannel.Decorator {
     }
 
     int redundancy = (int) props.getHeaders().getOrDefault(BeetleHeader.PUBLISH_REDUNDANCY, 1);
-    if (redundancy > 1 && props.getMessageId() == null) {
+    if (props.getMessageId() == null) {
       props = props.builder().messageId(UUID.randomUUID().toString()).build();
     }
 
