@@ -12,12 +12,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 public class BeetleConnectionFactory extends ConnectionFactory {
 
-  private RetryExecutor connectionEstablishingExecutor = RetryExecutor.SYNCHRONOUS;
   private boolean invertRequeueParameter = true;
   private BeetleAmqpConfiguration beetleAmqpConfiguration;
   private Deduplicator deduplicator;
@@ -51,19 +49,12 @@ public class BeetleConnectionFactory extends ConnectionFactory {
     return listAddressResolver;
   }
 
-  public RetryExecutor getConnectionEstablishingExecutor() {
-    return connectionEstablishingExecutor;
-  }
-
   @Override
   public Connection newConnection(
       ExecutorService executor, AddressResolver addressResolver, String clientProvidedName)
-      throws IOException, TimeoutException {
+      throws IOException {
     setAutomaticRecoveryEnabled(true);
-    RetryExecutor retryExecutor =
-        executor != null
-            ? connectionEstablishingExecutor.withExecutor(executor)
-            : connectionEstablishingExecutor;
+    RetryExecutor retryExecutor = getRetryExecutor(executor);
     List<Connection> connections =
         addressResolver.getAddresses().stream()
             .map(Collections::singletonList)
@@ -80,8 +71,12 @@ public class BeetleConnectionFactory extends ConnectionFactory {
     return new BeetleConnection(connections, beetleAmqpConfiguration);
   }
 
-  public void setConnectionEstablishingExecutor(RetryExecutor connectionEstablishExecutor) {
-    this.connectionEstablishingExecutor = connectionEstablishExecutor;
+  private RetryExecutor getRetryExecutor(ExecutorService executor) {
+    RetryExecutor.Builder builder = new RetryExecutor.Builder();
+    if (executor != null) {
+      builder.executor(executor);
+    }
+    return builder.build();
   }
 
   public boolean isInvertRequeueParameter() {

@@ -5,65 +5,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.*;
-import java.util.function.Predicate;
 
 import static java.util.Objects.requireNonNull;
-import static java.util.concurrent.ThreadLocalRandom.current;
 
 public class RetryExecutor {
-  private final Logger log = LoggerFactory.getLogger(RetryExecutor.class);
 
   @FunctionalInterface
   public interface Backoff {
 
-    Backoff DEFAULT = exponential(1, TimeUnit.SECONDS).withUniformJitter(100).withMaxAttempts(8);
+    Backoff DEFAULT = linear(1, TimeUnit.SECONDS).withMaxAttempts(8);
 
-    static Backoff exponential(long delay, TimeUnit unit) {
-      return (att, err) -> (long) Math.pow(2, att) * unit.toMillis(delay);
+    static Backoff linear(long delay, TimeUnit unit) {
+      return (att, err) -> att * unit.toMillis(delay);
     }
 
     static Backoff fixed(long delay, TimeUnit unit) {
       return (att, err) -> att == 0 ? 0 : unit.toMillis(delay);
     }
 
-    static Backoff linear(long delay, TimeUnit unit) {
-      return (att, err) -> att * unit.toMillis(delay);
-    }
-
     long delayInMillis(int attempt, Throwable error);
 
     default Backoff withMaxAttempts(int max) {
       return (att, err) -> att < max ? delayInMillis(att, err) : -1;
-    }
-
-    default Backoff withMaxDelay(long delay, TimeUnit unit) {
-      return (att, err) -> Math.min(delayInMillis(att, err), unit.toMillis(delay));
-    }
-
-    default Backoff withMinDelay(long delay, TimeUnit unit) {
-      return (att, err) -> Math.max(delayInMillis(att, err), unit.toMillis(delay));
-    }
-
-    default Backoff withProportionalJitter(double factor) {
-      return (att, err) ->
-          (long) (delayInMillis(att, err) * current().nextDouble(1d - factor, 1d + factor));
-    }
-
-    default Backoff withRetryOn(Class<? extends Throwable> errorType) {
-      return withRetryOn(errorType::isInstance);
-    }
-
-    default <E extends Throwable> Backoff withRetryOn(Class<E> errorType, Predicate<E> when) {
-      return withRetryOn(ex -> errorType.isInstance(ex) && when.test(errorType.cast(ex)));
-    }
-
-    default Backoff withRetryOn(Predicate<? super Throwable> when) {
-      return (att, err) -> err == null || when.test(err) ? delayInMillis(att, err) : -1;
-    }
-
-    default Backoff withUniformJitter(long millis) {
-      return (att, err) ->
-          Math.max(0, delayInMillis(att, err) + current().nextLong(-millis, millis));
     }
   }
 
@@ -106,7 +69,9 @@ public class RetryExecutor {
     CompletionStage<T> schedule(Throwable error) {
       long delayInMillis = backoff.delayInMillis(attempt++, error);
       if (delayInMillis > 0) {
-        scheduler.delayed(delayInMillis, TimeUnit.MILLISECONDS, executor).execute(this);
+        ScheduledExecutorService ses = Executors.newScheduledThreadPool(1);
+        ses.schedule(this, delayInMillis, TimeUnit.MILLISECONDS);
+        ses.shutdown();
       } else if (delayInMillis == 0) {
         executor.execute(this);
       } else if (error != null) {
@@ -118,32 +83,11 @@ public class RetryExecutor {
     }
   }
 
-  @FunctionalInterface
-  public interface Scheduler {
+  private Executor executor;
+  private Backoff backoff;
 
-    Scheduler DEFAULT = DelayedExecutor::delayedExecutor;
-    Scheduler IMMEDIATELY = (delay, unit, executor) -> executor;
-    Scheduler SYNCHRONOUS = (delay, unit, executor) -> Runnable::run;
-
-    Executor delayed(long delay, TimeUnit unit, Executor executor);
-  }
-
-  public static RetryExecutor ASYNC_EXPONENTIAL =
-      new RetryExecutor(ForkJoinPool.commonPool(), Scheduler.DEFAULT, Backoff.DEFAULT);
-  public static RetryExecutor ASYNC_IMMEDIATELY =
-      new RetryExecutor(ForkJoinPool.commonPool(), Scheduler.IMMEDIATELY, Backoff.DEFAULT);
-  public static RetryExecutor SYNCHRONOUS =
-      new RetryExecutor(Runnable::run, Scheduler.SYNCHRONOUS, Backoff.DEFAULT);
-  public static RetryExecutor DEFAULT =
-      new RetryExecutor(Runnable::run, Scheduler.DEFAULT, Backoff.DEFAULT);
-
-  private final Executor executor;
-  private final Scheduler scheduler;
-  private final Backoff backoff;
-
-  public RetryExecutor(Executor executor, Scheduler scheduler, Backoff backoff) {
+  private RetryExecutor(Executor executor, Backoff backoff) {
     this.executor = requireNonNull(executor);
-    this.scheduler = requireNonNull(scheduler);
     this.backoff = requireNonNull(backoff);
   }
 
@@ -151,15 +95,22 @@ public class RetryExecutor {
     return new Retrying<T>(supplier).schedule(null);
   }
 
-  public RetryExecutor withBackoff(Backoff backoff) {
-    return new RetryExecutor(executor, scheduler, backoff);
-  }
+  public static class Builder {
+    protected Executor executor = ForkJoinPool.commonPool();
+    protected Backoff backoff = Backoff.DEFAULT;
 
-  public RetryExecutor withExecutor(Executor executor) {
-    return new RetryExecutor(executor, scheduler, backoff);
-  }
+    public Builder executor(Executor executor) {
+      this.executor = executor;
+      return this;
+    }
 
-  public RetryExecutor withScheduler(Scheduler scheduler) {
-    return new RetryExecutor(executor, scheduler, backoff);
+    public Builder backOff(Backoff backoff) {
+      this.backoff = backoff;
+      return this;
+    }
+
+    public RetryExecutor build() {
+      return new RetryExecutor(executor, backoff);
+    }
   }
 }
