@@ -10,6 +10,9 @@ import static java.util.Objects.requireNonNull;
 
 public class RetryExecutor {
 
+  static final ScheduledExecutorService scheduledExecutorService =
+      Executors.newScheduledThreadPool(2);
+
   @FunctionalInterface
   public interface Backoff {
 
@@ -69,9 +72,7 @@ public class RetryExecutor {
     CompletionStage<T> schedule(Throwable error) {
       long delayInMillis = backoff.delayInMillis(attempt++, error);
       if (delayInMillis > 0) {
-        ScheduledExecutorService ses = Executors.newScheduledThreadPool(1);
-        ses.schedule(this, delayInMillis, TimeUnit.MILLISECONDS);
-        ses.shutdown();
+        scheduledExecutorService.schedule(this, delayInMillis, TimeUnit.MILLISECONDS);
       } else if (delayInMillis == 0) {
         executor.execute(this);
       } else if (error != null) {
