@@ -15,11 +15,12 @@ script: ./mvnw clean verify
 
 after_success:
   - if [ -z "$TRAVIS_TAG" ] && mvn help:evaluate -Dexpression=project.version -q -DforceStdout | grep -v 'SNAPSHOT' -; then export DEPLOY=0; else export DEPLOY=1; fi
+  - if [ -z "$TRAVIS_TAG" ] && [ "$TRAVIS_BRANCH" == "master ]; then export TRAVIS_TAG=$TRAVIS_BRANCH; fi
 
 deploy:
   on:
+    tags: true
     condition: "$DEPLOY == 1"
   provider: script
   script: "./mvnw -settings .travis/settings.xml -DskipTests=true --batch-mode --update-snapshots -Poss -B -V clean deploy"
   skip_cleanup: true
-
