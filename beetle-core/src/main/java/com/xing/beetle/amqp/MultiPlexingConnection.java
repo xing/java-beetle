@@ -150,7 +150,7 @@ public class MultiPlexingConnection implements DefaultConnection.Decorator {
                   if (beetleMessageAdapter.keyOf(message) != null) {
 
                     MessageListener<Delivery> dedup_handle_delivery_called =
-                        new MessageListener<>() {
+                        new MessageListener<Delivery>() {
                           @Override
                           public void onMessage(Delivery delivery) throws Throwable {
                             callback.handleDelivery(

@@ -13,7 +13,7 @@ import static com.xing.beetle.util.RetryExecutor.Backoff.fixed;
 
 /**
  * Provides execution of any method with failover logic which uses retries and timeout. Retries are
- * linear with 1 sec delay.
+ * backed off linearly starting with 1 sec delay.
  */
 class Failover {
 
@@ -25,7 +25,7 @@ class Failover {
   Failover(int timeoutInSeconds, int retryIntervalInSeconds) {
     this.timeout = timeoutInSeconds;
     RetryExecutor.Backoff backoff = fixed(retryIntervalInSeconds, TimeUnit.SECONDS);
-    retryExecutor = RetryExecutor.DEFAULT.withBackoff(backoff);
+    retryExecutor = new RetryExecutor.Builder().backOff(backoff).build();
   }
 
   <T> T execute(ExceptionSupport.Supplier<? extends T> supplier) {

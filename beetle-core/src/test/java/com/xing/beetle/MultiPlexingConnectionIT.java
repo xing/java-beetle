@@ -17,10 +17,6 @@ import java.util.concurrent.TimeoutException;
 
 @Testcontainers
 public class MultiPlexingConnectionIT {
-
-  private static final System.Logger logger =
-      System.getLogger(MultiPlexingConnectionIT.class.getName());
-
   private static final String QUEUE = "test-queue";
   private static final int NUMBER_OF_MESSAGES = 10;
 
@@ -129,7 +125,6 @@ public class MultiPlexingConnectionIT {
 
       return connection.createChannel();
     } catch (IOException | TimeoutException e) {
-      logger.log(System.Logger.Level.ERROR, "Channel creation failed.");
       return null;
     }
   }

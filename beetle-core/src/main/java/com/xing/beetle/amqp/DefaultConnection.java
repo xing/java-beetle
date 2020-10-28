@@ -3,7 +3,6 @@ package com.xing.beetle.amqp;
 import static java.util.Objects.requireNonNull;
 
 import java.io.IOException;
-import java.lang.System.Logger.Level;
 import java.net.InetAddress;
 import java.util.Map;
 
@@ -17,10 +16,13 @@ import com.rabbitmq.client.ShutdownListener;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.UnblockedCallback;
 import com.xing.beetle.util.ExceptionSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** DefaultConnection extends the basic AMQP connection interface. */
 public interface DefaultConnection extends Connection {
 
+  Logger log = LoggerFactory.getLogger(DefaultConnection.class);
   /**
    * Decorator provides default implementations for one or more AMQP connections and delegates calls
    * where appropriate.
@@ -150,7 +152,7 @@ public interface DefaultConnection extends Connection {
 
   @Override
   default void abort(int timeout) {
-    System.getLogger(getClass().getName()).log(Level.DEBUG, "abort w/timeout");
+    log.debug("abort w/timeout");
     abort(AMQP.REPLY_SUCCESS, "OK", timeout);
   }
 
@@ -187,7 +189,7 @@ public interface DefaultConnection extends Connection {
 
   @Override
   default void close(int timeout) throws IOException {
-    System.getLogger(getClass().getName()).log(Level.DEBUG, "close");
+    log.debug("close");
     close(AMQP.REPLY_SUCCESS, "OK", timeout);
   }
 

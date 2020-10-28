@@ -36,14 +36,24 @@ public class BeetleListenerInterceptor implements MethodInterceptor {
     this.rejectAndRequeue = rejectAndRequeue;
   }
 
+  private static class Tuple<A, B> {
+    A a;
+    B b;
+
+    Tuple(A a, B b) {
+      this.a = a;
+      this.b = b;
+    }
+  }
+
   @EventListener
   void onApplicationStarted(ContextRefreshedEvent event) {
     acknowledgeModes =
         registry.getListenerContainers().stream()
             .filter(AbstractMessageListenerContainer.class::isInstance)
             .map(AbstractMessageListenerContainer.class::cast)
-            .flatMap(c -> Stream.of(c.getListenerId()).map(q -> Map.entry(q, c)))
-            .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getAcknowledgeMode()));
+            .flatMap(c -> Stream.of(c.getListenerId()).map(id -> new Tuple<>(id, c)))
+            .collect(Collectors.toMap(t -> t.a, t -> t.b.getAcknowledgeMode()));
   }
 
   private MessageAdapter<Message> adapter(Channel channel, Message message) {

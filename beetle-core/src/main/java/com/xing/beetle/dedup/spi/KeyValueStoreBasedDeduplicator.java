@@ -6,6 +6,7 @@ import com.xing.beetle.dedup.spi.KeyValueStore.Value;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
@@ -15,6 +16,7 @@ public class KeyValueStoreBasedDeduplicator implements Deduplicator {
 
   private KeyValueStore store;
   private BeetleAmqpConfiguration beetleAmqpConfig;
+  private ScheduledExecutorService executor;
 
   public KeyValueStoreBasedDeduplicator(
       KeyValueStore store, BeetleAmqpConfiguration beetleAmqpConfig) {

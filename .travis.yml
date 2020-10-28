@@ -1,6 +1,8 @@
 language: java
 jdk:
-  - openjdk11
+  - openjdk8
+#  - openjdk10
+#  - openjdk11
 
 services:
   - docker

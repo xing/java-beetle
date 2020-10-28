@@ -1,7 +1,6 @@
 package com.xing.beetle.dedup.spi;
 
 import com.xing.beetle.amqp.BeetleAmqpConfiguration;
-import com.xing.beetle.dedup.api.Interruptable;
 import com.xing.beetle.dedup.api.MessageListener;
 import com.xing.beetle.util.ExceptionSupport;
 
@@ -9,7 +8,9 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * This interface provides an implementation for deduplication logic which also takes care of
@@ -57,21 +58,25 @@ public interface Deduplicator {
 
   default <M> void runHandler(
       M message, MessageListener<M> listener, MessageAdapter<M> adapter, Duration timeout) {
-    Interruptable<M> interruptable = new Interruptable<>(listener);
-    // Schedule an interruption for the execution of the handler when the timeout is expired
-    CompletableFuture.delayedExecutor(timeout.toMillis(), TimeUnit.MILLISECONDS)
-        .execute(interruptable::interruptTimedOutAndRethrow);
-    // actually run the handler, i.e handle the message
     try {
-      interruptable.onMessage(message);
-    } catch (Throwable throwable) {
-      if (throwable instanceof InterruptedException
-          || (throwable.getCause() != null
-              && throwable.getCause() instanceof InterruptedException)) {
-        listener.onFailure(
-            message,
-            String.format("Beetle: message handling timed out for %s", adapter.keyOf(message)));
-      }
+      CompletableFuture<Void> cf =
+          CompletableFuture.runAsync(
+              () -> {
+                try {
+                  listener.onMessage(message);
+                } catch (Throwable t) {
+                  ExceptionSupport.sneakyThrow(t);
+                }
+              });
+      cf.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    } catch (TimeoutException throwable) {
+      listener.onFailure(
+          message,
+          String.format("Beetle: message handling timed out for %s", adapter.keyOf(message)));
+      ExceptionSupport.sneakyThrow(throwable);
+    } catch (ExecutionException | InterruptedException throwable) {
+      listener.onFailure(
+          message, String.format("Beetle: message handling failed for %s", adapter.keyOf(message)));
       ExceptionSupport.sneakyThrow(throwable);
     }
   }
@@ -145,21 +150,21 @@ public interface Deduplicator {
     }
   }
 
-  private <M> void dropMessage(
+  default <M> void dropMessage(
       M message, MessageAdapter<M> adapter, MessageListener<M> listener, String reason) {
     adapter.drop(message);
     listener.onDropped(message, reason);
     cleanUp(message, adapter);
   }
 
-  private <M> boolean isExpired(M message, MessageAdapter<M> adapter) {
+  default <M> boolean isExpired(M message, MessageAdapter<M> adapter) {
     // expires_at is a unix timestamp (so in seconds)
     long expiresAt = adapter.expiresAt(message);
     if (expiresAt <= 0) return false;
     return expiresAt < Instant.now().getEpochSecond();
   }
 
-  private <M> void handleException(
+  default <M> void handleException(
       M message,
       MessageAdapter<M> adapter,
       MessageListener<M> listener,
@@ -184,7 +189,7 @@ public interface Deduplicator {
     }
   }
 
-  private <M> void failureNotification(
+  default <M> void failureNotification(
       M message, MessageAdapter<M> adapter, MessageListener<M> listener, String reason) {
     complete(adapter.keyOf(message));
     adapter.drop(message);
@@ -196,13 +201,13 @@ public interface Deduplicator {
    * deletes all keys associated with this message in the deduplication store if we are sure this is
    * the last message with this message id.
    */
-  private <M> void cleanUp(M message, MessageAdapter<M> adapter) {
+  default <M> void cleanUp(M message, MessageAdapter<M> adapter) {
     if (!adapter.isRedundant(message) || incrementAckCount(adapter.keyOf(message)) >= 2) {
       deleteKeys(adapter.keyOf(message));
     }
   }
 
-  private int nextDelay(long attempt) {
+  default int nextDelay(long attempt) {
     return (int)
         Math.min(
             getBeetleAmqpConfiguration().getMaxhandlerExecutionAttemptsDelay(),

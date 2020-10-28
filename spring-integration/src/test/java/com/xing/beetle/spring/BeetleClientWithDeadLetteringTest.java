@@ -122,17 +122,9 @@ public class BeetleClientWithDeadLetteringTest {
     @RabbitListener(queues = "QueueWithErrorDL")
     public void handleWithErrorDeadLettered(Message message) {
       if (message.getMessageProperties().getHeader("x-death") != null) {
-        log.log(
-            System.Logger.Level.DEBUG,
-            "deadlettered: %s\n",
-            message.getMessageProperties().getMessageId());
         deadLettered.add(message.getMessageProperties().getMessageId());
       }
       if (message.getMessageProperties().isRedelivered()) {
-        log.log(
-            System.Logger.Level.DEBUG,
-            "redelivered: %s\n",
-            message.getMessageProperties().getMessageId());
         redelivered.add(message.getMessageProperties().getMessageId());
       }
       result.add(message.getMessageProperties().getMessageId());
@@ -143,17 +135,9 @@ public class BeetleClientWithDeadLetteringTest {
     @RabbitListener(queues = "QueueWithTimeoutDL")
     public void handleWithTimeoutDeadLettered(Message message) throws InterruptedException {
       if (message.getMessageProperties().getHeader("x-death") != null) {
-        log.log(
-            System.Logger.Level.DEBUG,
-            "deadlettered: %s\n",
-            message.getMessageProperties().getMessageId());
         deadLettered.add(message.getMessageProperties().getMessageId());
       }
       if (message.getMessageProperties().isRedelivered()) {
-        log.log(
-            System.Logger.Level.DEBUG,
-            "redelivered: %s\n",
-            message.getMessageProperties().getMessageId());
         redelivered.add(message.getMessageProperties().getMessageId());
       }
       result.add(message.getMessageProperties().getMessageId());
