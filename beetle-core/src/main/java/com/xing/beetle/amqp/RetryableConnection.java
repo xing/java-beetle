@@ -9,17 +9,15 @@ import com.rabbitmq.client.Recoverable;
 import com.rabbitmq.client.RecoverableConnection;
 import com.rabbitmq.client.RecoveryListener;
 import com.xing.beetle.util.ExceptionSupport.Function;
-import com.xing.beetle.util.OrderedPromise;
 import java.io.IOException;
-import java.util.concurrent.CompletionStage;
 
 public class RetryableConnection implements DefaultConnection.Decorator, RecoveryListener {
 
   private class RetryableChannel implements DefaultChannel.Decorator {
 
-    private final OrderedPromise<Channel> channel;
+    private final Channel channel;
 
-    RetryableChannel(OrderedPromise<Channel> channel) {
+    RetryableChannel(Channel channel) {
       this.channel = requireNonNull(channel);
     }
 
@@ -32,14 +30,12 @@ public class RetryableConnection implements DefaultConnection.Decorator, Recover
         BasicProperties props,
         byte[] body)
         throws IOException {
-      Channel c =
-          channel.getNow().orElseThrow(() -> new IOException("Connection not yet established"));
-      c.basicPublish(exchange, routingKey, mandatory, immediate, props, body);
+      channel.basicPublish(exchange, routingKey, mandatory, immediate, props, body);
     }
 
     @Override
     public <R> R delegateMap(Type type, Function<Channel, ? extends R> fn) {
-      return channel.thenApply(fn).join();
+      return fn.apply(channel);
     }
 
     @Override
@@ -48,26 +44,25 @@ public class RetryableConnection implements DefaultConnection.Decorator, Recover
     }
   }
 
-  private final OrderedPromise<RecoverableConnection> connection;
+  private final RecoverableConnection connection;
 
   private volatile boolean active;
 
-  public RetryableConnection(CompletionStage<RecoverableConnection> connection) {
-    this.connection = OrderedPromise.of(connection);
-    connection.thenAccept(c -> c.addRecoveryListener(this));
-    connection.thenAccept(c -> active = c.isOpen());
+  public RetryableConnection(RecoverableConnection connection) {
+    this.connection = connection;
+    connection.addRecoveryListener(this);
+    this.active = connection.isOpen();
   }
 
   @Override
-  public Channel createChannel(int channelNumber) {
+  public Channel createChannel(int channelNumber) throws IOException {
     return new RetryableChannel(
-        connection.thenApply(
-            con -> channelNumber >= 0 ? con.createChannel(channelNumber) : con.createChannel()));
+        channelNumber >= 0 ? connection.createChannel(channelNumber) : connection.createChannel());
   }
 
   @Override
   public <R> R delegateMap(Function<Connection, ? extends R> con) {
-    return connection.thenApply(con).join();
+    return con.apply(connection);
   }
 
   @Override
