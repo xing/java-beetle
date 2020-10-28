@@ -4,14 +4,15 @@ import com.rabbitmq.client.*;
 import com.xing.beetle.dedup.spi.Deduplicator;
 import com.xing.beetle.dedup.spi.KeyValueStoreBasedDeduplicator;
 import com.xing.beetle.redis.RedisDedupStore;
-import com.xing.beetle.util.ExceptionSupport.Supplier;
 import com.xing.beetle.util.RetryExecutor;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 public class BeetleConnectionFactory extends ConnectionFactory {
@@ -38,10 +39,10 @@ public class BeetleConnectionFactory extends ConnectionFactory {
             new RedisDedupStore(beetleAmqpConfiguration), beetleAmqpConfiguration));
   }
 
-  private Supplier<RecoverableConnection> connection(
-      ExecutorService executor, AddressResolver resolver, String clientProvidedName) {
-    return () ->
-        (RecoverableConnection) super.newConnection(executor, resolver, clientProvidedName);
+  private RecoverableConnection createBrokerConnection(
+      ExecutorService executor, AddressResolver resolver, String clientProvidedName)
+      throws IOException, TimeoutException {
+    return (RecoverableConnection) super.newConnection(executor, resolver, clientProvidedName);
   }
 
   @Override
@@ -52,22 +53,27 @@ public class BeetleConnectionFactory extends ConnectionFactory {
   @Override
   public Connection newConnection(
       ExecutorService executor, AddressResolver addressResolver, String clientProvidedName)
-      throws IOException {
+      throws IOException, TimeoutException {
     setAutomaticRecoveryEnabled(true);
     RetryExecutor retryExecutor = getRetryExecutor(executor);
-    List<Connection> connections =
+    List<Connection> connections = new ArrayList<>();
+    List<ListAddressResolver> addressResolvers =
         addressResolver.getAddresses().stream()
             .map(Collections::singletonList)
             .map(ListAddressResolver::new)
-            .map(res -> connection(executor, res, clientProvidedName))
-            .map(retryExecutor::supply)
-            .map(RetryableConnection::new)
-            .map(
-                c -> new RequeueAtEndConnection(c, beetleAmqpConfiguration, invertRequeueParameter))
-            .map(
-                delegate ->
-                    new MultiPlexingConnection(delegate, deduplicator, isInvertRequeueParameter()))
             .collect(Collectors.toList());
+
+    for (ListAddressResolver resolver : addressResolvers) {
+      RecoverableConnection connection =
+          createBrokerConnection(executor, resolver, clientProvidedName);
+      retryExecutor.supply(() -> connection);
+      RequeueAtEndConnection requeueAtEndConnection =
+          new RequeueAtEndConnection(
+              new RetryableConnection(connection), beetleAmqpConfiguration, invertRequeueParameter);
+      connections.add(
+          new MultiPlexingConnection(
+              requeueAtEndConnection, deduplicator, isInvertRequeueParameter()));
+    }
     return new BeetleConnection(connections, beetleAmqpConfiguration);
   }
 
