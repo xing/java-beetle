@@ -18,8 +18,8 @@ after_success:
 
 deploy:
   on:
+    all_branches: true
     condition: "$DEPLOY == 1"
   provider: script
   script: "./mvnw -settings .travis/settings.xml -DskipTests=true --batch-mode --update-snapshots -Poss -B -V clean deploy"
   skip_cleanup: true
-
