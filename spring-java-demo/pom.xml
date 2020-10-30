@@ -4,7 +4,7 @@
     <parent>
         <artifactId>beetle-parent</artifactId>
         <groupId>com.xing.beetle</groupId>
-        <version>1.1-SNAPSHOT</version>
+        <version>1.1</version>
     </parent>
 
     <artifactId>spring-java-demo</artifactId>

@@ -1,21 +1,18 @@
 Changelog
 =========
 
-Version 2.0.0 (28.10.2020)
+Version 1.1.0 (28.10.2020)
 --------------------------
 
-Change:
+Changes:
 
-* **BREAKING CHANGE**: Reduced API surface area to make the agent simpler to use.
-
-  *Please check before upgrading if anything breaks*.
 * Lower Java runtime requirements to version 8
 * Fix messages with missing message IDs
 * Consistently use slf4j for logging in the library
 * improve test execution speed
 * Minimum required Spring version is now 2.2.1
 * fix inconsistent versions used for testcontainers
-* fix key cleanup in REdis deduplication store
+* fix key cleanup in Redis deduplication store
 * fix missing queue names in deduplictaion store key
 
 Version 1.0.8 (02.10.2020)
