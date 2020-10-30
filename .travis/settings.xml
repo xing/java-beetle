@@ -8,6 +8,10 @@
             <username>${env.NEXUS_USERNAME}</username>
             <password>${env.NEXUS_PASSWORD}</password>
         </server>
+        <server>
+            <id>Jens Hausherr &lt;jens.hausherr@new-work.se&gt;</id>
+            <passphrase>${env.GPG_PASSPHRASE}</passphrase>
+        </server>
     </servers>
     <profiles>
         <profile>
@@ -16,7 +20,7 @@
                 <activeByDefault>true</activeByDefault>
             </activation>
             <properties>
-                <gpg.passphrase>${env.GPG_PASSPHRASE}</gpg.passphrase>
+                <gpg.keyname>Jens Hausherr &lt;jens.hausherr@new-work.se&gt;</gpg.keyname>
             </properties>
         </profile>
     </profiles>
