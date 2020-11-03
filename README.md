@@ -1,5 +1,7 @@
-Beetle [![Build Status](https://travis-ci.org/xing/java-beetle.svg?branch=master)](https://travis-ci.org/xing/java-beetle)
+Beetle 
 ======
+
+** This project is no longer actively developed! **
 
 High Availability AMQP Messaging with Redundant Queues
 
