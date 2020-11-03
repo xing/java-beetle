@@ -1,7 +1,7 @@
 Beetle 
 ======
 
-** This project is no longer actively developed! **
+**This project is no longer actively developed!**
 
 High Availability AMQP Messaging with Redundant Queues
 
